@@ -1,0 +1,118 @@
+# 项目文件结构
+
+## 目录结构映射
+
+```
+a7/                           # 项目根目录
+├── .roo/                     # Roo助手规则及配置目录
+│   ├── rules/                # 基础规则目录
+│   ├── rules-architect/      # 架构相关规则目录
+│   ├── rules-ask/            # 查询相关规则目录
+│   ├── rules-boomerang/      # Boomerang相关规则目录
+│   ├── rules-code/           # 代码生成相关规则目录
+│   ├── rules-debug/          # 调试相关规则目录
+│   └── rules-test/           # 测试相关规则目录
+├── .cursor/                  # Cursor IDE配置目录
+├── scripts/                  # 脚本和工具目录
+│   └── example_prd.txt       # 产品需求文档示例
+├── tasks/                    # 任务文件目录（Task Master生成的任务）
+├── .env.example              # 环境变量示例文件
+├── .gitignore                # Git忽略配置文件
+├── .roomodes                 # Roo模式配置文件
+├── .taskmasterconfig         # Task Master配置文件
+├── .windsurfrules            # Windsurf规则配置文件
+├── a7.code-workspace         # VS Code工作区配置文件
+├── fileStructure.md          # 项目文件结构文档（本文件）
+└── library.md                # 项目库文档
+```
+
+## 文件用途说明
+
+### 配置文件
+
+- **.taskmasterconfig**: Task Master工具的配置文件，定义AI模型设置和全局配置参数。
+- **.gitignore**: 指定Git版本控制系统应忽略的文件模式。
+- **.roomodes**: Roo助手的模式配置，定义Roo的行为模式。
+- **.windsurfrules**: Windsurf工具的规则配置。
+- **a7.code-workspace**: VS Code工作区配置，定义项目在VS Code中的显示和行为。
+- **.env.example**: 环境变量示例模板，用于配置各种API密钥和环境特定设置。
+
+### 目录
+
+- **.roo/**: 包含所有Roo助手使用的规则文件，分为多个特定类别，支持不同的功能。
+  - **rules/**: 基础通用规则。
+  - **rules-architect/**: 系统架构设计相关规则。
+  - **rules-ask/**: 询问和交互相关规则。
+  - **rules-boomerang/**: Boomerang功能相关规则。
+  - **rules-code/**: 代码生成和编写相关规则。
+  - **rules-debug/**: 调试和错误处理相关规则。
+  - **rules-test/**: 测试和质量保证相关规则。
+  
+- **.cursor/**: Cursor IDE的配置和扩展设置，包括特定于编辑器的功能规则。
+
+- **scripts/**: 包含各种实用工具脚本和配置模板。
+  - **example_prd.txt**: 产品需求文档(PRD)的示例模板，用于Task Master解析并生成任务。
+
+- **tasks/**: 由Task Master生成和管理的任务文件目录，包含项目任务的结构化描述。
+
+### 文档文件
+
+- **fileStructure.md**: 本文档，提供项目文件和目录的完整映射及其用途。
+- **library.md**: 项目使用的库、框架和工具的文档。
+
+## 关键文件之间的关系
+
+1. **Task Master相关**:
+   - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
+   - `scripts/example_prd.txt`提供用于生成任务的PRD模板。
+   - `tasks/`目录存储由Task Master基于PRD生成的任务文件。
+
+2. **Roo助手规则**:
+   - `.roomodes`定义Roo助手的行为模式。
+   - `.roo/`下的各个子目录包含不同类别的规则，共同支持Roo助手的功能。
+   - `.windsurfrules`配合Roo规则，定义项目的代码和文档生成规则。
+
+3. **开发环境配置**:
+   - `a7.code-workspace`定义VS Code的项目视图和配置。
+   - `.cursor/`包含Cursor IDE的特定配置。
+   - `.env.example`提供需要的环境变量配置模板。
+
+## 目录组织逻辑
+
+项目采用了以下组织逻辑：
+
+1. **按工具分类**: 
+   - 每个主要工具(Task Master, Roo, Cursor)都有其专用配置文件和目录。
+
+2. **按功能分类**:
+   - `.roo/`中的规则按功能领域划分到不同子目录。
+   - `scripts/`目录用于存放工具脚本和模板。
+   - `tasks/`专门用于任务管理。
+
+3. **配置与内容分离**:
+   - 配置文件(如`.taskmasterconfig`, `.roomodes`)位于根目录。
+   - 实际内容(如规则文件、任务文件)存储在相关子目录中。
+
+## 命名约定
+
+1. **目录命名**:
+   - 以功能或工具名称作为前缀，如`rules-architect/`表示架构相关规则。
+   - 使用小写字母和连字符(-)分隔单词，如`rules-debug/`。
+
+2. **配置文件命名**:
+   - 以点(.)开头的隐藏文件用于配置，如`.taskmasterconfig`。
+   - 采用全小写字母，使用描述性名称。
+
+3. **文档文件命名**:
+   - 使用驼峰式(CamelCase)或以单词首字母大写，如`fileStructure.md`。
+   - 使用描述性名称，清晰表达文件内容。
+
+4. **代码约定**:
+   - 代码文件（当添加时）将遵循各语言的标准命名约定。
+   - 组件和模块文件名应反映其功能和类型。
+
+## 管理和更新
+
+此文件结构反映了项目的当前状态。随着项目的发展，将添加新的文件和目录，现有的可能会修改。建议定期更新本文档以保持其准确性。
+
+当添加新的重要文件或目录时，请同时更新此文档中的映射、说明和关系部分。 
