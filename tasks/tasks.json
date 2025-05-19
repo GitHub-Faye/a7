@@ -16,7 +16,7 @@
           "description": "Install Django framework and initialize a new Django project.",
           "dependencies": [],
           "details": "Use pip to install Django, then run 'django-admin startproject' to create the project.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,

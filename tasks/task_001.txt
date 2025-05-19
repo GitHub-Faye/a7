@@ -11,7 +11,7 @@ Create a new Django project and set up the initial directory structure. Install 
 Verify the project setup by running the development server and accessing the default Django welcome page.
 
 # Subtasks:
-## 1. Install Django and create project [pending]
+## 1. Install Django and create project [done]
 ### Dependencies: None
 ### Description: Install Django framework and initialize a new Django project.
 ### Details:
