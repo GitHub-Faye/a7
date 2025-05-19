@@ -1,0 +1,11 @@
+# Task ID: 9
+# Title: Implement Admin Management APIs
+# Status: pending
+# Dependencies: 3, 4
+# Priority: medium
+# Description: Develop CRUD APIs for user, course, and resource management.
+# Details:
+Create CRUD endpoints for User, Course, and Resource models. Implement validation and permissions for these endpoints.
+
+# Test Strategy:
+Test CRUD operations for user, course, and resource management. Verify permissions and validation rules.

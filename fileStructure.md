@@ -23,7 +23,8 @@ a7/                           # 项目根目录
 ├── .windsurfrules            # Windsurf规则配置文件
 ├── a7.code-workspace         # VS Code工作区配置文件
 ├── fileStructure.md          # 项目文件结构文档（本文件）
-└── library.md                # 项目库文档
+├── library.md                # 项目库文档
+└── prd.txt                   # 产品需求文档文件
 ```
 
 ## 文件用途说明
@@ -59,12 +60,14 @@ a7/                           # 项目根目录
 
 - **fileStructure.md**: 本文档，提供项目文件和目录的完整映射及其用途。
 - **library.md**: 项目使用的库、框架和工具的文档。
+- **prd.txt**: 产品需求文档(PRD)，描述项目功能、技术架构、开发路线图和系统需求，用于Task Master生成任务。
 
 ## 关键文件之间的关系
 
 1. **Task Master相关**:
    - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
    - `scripts/example_prd.txt`提供用于生成任务的PRD模板。
+   - `prd.txt`是基于示例创建的实际产品需求文档，用于任务生成。
    - `tasks/`目录存储由Task Master基于PRD生成的任务文件。
 
 2. **Roo助手规则**:

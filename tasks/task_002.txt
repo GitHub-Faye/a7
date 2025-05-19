@@ -1,0 +1,11 @@
+# Task ID: 2
+# Title: Implement User Authentication System
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Develop the user authentication and authorization system based on Django's built-in authentication.
+# Details:
+Extend Django's built-in User model to include role-based permissions. Implement login, logout, and password change functionalities. Ensure the system supports multiple roles (teacher, student, admin) with appropriate permissions.
+
+# Test Strategy:
+Test user registration, login, logout, and password change functionalities. Verify role-based access control.
