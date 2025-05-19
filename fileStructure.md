@@ -12,6 +12,14 @@ a7/                           # 项目根目录
 │   ├── rules-code/           # 代码生成相关规则目录
 │   ├── rules-debug/          # 调试相关规则目录
 │   └── rules-test/           # 测试相关规则目录
+├── a7/                       # Django项目主目录
+│   ├── a7/                   # Django项目配置包
+│   │   ├── __init__.py       # Python包初始化文件
+│   │   ├── asgi.py           # ASGI应用配置
+│   │   ├── settings.py       # Django设置文件
+│   │   ├── urls.py           # URL路由配置
+│   │   └── wsgi.py           # WSGI应用配置
+│   └── manage.py             # Django命令行工具
 ├── .cursor/                  # Cursor IDE配置目录
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
@@ -28,6 +36,15 @@ a7/                           # 项目根目录
 ```
 
 ## 文件用途说明
+
+### Django项目文件
+
+- **a7/a7/__init__.py**: Python包标识文件，表明该目录是一个Python包。
+- **a7/a7/asgi.py**: ASGI（异步服务器网关接口）应用配置，用于异步服务器部署。
+- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。
+- **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。
+- **a7/a7/wsgi.py**: WSGI（Web服务器网关接口）应用配置，用于传统Web服务器部署。
+- **a7/manage.py**: Django命令行工具，用于执行各种管理任务，如运行开发服务器、数据库迁移等。
 
 ### 配置文件
 
@@ -64,18 +81,24 @@ a7/                           # 项目根目录
 
 ## 关键文件之间的关系
 
-1. **Task Master相关**:
+1. **Django项目结构**:
+   - `a7/a7/settings.py`定义Django项目的核心配置，如数据库连接、安装的应用等。
+   - `a7/a7/urls.py`配置URL路由，将请求映射到对应的视图函数。
+   - `a7/a7/asgi.py`和`a7/a7/wsgi.py`提供异步和同步Web服务器网关接口。
+   - `a7/manage.py`是命令行工具入口，用于执行Django管理命令。
+
+2. **Task Master相关**:
    - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
    - `scripts/example_prd.txt`提供用于生成任务的PRD模板。
    - `prd.txt`是基于示例创建的实际产品需求文档，用于任务生成。
    - `tasks/`目录存储由Task Master基于PRD生成的任务文件。
 
-2. **Roo助手规则**:
+3. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
    - `.roo/`下的各个子目录包含不同类别的规则，共同支持Roo助手的功能。
    - `.windsurfrules`配合Roo规则，定义项目的代码和文档生成规则。
 
-3. **开发环境配置**:
+4. **开发环境配置**:
    - `a7.code-workspace`定义VS Code的项目视图和配置。
    - `.cursor/`包含Cursor IDE的特定配置。
    - `.env.example`提供需要的环境变量配置模板。
@@ -84,15 +107,19 @@ a7/                           # 项目根目录
 
 项目采用了以下组织逻辑：
 
-1. **按工具分类**: 
+1. **Django项目结构**:
+   - 遵循Django标准项目结构，核心配置放在内部a7包中。
+   - 将来的Django应用将放置在同级目录下。
+
+2. **按工具分类**: 
    - 每个主要工具(Task Master, Roo, Cursor)都有其专用配置文件和目录。
 
-2. **按功能分类**:
+3. **按功能分类**:
    - `.roo/`中的规则按功能领域划分到不同子目录。
    - `scripts/`目录用于存放工具脚本和模板。
    - `tasks/`专门用于任务管理。
 
-3. **配置与内容分离**:
+4. **配置与内容分离**:
    - 配置文件(如`.taskmasterconfig`, `.roomodes`)位于根目录。
    - 实际内容(如规则文件、任务文件)存储在相关子目录中。
 
@@ -101,6 +128,7 @@ a7/                           # 项目根目录
 1. **目录命名**:
    - 以功能或工具名称作为前缀，如`rules-architect/`表示架构相关规则。
    - 使用小写字母和连字符(-)分隔单词，如`rules-debug/`。
+   - Django应用目录使用全小写字母，单数形式命名。
 
 2. **配置文件命名**:
    - 以点(.)开头的隐藏文件用于配置，如`.taskmasterconfig`。
@@ -113,6 +141,9 @@ a7/                           # 项目根目录
 4. **代码约定**:
    - 代码文件（当添加时）将遵循各语言的标准命名约定。
    - 组件和模块文件名应反映其功能和类型。
+   - Django模型类使用单数名词，首字母大写的驼峰式命名(如`UserProfile`)。
+   - Django视图函数使用小写下划线命名(如`user_login`)。
+   - Django URL路径使用小写和连字符分隔(如`user-profile/`)。
 
 ## 管理和更新
 
