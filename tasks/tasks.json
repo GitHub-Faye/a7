@@ -4,7 +4,7 @@
       "id": 1,
       "title": "Setup Project Repository",
       "description": "Initialize the project repository with Django framework and necessary dependencies.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [],
       "priority": "medium",
       "details": "Create a new Django project and set up the initial directory structure. Install required packages including Django REST Framework and any other dependencies mentioned in the PRD. Configure the basic settings.py file.",
@@ -37,7 +37,7 @@
             3
           ],
           "details": "Execute 'python manage.py runserver' and check for errors or warnings in the console.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
