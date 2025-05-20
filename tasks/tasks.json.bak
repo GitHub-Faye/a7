@@ -4,12 +4,42 @@
       "id": 1,
       "title": "Setup Project Repository",
       "description": "Initialize the project repository with Django framework and necessary dependencies.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [],
       "priority": "medium",
       "details": "Create a new Django project and set up the initial directory structure. Install required packages including Django REST Framework and any other dependencies mentioned in the PRD. Configure the basic settings.py file.",
       "testStrategy": "Verify the project setup by running the development server and accessing the default Django welcome page.",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Install Django and create project",
+          "description": "Install Django framework and initialize a new Django project.",
+          "dependencies": [],
+          "details": "Use pip to install Django, then run 'django-admin startproject' to create the project.",
+          "status": "done"
+        },
+        {
+          "id": 3,
+          "title": "Install and configure dependencies",
+          "description": "Install additional required packages and configure them in the project.",
+          "dependencies": [
+            1
+          ],
+          "details": "Use pip to install dependencies like 'django-rest-framework' or 'psycopg2' and update settings.py.\n<info added on 2025-05-19T13:10:46.890Z>\nSuccessfully installed and configured all necessary dependencies including Django REST Framework, Django REST Framework JWT, CORS Headers, and Swagger/OpenAPI documentation. Updated settings.py with required configurations, added URL routes for JWT authentication and Swagger documentation, created a core app for API foundation, applied database migrations, and tested the setup. All configurations passed checks, database migrations were applied, and the development server started successfully. Tested endpoints including Swagger UI, ReDoc, and health check API, all functioning as expected. The API service is now operational for further development.\n</info added on 2025-05-19T13:10:46.890Z>",
+          "status": "done"
+        },
+        {
+          "id": 4,
+          "title": "Verify setup with test server",
+          "description": "Run the Django development server to ensure everything is set up correctly.",
+          "dependencies": [
+            1,
+            3
+          ],
+          "details": "Execute 'python manage.py runserver' and check for errors or warnings in the console.",
+          "status": "done"
+        }
+      ]
     },
     {
       "id": 2,

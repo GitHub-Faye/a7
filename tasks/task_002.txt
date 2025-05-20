@@ -9,3 +9,38 @@ Extend Django's built-in User model to include role-based permissions. Implement
 
 # Test Strategy:
 Test user registration, login, logout, and password change functionalities. Verify role-based access control.
+
+# Subtasks:
+## 1. Extend User model for roles [done]
+### Dependencies: None
+### Description: Modify the existing User model to include role fields and relationships.
+### Details:
+Add role fields (e.g., admin, user) and ensure the database schema is updated.
+<info added on 2025-05-20T03:37:48.480Z>
+The User model has been successfully extended to include role fields and support a multi-role permission management system. Key implementations include: 1. Created a users app with a custom User model inheriting from AbstractUser. 2. Added role selection fields (admin/teacher/student) and a creation timestamp field. 3. Established a separate Role model for granular permission control. 4. Implemented a full user management API (CRUD operations) with permission controls. 5. Custom permission classes (IsAdminOrReadOnly, IsUserOwnerOrStaff) were developed. 6. Configured the Django Admin interface for user management. 7. Custom serializers handle user creation and updates. 8. Integrated JWT Token authentication. The code structure includes models.py (User and Role models), serializers.py (user and role serializers), views.py (UserViewSet and RoleViewSet), permissions.py (custom permission classes), urls.py (API routing), admin.py (Admin configuration), signals.py (user creation signals), and apps.py (app configuration). Database migrations are complete, and the system now supports user role management functionality.
+</info added on 2025-05-20T03:37:48.480Z>
+
+## 2. Implement login/logout [pending]
+### Dependencies: 2.1
+### Description: Develop the login and logout functionalities for user authentication.
+### Details:
+Create endpoints for login/logout, handle session management, and secure token generation.
+
+## 3. Implement password change [pending]
+### Dependencies: 2.2
+### Description: Allow users to change their passwords securely.
+### Details:
+Develop a password change feature with validation and encryption.
+
+## 4. Set up role-based permissions [pending]
+### Dependencies: 2.1
+### Description: Define and enforce permissions based on user roles.
+### Details:
+Create middleware or logic to restrict access based on roles (e.g., admin-only routes).
+
+## 5. Test all functionalities [pending]
+### Dependencies: 2.2, 2.3, 2.4
+### Description: Verify that all authentication and role-based features work as expected.
+### Details:
+Write and execute test cases for login, logout, password change, and role permissions.
+

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     
     # 本地应用
     'apps.core',
+    'users',
 ]
 
 MIDDLEWARE = [
@@ -134,6 +135,9 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# 自定义用户模型
+AUTH_USER_MODEL = 'users.User'
+
 # REST Framework 配置
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -164,6 +168,8 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+
+    "null",
 ]
 
 CORS_ALLOW_METHODS = [

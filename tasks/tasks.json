@@ -52,7 +52,58 @@
       "priority": "high",
       "details": "Extend Django's built-in User model to include role-based permissions. Implement login, logout, and password change functionalities. Ensure the system supports multiple roles (teacher, student, admin) with appropriate permissions.",
       "testStrategy": "Test user registration, login, logout, and password change functionalities. Verify role-based access control.",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Extend User model for roles",
+          "description": "Modify the existing User model to include role fields and relationships.",
+          "dependencies": [],
+          "details": "Add role fields (e.g., admin, user) and ensure the database schema is updated.\n<info added on 2025-05-20T03:37:48.480Z>\nThe User model has been successfully extended to include role fields and support a multi-role permission management system. Key implementations include: 1. Created a users app with a custom User model inheriting from AbstractUser. 2. Added role selection fields (admin/teacher/student) and a creation timestamp field. 3. Established a separate Role model for granular permission control. 4. Implemented a full user management API (CRUD operations) with permission controls. 5. Custom permission classes (IsAdminOrReadOnly, IsUserOwnerOrStaff) were developed. 6. Configured the Django Admin interface for user management. 7. Custom serializers handle user creation and updates. 8. Integrated JWT Token authentication. The code structure includes models.py (User and Role models), serializers.py (user and role serializers), views.py (UserViewSet and RoleViewSet), permissions.py (custom permission classes), urls.py (API routing), admin.py (Admin configuration), signals.py (user creation signals), and apps.py (app configuration). Database migrations are complete, and the system now supports user role management functionality.\n</info added on 2025-05-20T03:37:48.480Z>",
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "title": "Implement login/logout",
+          "description": "Develop the login and logout functionalities for user authentication.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create endpoints for login/logout, handle session management, and secure token generation.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Implement password change",
+          "description": "Allow users to change their passwords securely.",
+          "dependencies": [
+            2
+          ],
+          "details": "Develop a password change feature with validation and encryption.",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Set up role-based permissions",
+          "description": "Define and enforce permissions based on user roles.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create middleware or logic to restrict access based on roles (e.g., admin-only routes).",
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "title": "Test all functionalities",
+          "description": "Verify that all authentication and role-based features work as expected.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "Write and execute test cases for login, logout, password change, and role permissions.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 3,
