@@ -51,3 +51,39 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['email', 'first_name', 'last_name', 'role'] 
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """密码更改序列化器"""
+    
+    old_password = serializers.CharField(
+        required=True,
+        style={'input_type': 'password'}
+    )
+    new_password = serializers.CharField(
+        required=True,
+        validators=[validate_password],
+        style={'input_type': 'password'},
+        min_length=8
+    )
+    confirm_password = serializers.CharField(
+        required=True,
+        style={'input_type': 'password'}
+    )
+    
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("旧密码不正确")
+        return value
+    
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "两次输入的密码不一致"})
+        
+        # 密码复杂度验证
+        password = attrs['new_password']
+        if password.isdigit() or password.isalpha():
+            raise serializers.ValidationError({"new_password": "密码必须包含字母和数字"})
+        
+        return attrs 

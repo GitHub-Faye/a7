@@ -29,11 +29,39 @@ Create endpoints for login/logout, handle session management, and secure token g
 Create endpoints for login/logout, handle session management, and secure token generation. Implemented features include: 1. Added token_blacklist to INSTALLED_APPS and configured JWT blacklist functionality. 2. Created CustomTokenObtainPairView for login, returning tokens and user information. 3. Implemented LogoutView to add refresh tokens to the blacklist. 4. Added corresponding URL routing configurations. 5. Conducted full functional testing via HTML/JS client. 6. Automated testing performed using Playwright. Testing confirmed successful token retrieval for protected resources post-login and secure token blacklisting post-logout.
 </info added on 2025-05-20T12:57:21.151Z>
 
-## 3. Implement password change [pending]
+## 3. Implement password change [done]
 ### Dependencies: 2.2
 ### Description: Allow users to change their passwords securely.
 ### Details:
 Develop a password change feature with validation and encryption.
+<info added on 2025-05-20T15:12:11.508Z>
+The password change feature has been successfully implemented with the following details:
+
+1. **PasswordChangeSerializer**: Created to validate the old password, ensure the new password matches the confirmation, and enforce complexity requirements. Validation rules include:
+   - Verifying the old password is correct
+   - Ensuring the new password is at least 8 characters long
+   - Confirming the new password matches the confirmation
+   - Requiring the new password to include both letters and numbers
+
+2. **UserViewSet Integration**: Added a `change_password` method to provide the password change API endpoint:
+   - Endpoint: `/api/users/change_password/`
+   - Method: POST
+   - Authentication: JWT Token required
+   - Parameters: `old_password`, `new_password`, `confirm_password`
+
+3. **Test Page Updates**: Enhanced the test page `test_html/auth_test.html` with:
+   - A password change form (old password, new password, confirmation)
+   - JavaScript function `changePassword()` to handle requests
+   - Improved UI with color-coded buttons
+   - User-friendly status feedback
+
+4. **Automated Testing**: Conducted Playwright tests to verify:
+   - Password validation rules (including length)
+   - Successful password updates (old password invalid, new password valid)
+   - Error handling with appropriate messages
+
+The implementation adheres to RESTful API best practices and integrates seamlessly with Django's built-in password management, using `set_password()` for secure storage.
+</info added on 2025-05-20T15:12:11.508Z>
 
 ## 4. Set up role-based permissions [pending]
 ### Dependencies: 2.1

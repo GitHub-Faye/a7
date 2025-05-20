@@ -9,7 +9,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Role
-from .serializers import UserSerializer, UserCreateSerializer, UserUpdateSerializer, RoleSerializer
+from .serializers import (
+    UserSerializer, 
+    UserCreateSerializer, 
+    UserUpdateSerializer, 
+    RoleSerializer,
+    PasswordChangeSerializer
+)
 from .permissions import IsAdminOrReadOnly, IsUserOwnerOrStaff
 
 User = get_user_model()
@@ -45,6 +51,19 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def change_password(self, request):
+        """
+        修改用户密码
+        """
+        serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = request.user
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+            return Response({"detail": "密码修改成功"}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RoleViewSet(viewsets.ModelViewSet):

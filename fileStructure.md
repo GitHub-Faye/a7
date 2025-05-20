@@ -43,7 +43,7 @@ a7/                           # 项目根目录
 │   └── example_prd.txt       # 产品需求文档示例
 ├── tasks/                    # 任务文件目录（Task Master生成的任务）
 ├── test_html/                # 测试HTML文件目录
-│   └── auth_test.html        # 登录/登出功能测试页面
+│   └── auth_test.html        # 登录/登出/密码更改功能测试页面
 ├── .env.example              # 环境变量示例文件
 ├── .gitignore                # Git忽略配置文件
 ├── .roomodes                 # Roo模式配置文件
@@ -80,16 +80,15 @@ a7/                           # 项目根目录
 - **a7/users/apps.py**: 应用配置文件，包含应用元数据和启动逻辑。
 - **a7/users/models.py**: 模型定义，包含扩展的User模型和Role模型，实现多角色权限系统。
 - **a7/users/permissions.py**: 自定义权限类，定义特定权限策略如IsAdminOrReadOnly和IsUserOwnerOrStaff。
-- **a7/users/serializers.py**: 序列化器类，处理用户和角色数据的序列化和反序列化。
+- **a7/users/serializers.py**: 序列化器类，处理用户和角色数据的序列化和反序列化，以及密码更改验证。
 - **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌的逻辑。
 - **a7/users/tests.py**: 测试文件，用于用户应用的单元测试。
 - **a7/users/urls.py**: URL路由配置，定义用户API端点。
-- **a7/users/views.py**: 视图文件，包含UserViewSet和RoleViewSet视图集及登录/登出视图的实现。
-- **a7/users/migrations/**: 包含数据库迁移文件，记录数据库模式变更。
+- **a7/users/views.py**: 视图文件，包含UserViewSet（含密码更改功能）和RoleViewSet视图集及登录/登出视图的实现。
 
 ### 测试文件
 
-- **test_html/auth_test.html**: 用于测试登录/登出功能的HTML页面，提供基本UI和JavaScript测试代码。
+- **test_html/auth_test.html**: 用于测试登录/登出/密码更改功能的HTML页面，提供基本UI和JavaScript测试代码。
 
 ### 配置文件
 
@@ -143,8 +142,8 @@ a7/                           # 项目根目录
 
 2. **用户认证与授权系统**:
    - `a7/users/models.py`定义自定义User模型和Role模型，是系统权限设计的基础。
-   - `a7/users/serializers.py`实现数据转换，支持REST API的用户数据处理。
-   - `a7/users/views.py`提供用户和角色管理的API端点，以及登录/登出功能。
+   - `a7/users/serializers.py`实现数据转换，支持REST API的用户数据处理，包含密码更改的验证逻辑。
+   - `a7/users/views.py`提供用户和角色管理的API端点，以及登录/登出/密码更改功能。
    - `a7/users/permissions.py`实现细粒度的权限控制系统。
    - `a7/users/urls.py`定义用户API路由，被主urls.py包含。
    - `a7/a7/settings.py`中的`AUTH_USER_MODEL`设置指向自定义User模型。
@@ -157,7 +156,7 @@ a7/                           # 项目根目录
    - `tasks/`目录存储由Task Master基于PRD生成的任务文件。
 
 4. **测试相关**:
-   - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出功能。
+   - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
 
 5. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -231,6 +230,7 @@ a7/                           # 项目根目录
    - `/api/users/` - 用户列表和创建
    - `/api/users/<id>/` - 用户详情、更新和删除
    - `/api/users/me/` - 获取当前登录用户信息
+   - `/api/users/change_password/` - 修改当前用户密码
    - `/api/roles/` - 角色列表和创建
    - `/api/roles/<id>/` - 角色详情、更新和删除
 
