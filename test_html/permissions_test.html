@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A7角色权限测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        .container {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.3s;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .button-logout {
+            background-color: #f44336;
+        }
+        .button-logout:hover {
+            background-color: #d32f2f;
+        }
+        .button-info {
+            background-color: #2196F3;
+        }
+        .button-info:hover {
+            background-color: #0b7dda;
+        }
+        .button-test {
+            background-color: #ff9800;
+        }
+        .button-test:hover {
+            background-color: #e68a00;
+        }
+        .button-admin {
+            background-color: #9c27b0;
+        }
+        .button-admin:hover {
+            background-color: #7b1fa2;
+        }
+        pre {
+            background-color: #f1f1f1;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .hidden {
+            display: none;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            margin-left: 8px;
+        }
+        .badge-admin {
+            background-color: #9c27b0;
+        }
+        .badge-teacher {
+            background-color: #2196F3;
+        }
+        .badge-student {
+            background-color: #4CAF50;
+        }
+        .accounts-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .account-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .account-card:hover {
+            background-color: #f0f0f0;
+        }
+        .user-info {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .tab-container {
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .tab {
+            display: inline-block;
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            margin-bottom: -1px;
+        }
+        .tab.active {
+            border: 1px solid #ddd;
+            border-bottom-color: white;
+            border-radius: 4px 4px 0 0;
+            background-color: white;
+        }
+        .tab-content {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>A7 - 角色权限测试</h1>
+    
+    <div class="container" id="loginForm">
+        <h2>用户登录</h2>
+
+        <div class="accounts-container">
+            <div class="account-card" onclick="fillLoginForm('hjc', 'hjc12345678')">
+                <strong>管理员账号</strong>
+                <div>用户名: hjc</div>
+                <div>密码: hjc12345678</div>
+            </div>
+            <div class="account-card" onclick="fillLoginForm('js', 'js12345678')">
+                <strong>教师账号</strong>
+                <div>用户名: js</div>
+                <div>密码: js12345678</div>
+            </div>
+            <div class="account-card" onclick="fillLoginForm('xs', 'xs12345678')">
+                <strong>学生账号</strong>
+                <div>用户名: xs</div>
+                <div>密码: xs12345678</div>
+            </div>
+        </div>
+        
+        <div>
+            <label for="username">用户名:</label>
+            <input type="text" id="username">
+        </div>
+        <div>
+            <label for="password">密码:</label>
+            <input type="password" id="password">
+        </div>
+        <div class="button" onclick="login()">登录</div>
+    </div>
+    
+    <div class="container hidden" id="userPanel">
+        <div id="userInfo" class="user-info">
+            <!-- 用户信息将动态加载 -->
+        </div>
+        <div class="button button-info" onclick="getUserPermissions()">查看我的权限</div>
+        <div class="button button-logout" onclick="logout()">登出</div>
+    </div>
+    
+    <div class="container hidden" id="testPanel">
+        <h2>权限测试</h2>
+        
+        <div class="tab-container">
+            <div class="tab active" onclick="showTab('basicTest')">基本操作</div>
+            <div class="tab" onclick="showTab('userTest')">用户管理</div>
+            <div class="tab" onclick="showTab('roleTest')">角色管理</div>
+        </div>
+        
+        <div id="basicTest" class="tab-content">
+            <h3>基本API测试</h3>
+            <div class="grid">
+                <div class="button button-info" onclick="testEndpoint('GET', '/api/users/me/', '获取我的信息')">获取我的信息</div>
+                <div class="button button-test" onclick="testEndpoint('POST', '/api/token/verify/', '验证token', {token: accessToken})">验证Token</div>
+                <div class="button button-info" onclick="testEndpoint('GET', '/api/health/', '健康检查')">API健康检查</div>
+            </div>
+        </div>
+        
+        <div id="userTest" class="tab-content hidden">
+            <h3>用户管理API测试</h3>
+            <div class="grid">
+                <div class="button button-test" onclick="testEndpoint('GET', '/api/users/', '获取所有用户')">获取所有用户</div>
+                <div class="button button-test" onclick="testEndpoint('GET', '/api/users/1/', '获取ID为1的用户')">获取用户详情</div>
+                <div class="button button-admin" onclick="testCreateUser()">创建新用户</div>
+                <div class="button button-admin" onclick="testUpdateUser()">更新用户</div>
+                <div class="button button-admin" onclick="testDeleteUser()">删除用户</div>
+            </div>
+        </div>
+        
+        <div id="roleTest" class="tab-content hidden">
+            <h3>角色权限API测试</h3>
+            <div class="grid">
+                <div class="button button-test" onclick="testEndpoint('GET', '/api/roles/', '获取所有角色')">获取所有角色</div>
+                <div class="button button-test" onclick="testEndpoint('GET', '/api/roles/1/', '获取ID为1的角色')">获取角色详情</div>
+                <div class="button button-test" onclick="testEndpoint('GET', '/api/roles/1/permissions/', '获取角色权限')">获取角色权限</div>
+                <div class="button button-admin" onclick="testCreateRole()">创建角色</div>
+                <div class="button button-admin" onclick="testUpdateRole()">更新角色</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>测试结果:</h2>
+        <div class="tab-container">
+            <div class="tab active" onclick="showResultTab('resultOutput')">输出</div>
+            <div class="tab" onclick="showResultTab('resultDetail')">详细信息</div>
+        </div>
+        <div id="resultOutput" class="tab-content">
+            <pre id="result">等待操作...</pre>
+        </div>
+        <div id="resultDetail" class="tab-content hidden">
+            <pre id="resultDetails">点击操作按钮查看详细响应...</pre>
+        </div>
+    </div>
+    
+    <script>
+        // 存储令牌和用户信息
+        let accessToken = '';
+        let refreshToken = '';
+        let userData = null;
+        let lastResponse = null;
+        
+        // API基础URL
+        const API_BASE_URL = 'http://localhost:8000';
+        
+        // 填充登录表单
+        function fillLoginForm(username, password) {
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+        }
+        
+        // 显示对应的选项卡
+        function showTab(tabId) {
+            // 隐藏所有内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // 移除所有选项卡的活动状态
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 显示选中的内容并激活对应的选项卡
+            document.getElementById(tabId).classList.remove('hidden');
+            document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+        
+        // 显示结果选项卡
+        function showResultTab(tabId) {
+            document.querySelectorAll('#resultOutput, #resultDetail').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            document.querySelectorAll('.tab-container:last-child .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabId).classList.remove('hidden');
+            document.querySelector(`.tab[onclick="showResultTab('${tabId}')"]`).classList.add('active');
+        }
+        
+        // 登录函数
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showResult('请输入用户名和密码');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
+                
+                const data = await response.json();
+                lastResponse = {
+                    status: response.status,
+                    data: data
+                };
+                
+                if (response.ok) {
+                    accessToken = data.access;
+                    refreshToken = data.refresh;
+                    userData = data.user;
+                    
+                    // 显示用户面板和测试面板，隐藏登录表单
+                    document.getElementById('loginForm').classList.add('hidden');
+                    document.getElementById('userPanel').classList.remove('hidden');
+                    document.getElementById('testPanel').classList.remove('hidden');
+                    
+                    updateUserInfo();
+                    showResult(`登录成功: ${username}`);
+                    showResultDetails(JSON.stringify(data, null, 2));
+                } else {
+                    showResult(`登录失败: ${data.detail || '未知错误'}`);
+                    showResultDetails(JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult(`请求错误: ${error.message}`);
+            }
+        }
+        
+        // 更新用户信息显示
+        function updateUserInfo() {
+            if (!userData) return;
+            
+            let roleBadge = '';
+            if (userData.role === 'admin') {
+                roleBadge = '<span class="badge badge-admin">管理员</span>';
+            } else if (userData.role === 'teacher') {
+                roleBadge = '<span class="badge badge-teacher">教师</span>';
+            } else if (userData.role === 'student') {
+                roleBadge = '<span class="badge badge-student">学生</span>';
+            }
+            
+            document.getElementById('userInfo').innerHTML = `
+                <h3>当前用户: ${userData.username} ${roleBadge}</h3>
+                <p>用户ID: ${userData.id}</p>
+                <p>邮箱: ${userData.email || '未设置'}</p>
+                <p>姓名: ${userData.first_name || ''} ${userData.last_name || ''}</p>
+            `;
+        }
+        
+        // 登出函数
+        async function logout() {
+            if (!refreshToken) {
+                showResult('未登录，无法登出');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/logout/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        refresh: refreshToken
+                    })
+                });
+                
+                const data = await response.json();
+                lastResponse = {
+                    status: response.status,
+                    data: data
+                };
+                
+                if (response.ok) {
+                    // 清除令牌
+                    accessToken = '';
+                    refreshToken = '';
+                    userData = null;
+                    
+                    // 显示登录表单，隐藏用户面板和测试面板
+                    document.getElementById('loginForm').classList.remove('hidden');
+                    document.getElementById('userPanel').classList.add('hidden');
+                    document.getElementById('testPanel').classList.add('hidden');
+                    
+                    showResult('登出成功');
+                    showResultDetails(JSON.stringify(data, null, 2));
+                } else {
+                    showResult(`登出失败: ${data.detail || '未知错误'}`);
+                    showResultDetails(JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResult(`请求错误: ${error.message}`);
+            }
+        }
+        
+        // 获取用户权限
+        async function getUserPermissions() {
+            await testEndpoint('GET', '/api/users/my_permissions/', '我的权限');
+        }
+        
+        // 测试API端点
+        async function testEndpoint(method, endpoint, description, body = null) {
+            if (!accessToken && endpoint !== '/api/health/') {
+                showResult('请先登录');
+                return;
+            }
+            
+            try {
+                showResult(`正在测试: ${description} (${method} ${endpoint})...`);
+                
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                // 添加认证头
+                if (accessToken && endpoint !== '/api/health/') {
+                    options.headers.Authorization = `Bearer ${accessToken}`;
+                }
+                
+                // 添加请求体
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                let data;
+                
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = { message: '响应不包含有效的JSON数据' };
+                }
+                
+                lastResponse = {
+                    status: response.status,
+                    data: data
+                };
+                
+                if (response.ok) {
+                    showResult(`✅ ${description} - 成功 (${response.status})`);
+                } else {
+                    showResult(`❌ ${description} - 失败 (${response.status}: ${data.detail || '未知错误'})`);
+                }
+                
+                showResultDetails(JSON.stringify(data, null, 2));
+            } catch (error) {
+                showResult(`请求错误: ${error.message}`);
+            }
+        }
+        
+        // 测试创建用户
+        function testCreateUser() {
+            const newUser = {
+                username: `test_user_${Date.now().toString().slice(-4)}`,
+                password: 'TestPassword123',
+                password2: 'TestPassword123',
+                email: `test${Date.now().toString().slice(-4)}@example.com`,
+                role: 'student'
+            };
+            
+            testEndpoint('POST', '/api/users/', '创建用户', newUser);
+        }
+        
+        // 测试更新用户
+        function testUpdateUser() {
+            if (!userData) return;
+            
+            // 假设更新自己的用户信息
+            const updateData = {
+                email: `updated${Date.now().toString().slice(-4)}@example.com`,
+                first_name: '测试更新'
+            };
+            
+            testEndpoint('PATCH', `/api/users/${userData.id}/`, '更新用户', updateData);
+        }
+        
+        // 测试删除用户
+        function testDeleteUser() {
+            // 假设删除ID为10的用户（假设的一个ID）
+            testEndpoint('DELETE', '/api/users/10/', '删除用户');
+        }
+        
+        // 测试创建角色
+        function testCreateRole() {
+            const newRole = {
+                name: `test_role_${Date.now().toString().slice(-4)}`,
+                description: '测试角色'
+            };
+            
+            testEndpoint('POST', '/api/roles/', '创建角色', newRole);
+        }
+        
+        // 测试更新角色
+        function testUpdateRole() {
+            // 假设更新ID为3的角色
+            const updateData = {
+                description: `更新的角色描述 ${Date.now()}`
+            };
+            
+            testEndpoint('PATCH', '/api/roles/3/', '更新角色', updateData);
+        }
+        
+        // 显示结果
+        function showResult(text) {
+            document.getElementById('result').textContent = text;
+        }
+        
+        // 显示详细结果
+        function showResultDetails(text) {
+            document.getElementById('resultDetails').textContent = text;
+        }
+    </script>
+</body>
+</html> 

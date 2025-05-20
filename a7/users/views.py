@@ -16,7 +16,14 @@ from .serializers import (
     RoleSerializer,
     PasswordChangeSerializer
 )
-from .permissions import IsAdminOrReadOnly, IsUserOwnerOrStaff
+from .permissions import (
+    IsAdminOrReadOnly, 
+    IsUserOwnerOrStaff,
+    IsAdmin,
+    IsTeacher,
+    IsAdminOrTeacher,
+    IsAdminOrTeacherReadOnly
+)
 
 User = get_user_model()
 
@@ -37,11 +44,26 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         if self.action == 'create':
-            self.permission_classes = [permissions.IsAdminUser]
-        elif self.action in ['update', 'partial_update', 'destroy']:
+            # 只有管理员可以创建用户
+            self.permission_classes = [IsAdmin]
+        elif self.action in ['update', 'partial_update']:
+            # 管理员可以更新任何用户，普通用户只能更新自己
             self.permission_classes = [permissions.IsAuthenticated, IsUserOwnerOrStaff]
+        elif self.action == 'destroy':
+            # 只有管理员可以删除用户
+            self.permission_classes = [IsAdmin]
         elif self.action == 'list':
-            self.permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+            # 管理员和教师可以查看用户列表，但只有管理员可以修改
+            self.permission_classes = [permissions.IsAuthenticated, IsAdminOrTeacherReadOnly]
+        elif self.action == 'me':
+            # 任何已认证用户都可以查看自己的信息
+            self.permission_classes = [permissions.IsAuthenticated]
+        elif self.action == 'change_password':
+            # 任何已认证用户都可以修改自己的密码
+            self.permission_classes = [permissions.IsAuthenticated]
+        elif self.action == 'my_permissions':
+            # 任何已认证用户都可以查看自己的权限
+            self.permission_classes = [permissions.IsAuthenticated]
         return super().get_permissions()
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
@@ -64,6 +86,23 @@ class UserViewSet(viewsets.ModelViewSet):
             user.save()
             return Response({"detail": "密码修改成功"}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def my_permissions(self, request):
+        """
+        获取当前登录用户的所有权限
+        """
+        user = request.user
+        # 获取用户的所有权限
+        permissions = list(user.get_all_permissions())
+        role_name = user.role
+        
+        return Response({
+            'role': role_name,
+            'permissions': permissions,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+        })
 
 
 class RoleViewSet(viewsets.ModelViewSet):
@@ -72,7 +111,22 @@ class RoleViewSet(viewsets.ModelViewSet):
     """
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
+    # 只有管理员可以管理角色，其他用户只能查看
     permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
+    
+    # 添加查看角色权限的接口
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated, IsAdminOrReadOnly])
+    def permissions(self, request, pk=None):
+        """
+        获取特定角色的所有权限
+        """
+        role = self.get_object()
+        permissions = role.permissions.values_list('codename', flat=True)
+        return Response({
+            'role': role.name,
+            'description': role.description,
+            'permissions': list(permissions),
+        })
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):

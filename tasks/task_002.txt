@@ -63,11 +63,26 @@ The password change feature has been successfully implemented with the following
 The implementation adheres to RESTful API best practices and integrates seamlessly with Django's built-in password management, using `set_password()` for secure storage.
 </info added on 2025-05-20T15:12:11.508Z>
 
-## 4. Set up role-based permissions [pending]
+## 4. Set up role-based permissions [done]
 ### Dependencies: 2.1
 ### Description: Define and enforce permissions based on user roles.
 ### Details:
 Create middleware or logic to restrict access based on roles (e.g., admin-only routes).
+<info added on 2025-05-20T16:11:09.675Z>
+The role-based permissions system has been successfully implemented with the following details:
+
+1. Created multiple role-based permission classes including IsAdmin, IsTeacher, IsStudent, IsAdminOrTeacher, and functional permission classes like HasViewStudentDataPermission and HasManageCoursesPermission.
+2. Developed a permission utility module (permission_utils.py) for managing and assigning permissions dynamically based on user roles.
+3. Implemented RoleBasedPermissionMiddleware in middleware.py with logging and custom denial responses.
+4. Extended the User model with methods like has_perm and has_module_perms, and added hardcoded permission rules for roles.
+5. Established a Role model with a many-to-many relationship to permissions, allowing dynamic adjustments.
+6. Added signal handlers for automatic permission assignment on user creation, role changes, and permission updates.
+7. Updated views to use new permission classes, including UserViewSet and added a permissions query API endpoint.
+8. Created management commands like init_roles for initializing roles and permissions, and updating existing user permissions.
+9. Developed a permissions test page (permissions_test.html) for verifying role-based access control.
+
+All code has been committed and tested to ensure users can only access functionalities within their permissions.
+</info added on 2025-05-20T16:11:09.675Z>
 
 ## 5. Test all functionalities [pending]
 ### Dependencies: 2.2, 2.3, 2.4

@@ -29,13 +29,20 @@ a7/                           # 项目根目录
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   ├── admin.py          # Django Admin配置
 │   │   ├── apps.py           # 应用配置
+│   │   ├── middleware.py     # 基于角色的权限中间件
 │   │   ├── models.py         # 用户和角色模型
 │   │   ├── permissions.py    # 自定义权限类
+│   │   ├── permission_utils.py # 权限工具函数
 │   │   ├── serializers.py    # 序列化器
 │   │   ├── signals.py        # 信号处理
 │   │   ├── tests.py          # 测试文件
 │   │   ├── urls.py           # URL路由配置
-│   │   └── views.py          # API视图
+│   │   ├── views.py          # API视图
+│   │   ├── management/       # 管理命令目录
+│   │   │   ├── __init__.py   # Python包初始化文件
+│   │   │   └── commands/     # 具体命令目录
+│   │   │       ├── __init__.py # Python包初始化文件
+│   │   │       └── init_roles.py # 角色和权限初始化命令
 │   │   └── migrations/       # 数据库迁移文件
 │   └── manage.py             # Django命令行工具
 ├── .cursor/                  # Cursor IDE配置目录
@@ -43,7 +50,8 @@ a7/                           # 项目根目录
 │   └── example_prd.txt       # 产品需求文档示例
 ├── tasks/                    # 任务文件目录（Task Master生成的任务）
 ├── test_html/                # 测试HTML文件目录
-│   └── auth_test.html        # 登录/登出/密码更改功能测试页面
+│   ├── auth_test.html        # 登录/登出/密码更改功能测试页面
+│   └── permissions_test.html # 角色权限测试页面
 ├── .env.example              # 环境变量示例文件
 ├── .gitignore                # Git忽略配置文件
 ├── .roomodes                 # Roo模式配置文件
@@ -79,16 +87,20 @@ a7/                           # 项目根目录
 - **a7/users/admin.py**: Django Admin后台配置，定义用户和角色模型在管理界面的展示方式。
 - **a7/users/apps.py**: 应用配置文件，包含应用元数据和启动逻辑。
 - **a7/users/models.py**: 模型定义，包含扩展的User模型和Role模型，实现多角色权限系统。
-- **a7/users/permissions.py**: 自定义权限类，定义特定权限策略如IsAdminOrReadOnly和IsUserOwnerOrStaff。
+- **a7/users/permissions.py**: 自定义权限类，定义基于角色和功能的权限类，如IsAdmin、IsTeacher、IsAdminOrTeacher等。
+- **a7/users/permission_utils.py**: 权限工具函数，提供权限分配、管理和同步功能，实现基于角色的权限自动分配。
+- **a7/users/middleware.py**: 基于角色的权限中间件，实现权限检查日志记录和自定义权限拒绝响应。
 - **a7/users/serializers.py**: 序列化器类，处理用户和角色数据的序列化和反序列化，以及密码更改验证。
-- **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌的逻辑。
+- **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌和分配权限的逻辑，以及角色和权限变更的处理。
 - **a7/users/tests.py**: 测试文件，用于用户应用的单元测试。
 - **a7/users/urls.py**: URL路由配置，定义用户API端点。
-- **a7/users/views.py**: 视图文件，包含UserViewSet（含密码更改功能）和RoleViewSet视图集及登录/登出视图的实现。
+- **a7/users/views.py**: 视图文件，包含UserViewSet（含权限控制）和RoleViewSet视图集及登录/登出视图的实现。
+- **a7/users/management/commands/init_roles.py**: 管理命令，用于初始化角色和权限，并更新现有用户的权限设置。
 
 ### 测试文件
 
 - **test_html/auth_test.html**: 用于测试登录/登出/密码更改功能的HTML页面，提供基本UI和JavaScript测试代码。
+- **test_html/permissions_test.html**: 角色权限测试页面，用于测试不同角色用户的权限访问控制，支持多角色登录和API权限验证。
 
 ### 配置文件
 
@@ -141,12 +153,16 @@ a7/                           # 项目根目录
    - `a7/apps/core/views.py`实现API端点的视图逻辑，如健康检查接口。
 
 2. **用户认证与授权系统**:
-   - `a7/users/models.py`定义自定义User模型和Role模型，是系统权限设计的基础。
+   - `a7/users/models.py`定义自定义User模型和Role模型，是系统权限设计的基础，实现基于角色的用户模型和权限系统。
+   - `a7/users/permissions.py`实现细粒度的权限控制系统，包含多种基于角色和功能的权限类。
+   - `a7/users/permission_utils.py`提供权限工具函数，实现权限的自动分配、管理和同步。
+   - `a7/users/middleware.py`实现权限中间件，提供权限检查日志和自定义响应。
+   - `a7/users/signals.py`处理用户创建、角色变更和权限同步的信号，确保权限系统的一致性。
+   - `a7/users/management/commands/init_roles.py`提供管理命令初始化角色和权限数据。
    - `a7/users/serializers.py`实现数据转换，支持REST API的用户数据处理，包含密码更改的验证逻辑。
-   - `a7/users/views.py`提供用户和角色管理的API端点，以及登录/登出/密码更改功能。
-   - `a7/users/permissions.py`实现细粒度的权限控制系统。
+   - `a7/users/views.py`提供用户和角色管理的API端点，以及登录/登出/密码更改功能，并使用权限类控制访问。
    - `a7/users/urls.py`定义用户API路由，被主urls.py包含。
-   - `a7/a7/settings.py`中的`AUTH_USER_MODEL`设置指向自定义User模型。
+   - `a7/a7/settings.py`中的`AUTH_USER_MODEL`设置指向自定义User模型，还包含MIDDLEWARE配置中的权限中间件和日志配置。
    - `a7/a7/settings.py`中的`SIMPLE_JWT`配置定义JWT令牌的行为，包括黑名单和令牌轮换设置。
 
 3. **Task Master相关**:
@@ -157,6 +173,7 @@ a7/                           # 项目根目录
 
 4. **测试相关**:
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
+   - `test_html/permissions_test.html`提供角色权限测试界面，用于验证不同角色用户的权限控制和API访问限制。
 
 5. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -231,8 +248,10 @@ a7/                           # 项目根目录
    - `/api/users/<id>/` - 用户详情、更新和删除
    - `/api/users/me/` - 获取当前登录用户信息
    - `/api/users/change_password/` - 修改当前用户密码
+   - `/api/users/my_permissions/` - 获取当前用户的权限信息
    - `/api/roles/` - 角色列表和创建
    - `/api/roles/<id>/` - 角色详情、更新和删除
+   - `/api/roles/<id>/permissions/` - 获取特定角色的权限信息
 
 3. **核心API**:
    - `/api/health/` - 健康检查端点，提供API服务状态

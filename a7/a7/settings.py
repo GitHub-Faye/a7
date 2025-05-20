@@ -61,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'users.middleware.RoleBasedPermissionMiddleware',  # 添加基于角色的权限中间件
 ]
 
 ROOT_URLCONF = 'a7.urls'
@@ -204,4 +205,47 @@ SWAGGER_SETTINGS = {
         }
     },
     'USE_SESSION_AUTH': False
+}
+
+# 权限拒绝响应设置
+CUSTOM_PERMISSION_DENIED_RESPONSE = True
+
+# 日志配置
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'permission_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': 'permission.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'propagate': True,
+        },
+        'permission_log': {
+            'handlers': ['console', 'permission_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
 }
