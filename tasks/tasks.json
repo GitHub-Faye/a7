@@ -68,8 +68,8 @@
           "dependencies": [
             1
           ],
-          "details": "Create endpoints for login/logout, handle session management, and secure token generation.",
-          "status": "pending"
+          "details": "Create endpoints for login/logout, handle session management, and secure token generation.\n<info added on 2025-05-20T12:57:21.151Z>\nCreate endpoints for login/logout, handle session management, and secure token generation. Implemented features include: 1. Added token_blacklist to INSTALLED_APPS and configured JWT blacklist functionality. 2. Created CustomTokenObtainPairView for login, returning tokens and user information. 3. Implemented LogoutView to add refresh tokens to the blacklist. 4. Added corresponding URL routing configurations. 5. Conducted full functional testing via HTML/JS client. 6. Automated testing performed using Playwright. Testing confirmed successful token retrieval for protected resources post-login and secure token blacklisting post-logout.\n</info added on 2025-05-20T12:57:21.151Z>",
+          "status": "done"
         },
         {
           "id": 3,

@@ -20,11 +20,14 @@ Add role fields (e.g., admin, user) and ensure the database schema is updated.
 The User model has been successfully extended to include role fields and support a multi-role permission management system. Key implementations include: 1. Created a users app with a custom User model inheriting from AbstractUser. 2. Added role selection fields (admin/teacher/student) and a creation timestamp field. 3. Established a separate Role model for granular permission control. 4. Implemented a full user management API (CRUD operations) with permission controls. 5. Custom permission classes (IsAdminOrReadOnly, IsUserOwnerOrStaff) were developed. 6. Configured the Django Admin interface for user management. 7. Custom serializers handle user creation and updates. 8. Integrated JWT Token authentication. The code structure includes models.py (User and Role models), serializers.py (user and role serializers), views.py (UserViewSet and RoleViewSet), permissions.py (custom permission classes), urls.py (API routing), admin.py (Admin configuration), signals.py (user creation signals), and apps.py (app configuration). Database migrations are complete, and the system now supports user role management functionality.
 </info added on 2025-05-20T03:37:48.480Z>
 
-## 2. Implement login/logout [pending]
+## 2. Implement login/logout [done]
 ### Dependencies: 2.1
 ### Description: Develop the login and logout functionalities for user authentication.
 ### Details:
 Create endpoints for login/logout, handle session management, and secure token generation.
+<info added on 2025-05-20T12:57:21.151Z>
+Create endpoints for login/logout, handle session management, and secure token generation. Implemented features include: 1. Added token_blacklist to INSTALLED_APPS and configured JWT blacklist functionality. 2. Created CustomTokenObtainPairView for login, returning tokens and user information. 3. Implemented LogoutView to add refresh tokens to the blacklist. 4. Added corresponding URL routing configurations. 5. Conducted full functional testing via HTML/JS client. 6. Automated testing performed using Playwright. Testing confirmed successful token retrieval for protected resources post-login and secure token blacklisting post-logout.
+</info added on 2025-05-20T12:57:21.151Z>
 
 ## 3. Implement password change [pending]
 ### Dependencies: 2.2

@@ -1,8 +1,12 @@
 from django.shortcuts import render
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Role
 from .serializers import UserSerializer, UserCreateSerializer, UserUpdateSerializer, RoleSerializer
@@ -50,3 +54,59 @@ class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    自定义的令牌获取视图，返回用户信息和令牌
+    """
+    
+    def post(self, request, *args, **kwargs):
+        # 调用父类方法获取令牌
+        response = super().post(request, *args, **kwargs)
+        
+        # 如果认证成功
+        if response.status_code == 200:
+            # 获取用户
+            user = User.objects.get(username=request.data['username'])
+            
+            # 在响应中添加用户信息
+            user_data = UserSerializer(user).data
+            response.data.update({
+                'user': user_data
+            })
+        
+        return response
+
+
+class LogoutView(APIView):
+    """
+    用户登出视图，将刷新令牌加入黑名单
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            # 获取请求中的refresh token
+            refresh_token = request.data.get('refresh')
+            
+            if refresh_token:
+                # 将refresh token加入黑名单
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+                
+                return Response(
+                    {"detail": "登出成功，令牌已失效"}, 
+                    status=status.HTTP_200_OK
+                )
+            else:
+                return Response(
+                    {"error": "需要提供refresh token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A7登录/登出测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.logout {
+            background-color: #f44336;
+        }
+        button.logout:hover {
+            background-color: #d32f2f;
+        }
+        button.test {
+            background-color: #2196F3;
+        }
+        button.test:hover {
+            background-color: #0b7dda;
+        }
+        pre {
+            background-color: #f1f1f1;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>A7 - 用户认证测试</h1>
+    
+    <div class="container" id="loginForm">
+        <h2>登录</h2>
+        <div>
+            <label for="username">用户名:</label>
+            <input type="text" id="username" value="hjc">
+        </div>
+        <div>
+            <label for="password">密码:</label>
+            <input type="password" id="password" value="hjc">
+        </div>
+        <button onclick="login()">登录</button>
+    </div>
+    
+    <div class="container hidden" id="logoutSection">
+        <h2>登出</h2>
+        <p>您已登录，可以测试其他功能或登出</p>
+        <button onclick="testToken()" class="test">测试令牌有效性</button>
+        <button onclick="getUserInfo()" class="test">获取用户信息</button>
+        <button onclick="logout()" class="logout">登出</button>
+    </div>
+    
+    <div class="container">
+        <h2>结果:</h2>
+        <pre id="result">等待操作...</pre>
+    </div>
+    
+    <script>
+        // 存储令牌和用户信息
+        let accessToken = '';
+        let refreshToken = '';
+        let userData = null;
+        
+        // API基础URL
+        const API_BASE_URL = 'http://localhost:8000/api';
+        
+        // 登录函数
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showResult('请输入用户名和密码');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    accessToken = data.access;
+                    refreshToken = data.refresh;
+                    userData = data.user;
+                    
+                    // 显示登出区域，隐藏登录表单
+                    document.getElementById('loginForm').classList.add('hidden');
+                    document.getElementById('logoutSection').classList.remove('hidden');
+                    
+                    showResult(JSON.stringify(data, null, 2));
+                } else {
+                    showResult(`登录失败: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                showResult(`请求错误: ${error.message}`);
+            }
+        }
+        
+        // 登出函数
+        async function logout() {
+            if (!refreshToken) {
+                showResult('未登录，无法登出');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/logout/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        refresh: refreshToken
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 清除令牌
+                    accessToken = '';
+                    refreshToken = '';
+                    userData = null;
+                    
+                    // 显示登录表单，隐藏登出区域
+                    document.getElementById('loginForm').classList.remove('hidden');
+                    document.getElementById('logoutSection').classList.add('hidden');
+                    
+                    showResult(JSON.stringify(data, null, 2));
+                } else {
+                    showResult(`登出失败: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                showResult(`请求错误: ${error.message}`);
+            }
+        }
+        
+        // 测试令牌有效性
+        async function testToken() {
+            if (!accessToken) {
+                showResult('未登录，无法测试令牌');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/token/verify/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        token: accessToken
+                    })
+                });
+                
+                if (response.ok) {
+                    showResult('令牌有效 ✅');
+                } else {
+                    const data = await response.json();
+                    showResult(`令牌无效: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                showResult(`请求错误: ${error.message}`);
+            }
+        }
+        
+        // 获取用户信息
+        async function getUserInfo() {
+            if (!accessToken) {
+                showResult('未登录，无法获取用户信息');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/me/`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(JSON.stringify(data, null, 2));
+                } else {
+                    showResult(`获取用户信息失败: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                showResult(`请求错误: ${error.message}`);
+            }
+        }
+        
+        // 显示结果
+        function showResult(text) {
+            document.getElementById('result').textContent = text;
+        }
+    </script>
+</body>
+</html> 
