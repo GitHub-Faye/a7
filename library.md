@@ -7,6 +7,7 @@
 | django-cors-headers | N/A (通过web_search获取) | CORS跨域资源共享框架 |
 | drf-yasg | N/A (通过web_search获取) | Swagger/OpenAPI自动文档生成工具 |
 | Django | /django/django | Python Web框架 |
+| pytest-django | /pytest-dev/pytest-django | Django测试工具 |
 
 # 主要库功能说明
 
@@ -17,6 +18,7 @@
 - 支持各种认证方式
 - 提供@action装饰器用于自定义API端点（如密码更改）
 - 支持序列化器验证和字段定制（如密码验证）
+- 包含APITestCase和APIClient类用于API测试
 
 ## djangorestframework-simplejwt
 - 提供JWT认证功能
@@ -24,6 +26,15 @@
 - 令牌黑名单功能
 - 可自定义令牌内容
 - 与Django用户认证系统集成，支持密码管理
+- 提供令牌验证视图和黑名单功能
+
+## Django测试工具
+- Django TestCase提供数据库重置和事务支持
+- pytest-django增强Django测试功能
+- APITestCase专门用于REST API测试
+- APIClient用于模拟API请求
+- 支持测试认证和权限功能
+- 提供强大的断言工具验证响应
 
 ## 主要依赖库版本
 
@@ -34,6 +45,7 @@
 | djangorestframework-simplejwt | 5.x | JWT认证 |
 | drf-yasg | 1.21.x | API文档 |
 | django-cors-headers | 4.x | CORS支持 |
+| pytest-django | 4.5.x | Django测试扩展 |
 
 
 ```

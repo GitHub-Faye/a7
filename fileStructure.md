@@ -35,7 +35,7 @@ a7/                           # 项目根目录
 │   │   ├── permission_utils.py # 权限工具函数
 │   │   ├── serializers.py    # 序列化器
 │   │   ├── signals.py        # 信号处理
-│   │   ├── tests.py          # 测试文件
+│   │   ├── tests.py          # 测试文件，包含认证和权限的单元测试
 │   │   ├── urls.py           # URL路由配置
 │   │   ├── views.py          # API视图
 │   │   ├── management/       # 管理命令目录
@@ -45,7 +45,6 @@ a7/                           # 项目根目录
 │   │   │       └── init_roles.py # 角色和权限初始化命令
 │   │   └── migrations/       # 数据库迁移文件
 │   └── manage.py             # Django命令行工具
-├── .cursor/                  # Cursor IDE配置目录
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
 ├── tasks/                    # 任务文件目录（Task Master生成的任务）
@@ -60,6 +59,7 @@ a7/                           # 项目根目录
 ├── a7.code-workspace         # VS Code工作区配置文件
 ├── fileStructure.md          # 项目文件结构文档（本文件）
 ├── library.md                # 项目库文档
+├── permission.log            # 权限检查日志文件
 └── prd.txt                   # 产品需求文档文件
 ```
 
@@ -92,15 +92,16 @@ a7/                           # 项目根目录
 - **a7/users/middleware.py**: 基于角色的权限中间件，实现权限检查日志记录和自定义权限拒绝响应。
 - **a7/users/serializers.py**: 序列化器类，处理用户和角色数据的序列化和反序列化，以及密码更改验证。
 - **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌和分配权限的逻辑，以及角色和权限变更的处理。
-- **a7/users/tests.py**: 测试文件，用于用户应用的单元测试。
+- **a7/users/tests.py**: 测试文件，包含用户认证系统和角色权限的全面单元测试，验证登录、登出、密码更改和基于角色的权限控制功能。
 - **a7/users/urls.py**: URL路由配置，定义用户API端点。
 - **a7/users/views.py**: 视图文件，包含UserViewSet（含权限控制）和RoleViewSet视图集及登录/登出视图的实现。
 - **a7/users/management/commands/init_roles.py**: 管理命令，用于初始化角色和权限，并更新现有用户的权限设置。
 
 ### 测试文件
 
-- **test_html/auth_test.html**: 用于测试登录/登出/密码更改功能的HTML页面，提供基本UI和JavaScript测试代码。
+- **test_html/auth_test.html**: 用于测试登录/登出/密码更改功能的HTML页面，提供基本UI和JavaScript测试代码，通过浏览器直接测试认证API。
 - **test_html/permissions_test.html**: 角色权限测试页面，用于测试不同角色用户的权限访问控制，支持多角色登录和API权限验证。
+- **a7/users/tests.py**: 包含完整的自动化测试套件，测试认证功能（登录、登出、密码更改）、基于角色的权限控制以及完整的用户流程端到端测试。
 
 ### 配置文件
 
@@ -110,6 +111,7 @@ a7/                           # 项目根目录
 - **.windsurfrules**: Windsurf工具的规则配置。
 - **a7.code-workspace**: VS Code工作区配置，定义项目在VS Code中的显示和行为。
 - **.env.example**: 环境变量示例模板，用于配置各种API密钥和环境特定设置。
+- **permission.log**: 权限检查日志文件，记录权限中间件的访问尝试和拒绝信息。
 
 ### 目录
 
@@ -134,7 +136,7 @@ a7/                           # 项目根目录
 
 - **tasks/**: 由Task Master生成和管理的任务文件目录，包含项目任务的结构化描述。
 
-- **test_html/**: 包含测试文件，用于前端测试特定功能。
+- **test_html/**: 包含测试文件，用于前端测试特定功能，如认证和权限控制。
 
 ### 文档文件
 
@@ -164,6 +166,9 @@ a7/                           # 项目根目录
    - `a7/users/urls.py`定义用户API路由，被主urls.py包含。
    - `a7/a7/settings.py`中的`AUTH_USER_MODEL`设置指向自定义User模型，还包含MIDDLEWARE配置中的权限中间件和日志配置。
    - `a7/a7/settings.py`中的`SIMPLE_JWT`配置定义JWT令牌的行为，包括黑名单和令牌轮换设置。
+   - `a7/users/tests.py`提供认证和权限功能的自动化测试，确保系统按预期工作。
+   - `test_html/auth_test.html`和`test_html/permissions_test.html`提供基于浏览器的手动测试界面，验证API交互。
+   - `permission.log`记录权限中间件的访问检查日志，帮助调试和监控权限系统。
 
 3. **Task Master相关**:
    - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
@@ -174,6 +179,7 @@ a7/                           # 项目根目录
 4. **测试相关**:
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
    - `test_html/permissions_test.html`提供角色权限测试界面，用于验证不同角色用户的权限控制和API访问限制。
+   - `a7/users/tests.py`包含自动化单元测试，覆盖认证、权限和端到端用户场景测试。
 
 5. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -208,6 +214,11 @@ a7/                           # 项目根目录
 4. **配置与内容分离**:
    - 配置文件(如`.taskmasterconfig`, `.roomodes`)位于根目录。
    - 实际内容(如规则文件、任务文件)存储在相关子目录中。
+
+5. **测试与实现分离**:
+   - 单元测试放在应用目录中(`users/tests.py`)
+   - 手动/前端测试文件放在单独的`test_html/`目录下
+   - 日志文件`permission.log`放在根目录，便于快速访问和检查
 
 ## 命名约定
 
