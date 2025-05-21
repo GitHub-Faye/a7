@@ -20,11 +20,42 @@ Define fields like username, email for User; name, description for Role; and act
 Implemented User/Role/Permission models with the following updates: 1. Modified User model to include a foreign key relationship (role_obj) with Role model while retaining the legacy role string field for backward compatibility. 2. Integrated Django's built-in Permission model for role-based permission assignment, establishing a many-to-many relationship between Role and Permission. 3. Added automatic synchronization between role and role_obj fields in User.save() to ensure data consistency. 4. Enhanced User.has_perm() and has_module_perms() methods to support both direct permission checks and role-based checks. 5. Developed utility functions in permission_utils.py for role permission assignment, default role creation, and user role synchronization. 6. Implemented signal handlers in signals.py for user creation, role updates, and permission synchronization, with syncing_roles parameter to prevent recursive calls. 7. Created a management command sync_roles.py to resolve data inconsistencies by synchronizing user roles and permissions. 8. Enhanced admin.py with additional functionalities for user and role management, including synchronization and permission handling. 9. Conducted comprehensive testing covering role synchronization, role-permission relationships, permission cascading, management command functionality, and the impact of role updates on user permissions. All tests passed, confirming a robust role-based permission system with backward compatibility.
 </info added on 2025-05-21T08:48:43.016Z>
 
-## 2. Define Course/KP/Courseware models [pending]
+## 2. Define Course/KP/Courseware models [done]
 ### Dependencies: None
 ### Description: Design the models for courses, knowledge points (KP), and courseware, including their attributes.
 ### Details:
 Define fields like title, description for Course; name, level for KP; and title, content for Courseware.
+<info added on 2025-05-21T09:13:29.586Z>
+The models for Course, KnowledgePoint, and Courseware have been successfully designed and implemented. Key details include:
+
+1. **Models Created**:
+   - **Course**: Fields include title, description, subject, grade_level, teacher (foreign key to User), and created_at.
+   - **KnowledgePoint**: Fields include course (foreign key), title, content, importance (1-10 rating), and parent (self-referential foreign key for hierarchical structure).
+   - **Courseware**: Fields include course (foreign key), title, content, type (document/video/audio), created_by (foreign key to User), and created_at.
+
+2. **Model Relationships**:
+   - User to Course: One-to-many (a teacher can create multiple courses).
+   - Course to KnowledgePoint: One-to-many (a course contains multiple knowledge points).
+   - KnowledgePoint self-referential: Hierarchical structure via parent field.
+   - Course to Courseware: One-to-many (a course has multiple courseware items).
+   - User to Courseware: One-to-many (a user can create multiple courseware items).
+
+3. **Model Configuration**:
+   - Verbose names and plural names for admin interface.
+   - Ordering: Courses and courseware by created_at (descending), knowledge points by importance and title.
+   - __str__ methods for string representation.
+
+4. **Admin Interface**:
+   - List display fields, filters, search fields, date hierarchy, and raw_id_fields for foreign keys.
+
+5. **Testing**:
+   - Validated model creation, field assignments, relationships, and string representations.
+
+6. **Deployment**:
+   - Added to INSTALLED_APPS, created and applied migrations, all tests passed.
+
+The models meet PRD requirements, with the hierarchical KnowledgePoint structure supporting complex content organization and diverse courseware types accommodating various teaching resources.
+</info added on 2025-05-21T09:13:29.586Z>
 
 ## 3. Define Exercise/Answer models [pending]
 ### Dependencies: 3.2

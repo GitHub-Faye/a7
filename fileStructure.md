@@ -45,6 +45,13 @@ a7/                           # 项目根目录
 │   │   │       ├── init_roles.py # 角色和权限初始化命令
 │   │   │       └── sync_roles.py # 角色和权限同步命令
 │   │   └── migrations/       # 数据库迁移文件
+│   ├── courses/              # 课程管理应用
+│   │   ├── __init__.py       # Python包初始化文件
+│   │   ├── admin.py          # 课程模型的Admin配置
+│   │   ├── apps.py           # 课程应用配置
+│   │   ├── models.py         # 课程相关模型定义
+│   │   ├── tests.py          # 课程模型的测试用例
+│   │   └── migrations/       # 课程模型数据库迁移文件
 │   └── manage.py             # Django命令行工具
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
@@ -99,11 +106,21 @@ a7/                           # 项目根目录
 - **a7/users/management/commands/init_roles.py**: 管理命令，用于初始化角色和权限，并更新现有用户的权限设置。
 - **a7/users/management/commands/sync_roles.py**: 管理命令，用于同步用户角色和权限数据，修复数据不一致问题。
 
+### 课程管理应用文件
+
+- **a7/courses/__init__.py**: Courses应用的Python包标识文件。
+- **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint和Courseware模型在管理界面的展示方式和操作功能。
+- **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
+- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）和Courseware（课件）模型，实现课程内容管理系统。
+- **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性。
+- **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
+
 ### 测试文件
 
 - **test_html/auth_test.html**: 用于测试登录/登出/密码更改功能的HTML页面，提供基本UI和JavaScript测试代码，通过浏览器直接测试认证API。
 - **test_html/permissions_test.html**: 角色权限测试页面，用于测试不同角色用户的权限访问控制，支持多角色登录和API权限验证。
 - **a7/users/tests.py**: 包含完整的自动化测试套件，测试认证功能（登录、登出、密码更改）、基于角色的权限控制以及完整的用户流程端到端测试。
+- **a7/courses/tests.py**: 包含课程模型的自动化测试，验证课程内容管理功能的正确性。
 
 ### 配置文件
 
@@ -135,6 +152,8 @@ a7/                           # 项目根目录
   - **core/**: 核心应用模块，实现基础API功能，如健康检查接口。
 
 - **a7/users/**: 用户管理应用，实现用户认证与授权系统。
+
+- **a7/courses/**: 课程管理应用，实现课程内容管理和课程资源组织功能。
 
 - **tasks/**: 由Task Master生成和管理的任务文件目录，包含项目任务的结构化描述。
 
@@ -173,23 +192,33 @@ a7/                           # 项目根目录
    - `test_html/auth_test.html`和`test_html/permissions_test.html`提供基于浏览器的手动测试界面，验证API交互。
    - `permission.log`记录权限中间件的访问检查日志，帮助调试和监控权限系统。
 
-3. **Task Master相关**:
+3. **课程内容管理系统**:
+   - `a7/courses/models.py`定义Course、KnowledgePoint和Courseware模型，实现课程内容的组织和管理。
+   - `a7/courses/admin.py`配置课程相关模型在Django Admin中的展示和操作方式。
+   - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性。
+   - `a7/courses/models.py`中的KnowledgePoint模型使用自引用外键实现知识点的层次结构。
+   - Course模型与User模型（教师）建立外键关系，表示课程的创建者。
+   - Courseware模型与Course和User模型建立外键关系，表示课件所属课程和创建者。
+   - KnowledgePoint模型通过外键关联Course模型，表示知识点所属的课程。
+
+4. **Task Master相关**:
    - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
    - `scripts/example_prd.txt`提供用于生成任务的PRD模板。
    - `prd.txt`是基于示例创建的实际产品需求文档，用于任务生成。
    - `tasks/`目录存储由Task Master基于PRD生成的任务文件。
 
-4. **测试相关**:
+5. **测试相关**:
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
    - `test_html/permissions_test.html`提供角色权限测试界面，用于验证不同角色用户的权限控制和API访问限制。
    - `a7/users/tests.py`包含自动化单元测试，覆盖认证、权限和端到端用户场景测试。
+   - `a7/courses/tests.py`包含课程模型的自动化测试，验证课程内容管理功能的正确性。
 
-5. **Roo助手规则**:
+6. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
    - `.roo/`下的各个子目录包含不同类别的规则，共同支持Roo助手的功能。
    - `.windsurfrules`配合Roo规则，定义项目的代码和文档生成规则。
 
-6. **开发环境配置**:
+7. **开发环境配置**:
    - `a7.code-workspace`定义VS Code的项目视图和配置。
    - `.cursor/`包含Cursor IDE的特定配置。
    - `.env.example`提供需要的环境变量配置模板。
@@ -202,6 +231,7 @@ a7/                           # 项目根目录
    - 遵循Django标准项目结构，核心配置放在内部a7包中。
    - Django应用存放在apps目录下，如core应用。
    - 用户管理系统作为独立应用(users)实现，便于模块化管理。
+   - 课程管理系统作为独立应用(courses)实现，集中管理课程相关功能。
    - 每个应用都有自己的URLs和视图模块。
 
 2. **按工具分类**: 
@@ -211,7 +241,7 @@ a7/                           # 项目根目录
    - `.roo/`中的规则按功能领域划分到不同子目录。
    - `scripts/`目录用于存放工具脚本和模板。
    - `tasks/`专门用于任务管理。
-   - `apps/`和`users/`目录按功能划分不同的Django应用。
+   - `apps/`、`users/`和`courses/`目录按功能划分不同的Django应用。
    - `test_html/`目录包含前端测试文件，按功能分类。
 
 4. **配置与内容分离**:
@@ -219,7 +249,7 @@ a7/                           # 项目根目录
    - 实际内容(如规则文件、任务文件)存储在相关子目录中。
 
 5. **测试与实现分离**:
-   - 单元测试放在应用目录中(`users/tests.py`)
+   - 单元测试放在应用目录中(`users/tests.py`, `courses/tests.py`)
    - 手动/前端测试文件放在单独的`test_html/`目录下
    - 日志文件`permission.log`放在根目录，便于快速访问和检查
 
@@ -228,7 +258,7 @@ a7/                           # 项目根目录
 1. **目录命名**:
    - 以功能或工具名称作为前缀，如`rules-architect/`表示架构相关规则。
    - 使用小写字母和连字符(-)分隔单词，如`rules-debug/`。
-   - Django应用目录使用全小写字母，单数形式命名，如`core/`、`users/`。
+   - Django应用目录使用全小写字母，单数形式命名，如`core/`、`users/`、`courses/`。
 
 2. **配置文件命名**:
    - 以点(.)开头的隐藏文件用于配置，如`.taskmasterconfig`。
@@ -241,7 +271,7 @@ a7/                           # 项目根目录
 4. **代码约定**:
    - 代码文件（当添加时）将遵循各语言的标准命名约定。
    - 组件和模块文件名应反映其功能和类型。
-   - Django模型类使用单数名词，首字母大写的驼峰式命名(如`User`、`Role`)。
+   - Django模型类使用单数名词，首字母大写的驼峰式命名(如`User`、`Role`、`Course`、`KnowledgePoint`)。
    - Django视图函数使用小写下划线命名(如`user_login`)。
    - Django URL路径使用小写和连字符分隔(如`user-profile/`)。
 

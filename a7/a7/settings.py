@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     # 本地应用
     'apps.core',
     'users',
+    'courses',
 ]
 
 MIDDLEWARE = [
