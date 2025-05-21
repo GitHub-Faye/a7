@@ -45,14 +45,65 @@
       "id": 2,
       "title": "Implement User Authentication System",
       "description": "Develop the user authentication and authorization system based on Django's built-in authentication.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         1
       ],
       "priority": "high",
       "details": "Extend Django's built-in User model to include role-based permissions. Implement login, logout, and password change functionalities. Ensure the system supports multiple roles (teacher, student, admin) with appropriate permissions.",
       "testStrategy": "Test user registration, login, logout, and password change functionalities. Verify role-based access control.",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Extend User model for roles",
+          "description": "Modify the existing User model to include role fields and relationships.",
+          "dependencies": [],
+          "details": "Add role fields (e.g., admin, user) and ensure the database schema is updated.\n<info added on 2025-05-20T03:37:48.480Z>\nThe User model has been successfully extended to include role fields and support a multi-role permission management system. Key implementations include: 1. Created a users app with a custom User model inheriting from AbstractUser. 2. Added role selection fields (admin/teacher/student) and a creation timestamp field. 3. Established a separate Role model for granular permission control. 4. Implemented a full user management API (CRUD operations) with permission controls. 5. Custom permission classes (IsAdminOrReadOnly, IsUserOwnerOrStaff) were developed. 6. Configured the Django Admin interface for user management. 7. Custom serializers handle user creation and updates. 8. Integrated JWT Token authentication. The code structure includes models.py (User and Role models), serializers.py (user and role serializers), views.py (UserViewSet and RoleViewSet), permissions.py (custom permission classes), urls.py (API routing), admin.py (Admin configuration), signals.py (user creation signals), and apps.py (app configuration). Database migrations are complete, and the system now supports user role management functionality.\n</info added on 2025-05-20T03:37:48.480Z>",
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "title": "Implement login/logout",
+          "description": "Develop the login and logout functionalities for user authentication.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create endpoints for login/logout, handle session management, and secure token generation.\n<info added on 2025-05-20T12:57:21.151Z>\nCreate endpoints for login/logout, handle session management, and secure token generation. Implemented features include: 1. Added token_blacklist to INSTALLED_APPS and configured JWT blacklist functionality. 2. Created CustomTokenObtainPairView for login, returning tokens and user information. 3. Implemented LogoutView to add refresh tokens to the blacklist. 4. Added corresponding URL routing configurations. 5. Conducted full functional testing via HTML/JS client. 6. Automated testing performed using Playwright. Testing confirmed successful token retrieval for protected resources post-login and secure token blacklisting post-logout.\n</info added on 2025-05-20T12:57:21.151Z>",
+          "status": "done"
+        },
+        {
+          "id": 3,
+          "title": "Implement password change",
+          "description": "Allow users to change their passwords securely.",
+          "dependencies": [
+            2
+          ],
+          "details": "Develop a password change feature with validation and encryption.\n<info added on 2025-05-20T15:12:11.508Z>\nThe password change feature has been successfully implemented with the following details:\n\n1. **PasswordChangeSerializer**: Created to validate the old password, ensure the new password matches the confirmation, and enforce complexity requirements. Validation rules include:\n   - Verifying the old password is correct\n   - Ensuring the new password is at least 8 characters long\n   - Confirming the new password matches the confirmation\n   - Requiring the new password to include both letters and numbers\n\n2. **UserViewSet Integration**: Added a `change_password` method to provide the password change API endpoint:\n   - Endpoint: `/api/users/change_password/`\n   - Method: POST\n   - Authentication: JWT Token required\n   - Parameters: `old_password`, `new_password`, `confirm_password`\n\n3. **Test Page Updates**: Enhanced the test page `test_html/auth_test.html` with:\n   - A password change form (old password, new password, confirmation)\n   - JavaScript function `changePassword()` to handle requests\n   - Improved UI with color-coded buttons\n   - User-friendly status feedback\n\n4. **Automated Testing**: Conducted Playwright tests to verify:\n   - Password validation rules (including length)\n   - Successful password updates (old password invalid, new password valid)\n   - Error handling with appropriate messages\n\nThe implementation adheres to RESTful API best practices and integrates seamlessly with Django's built-in password management, using `set_password()` for secure storage.\n</info added on 2025-05-20T15:12:11.508Z>",
+          "status": "done"
+        },
+        {
+          "id": 4,
+          "title": "Set up role-based permissions",
+          "description": "Define and enforce permissions based on user roles.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create middleware or logic to restrict access based on roles (e.g., admin-only routes).\n<info added on 2025-05-20T16:11:09.675Z>\nThe role-based permissions system has been successfully implemented with the following details:\n\n1. Created multiple role-based permission classes including IsAdmin, IsTeacher, IsStudent, IsAdminOrTeacher, and functional permission classes like HasViewStudentDataPermission and HasManageCoursesPermission.\n2. Developed a permission utility module (permission_utils.py) for managing and assigning permissions dynamically based on user roles.\n3. Implemented RoleBasedPermissionMiddleware in middleware.py with logging and custom denial responses.\n4. Extended the User model with methods like has_perm and has_module_perms, and added hardcoded permission rules for roles.\n5. Established a Role model with a many-to-many relationship to permissions, allowing dynamic adjustments.\n6. Added signal handlers for automatic permission assignment on user creation, role changes, and permission updates.\n7. Updated views to use new permission classes, including UserViewSet and added a permissions query API endpoint.\n8. Created management commands like init_roles for initializing roles and permissions, and updating existing user permissions.\n9. Developed a permissions test page (permissions_test.html) for verifying role-based access control.\n\nAll code has been committed and tested to ensure users can only access functionalities within their permissions.\n</info added on 2025-05-20T16:11:09.675Z>",
+          "status": "done"
+        },
+        {
+          "id": 5,
+          "title": "Test all functionalities",
+          "description": "Verify that all authentication and role-based features work as expected.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "Write and execute test cases for login, logout, password change, and role permissions.\n<info added on 2025-05-21T04:40:31.667Z>\nCompleted comprehensive testing of the user authentication system, including the following test components:\n\n1. Authentication Functionality Tests (AuthenticationTestCase):\n   - Successful login test\n   - Incorrect password login test\n   - Missing required fields login test\n   - User logout test\n   - Successful password change test\n   - Incorrect old password change test\n   - Password mismatch test\n   - Password complexity validation test\n   - Protected endpoint authentication test\n\n2. Role-Based Permission Control Tests (PermissionTestCase):\n   - User creation permission test (admin, teacher, student)\n   - User list access permission test\n   - User detail access permission test\n   - User information update permission test\n   - User deletion permission test\n   - \"My permissions\" endpoint test\n   - \"Current user info\" endpoint test\n   - Role-related functionality tests (view, create roles, role permissions)\n\n3. End-to-End Tests (EndToEndTestCase):\n   - Complete user flow test:\n     - Admin creates user\n     - User logs in\n     - User profile update\n     - Password change\n     - Logout\n     - Verify new password login\n\nAll tests passed after adapting to actual API URL paths and response structures, confirming system robustness and correct permission control. Testing utilized Django REST Framework's APITestCase and APIClient tools to simulate API interactions for various user roles.\n</info added on 2025-05-21T04:40:31.667Z>",
+          "status": "done"
+        }
+      ]
     },
     {
       "id": 3,

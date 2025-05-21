@@ -9,3 +9,44 @@ Define the models for User, Role, Permission, Course, KnowledgePoint, Courseware
 
 # Test Strategy:
 Test model creation, relationships, and constraints using Django's test framework. Ensure data integrity and validation.
+
+# Subtasks:
+## 1. Define User/Role/Permission models [done]
+### Dependencies: None
+### Description: Create the data models for users, roles, and permissions, including their attributes and basic functionalities.
+### Details:
+Define fields like username, email for User; name, description for Role; and action, resource for Permission.
+<info added on 2025-05-21T08:48:43.016Z>
+Implemented User/Role/Permission models with the following updates: 1. Modified User model to include a foreign key relationship (role_obj) with Role model while retaining the legacy role string field for backward compatibility. 2. Integrated Django's built-in Permission model for role-based permission assignment, establishing a many-to-many relationship between Role and Permission. 3. Added automatic synchronization between role and role_obj fields in User.save() to ensure data consistency. 4. Enhanced User.has_perm() and has_module_perms() methods to support both direct permission checks and role-based checks. 5. Developed utility functions in permission_utils.py for role permission assignment, default role creation, and user role synchronization. 6. Implemented signal handlers in signals.py for user creation, role updates, and permission synchronization, with syncing_roles parameter to prevent recursive calls. 7. Created a management command sync_roles.py to resolve data inconsistencies by synchronizing user roles and permissions. 8. Enhanced admin.py with additional functionalities for user and role management, including synchronization and permission handling. 9. Conducted comprehensive testing covering role synchronization, role-permission relationships, permission cascading, management command functionality, and the impact of role updates on user permissions. All tests passed, confirming a robust role-based permission system with backward compatibility.
+</info added on 2025-05-21T08:48:43.016Z>
+
+## 2. Define Course/KP/Courseware models [pending]
+### Dependencies: None
+### Description: Design the models for courses, knowledge points (KP), and courseware, including their attributes.
+### Details:
+Define fields like title, description for Course; name, level for KP; and title, content for Courseware.
+
+## 3. Define Exercise/Answer models [pending]
+### Dependencies: 3.2
+### Description: Create models for exercises and answers, detailing their structure and relationships.
+### Details:
+Define fields like question, type for Exercise; and content, isCorrect for Answer.
+
+## 4. Define Learning/Usage models [pending]
+### Dependencies: 3.1, 3.2
+### Description: Design models to track learning progress and usage statistics.
+### Details:
+Define fields like progress, completion for Learning; and timestamp, action for Usage.
+
+## 5. Implement relationships [pending]
+### Dependencies: 3.1, 3.2, 3.3, 3.4
+### Description: Establish the relationships between all defined models to ensure proper data interaction.
+### Details:
+Define foreign keys, many-to-many relationships, and cascading behaviors as needed.
+
+## 6. Test models [pending]
+### Dependencies: 3.5
+### Description: Validate the models and their relationships through testing to ensure correctness and robustness.
+### Details:
+Create test cases to verify CRUD operations, relationships, and edge cases.
+

@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-+2*)0s+_b-$d*e)!+q0rozaaybq8nhbx!vmcg!#f^&el_g&ebu
 DEBUG = True
 
 # 添加允许的主机
-ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com']
+ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost']
 
 
 

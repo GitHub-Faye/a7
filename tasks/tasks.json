@@ -116,7 +116,68 @@
       "priority": "high",
       "details": "Define the models for User, Role, Permission, Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord, UsageStatistics, and PerformanceMetric. Implement relationships and constraints as per the PRD.",
       "testStrategy": "Test model creation, relationships, and constraints using Django's test framework. Ensure data integrity and validation.",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Define User/Role/Permission models",
+          "description": "Create the data models for users, roles, and permissions, including their attributes and basic functionalities.",
+          "dependencies": [],
+          "details": "Define fields like username, email for User; name, description for Role; and action, resource for Permission.\n<info added on 2025-05-21T08:48:43.016Z>\nImplemented User/Role/Permission models with the following updates: 1. Modified User model to include a foreign key relationship (role_obj) with Role model while retaining the legacy role string field for backward compatibility. 2. Integrated Django's built-in Permission model for role-based permission assignment, establishing a many-to-many relationship between Role and Permission. 3. Added automatic synchronization between role and role_obj fields in User.save() to ensure data consistency. 4. Enhanced User.has_perm() and has_module_perms() methods to support both direct permission checks and role-based checks. 5. Developed utility functions in permission_utils.py for role permission assignment, default role creation, and user role synchronization. 6. Implemented signal handlers in signals.py for user creation, role updates, and permission synchronization, with syncing_roles parameter to prevent recursive calls. 7. Created a management command sync_roles.py to resolve data inconsistencies by synchronizing user roles and permissions. 8. Enhanced admin.py with additional functionalities for user and role management, including synchronization and permission handling. 9. Conducted comprehensive testing covering role synchronization, role-permission relationships, permission cascading, management command functionality, and the impact of role updates on user permissions. All tests passed, confirming a robust role-based permission system with backward compatibility.\n</info added on 2025-05-21T08:48:43.016Z>",
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "title": "Define Course/KP/Courseware models",
+          "description": "Design the models for courses, knowledge points (KP), and courseware, including their attributes.",
+          "dependencies": [],
+          "details": "Define fields like title, description for Course; name, level for KP; and title, content for Courseware.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Define Exercise/Answer models",
+          "description": "Create models for exercises and answers, detailing their structure and relationships.",
+          "dependencies": [
+            2
+          ],
+          "details": "Define fields like question, type for Exercise; and content, isCorrect for Answer.",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Define Learning/Usage models",
+          "description": "Design models to track learning progress and usage statistics.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Define fields like progress, completion for Learning; and timestamp, action for Usage.",
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "title": "Implement relationships",
+          "description": "Establish the relationships between all defined models to ensure proper data interaction.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "Define foreign keys, many-to-many relationships, and cascading behaviors as needed.",
+          "status": "pending"
+        },
+        {
+          "id": 6,
+          "title": "Test models",
+          "description": "Validate the models and their relationships through testing to ensure correctness and robustness.",
+          "dependencies": [
+            5
+          ],
+          "details": "Create test cases to verify CRUD operations, relationships, and edge cases.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 4,
