@@ -211,7 +211,7 @@ a7/                           # 项目根目录
    - StudentAnswer模型通过外键关联Exercise模型和User模型，表示学生对特定练习题的回答，均使用CASCADE级联删除。
    - StudentAnswer模型使用unique_together约束确保每个学生对每道题目只能有一个答案。
    - 所有模型均添加了优化索引，提高查询性能，如course_subj_grade_idx索引(Course模型)，kp_course_imp_idx索引(KnowledgePoint模型)等。
-   - `a7/courses/tests.py`中的ModelRelationshipTest测试类验证模型间关系和级联删除行为。
+   - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有模型关系、外键、反向查询和级联删除行为，包括教师删除对课程的影响、课程删除对知识点的级联删除等。
 
 4. **Task Master相关**:
    - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
@@ -223,7 +223,7 @@ a7/                           # 项目根目录
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
    - `test_html/permissions_test.html`提供角色权限测试界面，用于验证不同角色用户的权限控制和API访问限制。
    - `a7/users/tests.py`包含自动化单元测试，覆盖认证、权限和端到端用户场景测试。
-   - `a7/courses/tests.py`包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题、学生答案和学习记录的功能测试，包括学习进度跟踪、状态转换和统计分析测试。
+   - `a7/courses/tests.py`包含课程模型的全面自动化测试，包括: 1) ComprehensiveModelRelationshipTest（测试所有模型关系和级联行为）；2) ModelFieldUpdateTest（测试字段更新和业务逻辑验证）；3) EdgeCaseAndSpecialConditionTest（测试边界条件和特殊情况）；4) AdvancedQueryTest（测试Q对象、F表达式、Case When表达式和复杂聚合查询）。通过81个完整测试用例全面验证模型功能的正确性和健壮性。
 
 6. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -254,7 +254,7 @@ a7/                           # 项目根目录
     - 为所有模型添加了优化的索引设计，提高查询性能。
     - 实现了精心设计的外键关系级联删除策略：用户相关使用SET_NULL保护数据，内容关系使用CASCADE维持一致性。
     - 所有索引和外键关系均在迁移文件中正确定义，如`a7/courses/migrations/0004_rename_courses_lea_student_a74868_idx_lr_stud_course_idx_and_more.py`。
-    - `a7/courses/tests.py`中的ModelRelationshipTest测试类验证所有级联删除行为和唯一性约束。
+    - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有级联删除行为和唯一性约束。ModelFieldUpdateTest测试类验证字段更新和业务逻辑，EdgeCaseAndSpecialConditionTest测试类验证边界条件和特殊情况，AdvancedQueryTest测试类验证高级查询功能。
     - UsageStatistics模型采用SET_NULL策略连接User模型，避免删除用户时丢失重要的使用统计数据。
     - 所有模型的索引都有明确的命名约定，如lr_stud_course_idx、ans_ex_score_idx等，便于维护和调试。
 
