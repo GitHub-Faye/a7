@@ -109,10 +109,10 @@ a7/                           # 项目根目录
 ### 课程管理应用文件
 
 - **a7/courses/__init__.py**: Courses应用的Python包标识文件。
-- **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint和Courseware模型在管理界面的展示方式和操作功能。
+- **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise和StudentAnswer模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
-- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）和Courseware（课件）模型，实现课程内容管理系统。
-- **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性。
+- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）和StudentAnswer（学生答案）模型，实现课程内容管理和练习评测系统。
+- **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题和学生答案的测试用例。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 
 ### 测试文件
@@ -120,7 +120,7 @@ a7/                           # 项目根目录
 - **test_html/auth_test.html**: 用于测试登录/登出/密码更改功能的HTML页面，提供基本UI和JavaScript测试代码，通过浏览器直接测试认证API。
 - **test_html/permissions_test.html**: 角色权限测试页面，用于测试不同角色用户的权限访问控制，支持多角色登录和API权限验证。
 - **a7/users/tests.py**: 包含完整的自动化测试套件，测试认证功能（登录、登出、密码更改）、基于角色的权限控制以及完整的用户流程端到端测试。
-- **a7/courses/tests.py**: 包含课程模型的自动化测试，验证课程内容管理功能的正确性。
+- **a7/courses/tests.py**: 包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题和学生答案的功能测试，包括约束和关系测试。
 
 ### 配置文件
 
@@ -193,13 +193,16 @@ a7/                           # 项目根目录
    - `permission.log`记录权限中间件的访问检查日志，帮助调试和监控权限系统。
 
 3. **课程内容管理系统**:
-   - `a7/courses/models.py`定义Course、KnowledgePoint和Courseware模型，实现课程内容的组织和管理。
+   - `a7/courses/models.py`定义Course、KnowledgePoint、Courseware、Exercise和StudentAnswer模型，实现课程内容的组织和管理以及练习评测功能。
    - `a7/courses/admin.py`配置课程相关模型在Django Admin中的展示和操作方式。
-   - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性。
+   - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性，以及练习题和学生答案的功能测试。
    - `a7/courses/models.py`中的KnowledgePoint模型使用自引用外键实现知识点的层次结构。
    - Course模型与User模型（教师）建立外键关系，表示课程的创建者。
    - Courseware模型与Course和User模型建立外键关系，表示课件所属课程和创建者。
    - KnowledgePoint模型通过外键关联Course模型，表示知识点所属的课程。
+   - Exercise模型通过外键关联KnowledgePoint模型，表示练习题所属的知识点。
+   - StudentAnswer模型通过外键关联Exercise模型和User模型，表示学生对特定练习题的回答。
+   - StudentAnswer模型使用unique_together约束确保每个学生对每道题目只能有一个答案。
 
 4. **Task Master相关**:
    - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
@@ -211,7 +214,7 @@ a7/                           # 项目根目录
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
    - `test_html/permissions_test.html`提供角色权限测试界面，用于验证不同角色用户的权限控制和API访问限制。
    - `a7/users/tests.py`包含自动化单元测试，覆盖认证、权限和端到端用户场景测试。
-   - `a7/courses/tests.py`包含课程模型的自动化测试，验证课程内容管理功能的正确性。
+   - `a7/courses/tests.py`包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题和学生答案的功能测试，包括约束和关系测试。
 
 6. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -271,7 +274,7 @@ a7/                           # 项目根目录
 4. **代码约定**:
    - 代码文件（当添加时）将遵循各语言的标准命名约定。
    - 组件和模块文件名应反映其功能和类型。
-   - Django模型类使用单数名词，首字母大写的驼峰式命名(如`User`、`Role`、`Course`、`KnowledgePoint`)。
+   - Django模型类使用单数名词，首字母大写的驼峰式命名(如`User`、`Role`、`Course`、`KnowledgePoint`、`Exercise`、`StudentAnswer`)。
    - Django视图函数使用小写下划线命名(如`user_login`)。
    - Django URL路径使用小写和连字符分隔(如`user-profile/`)。
 
@@ -303,6 +306,27 @@ a7/                           # 项目根目录
 4. **文档端点**:
    - `/swagger/` - Swagger UI API交互式文档
    - `/redoc/` - ReDoc 格式的API文档
+
+## 练习与评测系统
+
+新增的Exercise和StudentAnswer模型为系统提供以下功能支持：
+
+1. **练习题管理**:
+   - 支持多种题型：单选题、多选题、填空题、简答题、编程题等
+   - 可设置难度等级（1-5级）
+   - 与知识点关联，实现按知识点组织练习题
+   - 支持答案模板，用于标准答案或选项设置
+
+2. **学生答案管理**:
+   - 记录学生提交的答案内容
+   - 支持评分和反馈记录
+   - 确保每个学生对每道题只有一个有效答案
+   - 记录提交时间，支持时间排序
+
+3. **待实现功能**:
+   - 练习题推荐API（基于学习进度）
+   - 答案自动评测逻辑
+   - 学习记录和统计分析
 
 ## 管理和更新
 

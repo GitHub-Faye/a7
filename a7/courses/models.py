@@ -103,3 +103,96 @@ class Courseware(models.Model):
     
     def __str__(self):
         return self.title
+
+class Exercise(models.Model):
+    """
+    练习模型，表示与知识点相关的练习题
+    """
+    EXERCISE_TYPES = (
+        ('single_choice', '单选题'),
+        ('multiple_choice', '多选题'),
+        ('fill_blank', '填空题'),
+        ('short_answer', '简答题'),
+        ('coding', '编程题'),
+        ('other', '其他'),
+    )
+    
+    DIFFICULTY_LEVELS = (
+        (1, '简单'),
+        (2, '较简单'),
+        (3, '中等'),
+        (4, '较难'),
+        (5, '困难'),
+    )
+    
+    title = models.CharField(max_length=200, verbose_name='标题')
+    content = models.TextField(verbose_name='题目内容')
+    type = models.CharField(
+        max_length=20, 
+        choices=EXERCISE_TYPES, 
+        default='single_choice',
+        verbose_name='题目类型'
+    )
+    difficulty = models.IntegerField(
+        choices=DIFFICULTY_LEVELS,
+        default=3,
+        verbose_name='难度等级'
+    )
+    knowledge_point = models.ForeignKey(
+        KnowledgePoint,
+        on_delete=models.CASCADE,
+        related_name='exercises',
+        verbose_name='关联知识点'
+    )
+    answer_template = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='答案模板'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    
+    class Meta:
+        verbose_name = '练习题'
+        verbose_name_plural = '练习题'
+        ordering = ['knowledge_point', 'difficulty', '-created_at']
+    
+    def __str__(self):
+        return self.title
+
+class StudentAnswer(models.Model):
+    """
+    学生答案模型，记录学生对练习题的回答
+    """
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='answers',
+        verbose_name='学生'
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='student_answers',
+        verbose_name='练习题'
+    )
+    content = models.TextField(verbose_name='答案内容')
+    score = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name='得分'
+    )
+    feedback = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='反馈'
+    )
+    submitted_at = models.DateTimeField(auto_now_add=True, verbose_name='提交时间')
+    
+    class Meta:
+        verbose_name = '学生答案'
+        verbose_name_plural = '学生答案'
+        ordering = ['-submitted_at']
+        unique_together = ['student', 'exercise']  # 每个学生对每道题只能有一个答案
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.exercise.title}"

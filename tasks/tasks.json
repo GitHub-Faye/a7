@@ -140,8 +140,8 @@
           "dependencies": [
             2
           ],
-          "details": "Define fields like question, type for Exercise; and content, isCorrect for Answer.",
-          "status": "pending"
+          "details": "Define fields like question, type for Exercise; and content, isCorrect for Answer.\n<info added on 2025-05-22T06:45:04.375Z>\nExercise model implemented with fields: title, content, type (single/multiple choice, fill-in, etc.), difficulty level (1-5), foreign key relationship with KnowledgePoint, answer template for standard answers/options, and custom sorting/string representation. StudentAnswer model implemented with fields: content, score, feedback, foreign key relationships with User and Exercise, unique_together constraint to ensure one answer per student per exercise, and time-based sorting. Both models registered in Django Admin with appropriate display/filter configurations. Database migration files created and applied. Comprehensive unit tests written and passed, covering model creation, relationships, and constraints. Models support exercise and evaluation functionality as per PRD specifications.\n</info added on 2025-05-22T06:45:04.375Z>",
+          "status": "done"
         },
         {
           "id": 4,
