@@ -9,7 +9,8 @@ class UsageStatistics(models.Model):
     """
     user = models.ForeignKey(
         User, 
-        on_delete=models.CASCADE, 
+        on_delete=models.SET_NULL,
+        null=True,
         related_name='usage_statistics',
         verbose_name=_('用户')
     )
@@ -50,12 +51,14 @@ class UsageStatistics(models.Model):
         verbose_name_plural = _('使用统计')
         ordering = ['-timestamp']
         indexes = [
-            models.Index(fields=['module', 'action']),
-            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['module', 'action'], name='usage_mod_act_idx'),
+            models.Index(fields=['user', 'timestamp'], name='usage_user_time_idx'),
+            models.Index(fields=['ip_address'], name='usage_ip_idx')
         ]
     
     def __str__(self):
-        return f"{self.user.username} - {self.module}.{self.action} - {self.timestamp}"
+        user_str = self.user.username if self.user else "已删除用户"
+        return f"{user_str} - {self.module}.{self.action} - {self.timestamp}"
     
     def get_details_dict(self):
         """
@@ -120,9 +123,9 @@ class PerformanceMetric(models.Model):
         verbose_name_plural = _('性能指标')
         ordering = ['-timestamp']
         indexes = [
-            models.Index(fields=['metric_type']),
-            models.Index(fields=['related_entity']),
-            models.Index(fields=['timestamp']),
+            models.Index(fields=['metric_type'], name='perf_type_idx'),
+            models.Index(fields=['related_entity'], name='perf_entity_idx'),
+            models.Index(fields=['timestamp'], name='perf_time_idx')
         ]
     
     def __str__(self):

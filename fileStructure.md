@@ -204,12 +204,14 @@ a7/                           # 项目根目录
    - `a7/courses/admin.py`配置课程相关模型在Django Admin中的展示和操作方式。
    - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性，以及练习题、学生答案和学习记录的功能测试。
    - `a7/courses/models.py`中的KnowledgePoint模型使用自引用外键实现知识点的层次结构。
-   - Course模型与User模型（教师）建立外键关系，表示课程的创建者。
-   - Courseware模型与Course和User模型建立外键关系，表示课件所属课程和创建者。
-   - KnowledgePoint模型通过外键关联Course模型，表示知识点所属的课程。
-   - Exercise模型通过外键关联KnowledgePoint模型，表示练习题所属的知识点。
-   - StudentAnswer模型通过外键关联Exercise模型和User模型，表示学生对特定练习题的回答。
+   - Course模型与User模型（教师）建立外键关系，表示课程的创建者，采用SET_NULL策略避免删除教师时连带删除课程。
+   - Courseware模型与Course和User模型建立外键关系，表示课件所属课程和创建者。Course关系使用CASCADE确保删除课程时级联删除课件，而User关系使用SET_NULL保护课件数据。
+   - KnowledgePoint模型通过外键关联Course模型，表示知识点所属的课程，使用CASCADE级联删除。
+   - Exercise模型通过外键关联KnowledgePoint模型，表示练习题所属的知识点，使用CASCADE级联删除。
+   - StudentAnswer模型通过外键关联Exercise模型和User模型，表示学生对特定练习题的回答，均使用CASCADE级联删除。
    - StudentAnswer模型使用unique_together约束确保每个学生对每道题目只能有一个答案。
+   - 所有模型均添加了优化索引，提高查询性能，如course_subj_grade_idx索引(Course模型)，kp_course_imp_idx索引(KnowledgePoint模型)等。
+   - `a7/courses/tests.py`中的ModelRelationshipTest测试类验证模型间关系和级联删除行为。
 
 4. **Task Master相关**:
    - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
@@ -242,10 +244,19 @@ a7/                           # 项目根目录
 
 9. **学习进度跟踪系统**:
    - `a7/courses/models.py`中的LearningRecord模型用于跟踪学生的学习进度和时间投入。
-   - LearningRecord模型通过外键关联User(student)、Course和KnowledgePoint模型，建立学生-课程-知识点的学习关系。
+   - LearningRecord模型通过外键关联User(student)、Course和KnowledgePoint模型，建立学生-课程-知识点的学习关系，使用CASCADE级联删除。
    - LearningRecord模型提供进度更新方法、时间累计方法和状态判断属性，实现完整的学习进度跟踪功能。
    - `a7/courses/admin.py`配置LearningRecord模型在Django Admin中的展示和操作方式。
    - `a7/courses/tests.py`提供学习记录模型的自动化测试，验证学习进度跟踪、状态转换和统计分析功能。
+   - LearningRecord模型添加了lr_progress_idx等多个优化索引，提高查询性能。
+
+10. **模型关系优化系统**:
+    - 为所有模型添加了优化的索引设计，提高查询性能。
+    - 实现了精心设计的外键关系级联删除策略：用户相关使用SET_NULL保护数据，内容关系使用CASCADE维持一致性。
+    - 所有索引和外键关系均在迁移文件中正确定义，如`a7/courses/migrations/0004_rename_courses_lea_student_a74868_idx_lr_stud_course_idx_and_more.py`。
+    - `a7/courses/tests.py`中的ModelRelationshipTest测试类验证所有级联删除行为和唯一性约束。
+    - UsageStatistics模型采用SET_NULL策略连接User模型，避免删除用户时丢失重要的使用统计数据。
+    - 所有模型的索引都有明确的命名约定，如lr_stud_course_idx、ans_ex_score_idx等，便于维护和调试。
 
 ## 目录组织逻辑
 

@@ -164,8 +164,8 @@
             3,
             4
           ],
-          "details": "Define foreign keys, many-to-many relationships, and cascading behaviors as needed.",
-          "status": "pending"
+          "details": "Define foreign keys, many-to-many relationships, and cascading behaviors as needed.\n<info added on 2025-05-22T08:14:53.197Z>\nDefine foreign keys, many-to-many relationships, and cascading behaviors as needed. Completed implementation of model relationships with the following details: 1. Optimized database relationship design: - Modified on_delete strategies for key foreign keys, e.g., SET_NULL for user-related foreign keys to prevent data loss. - Retained appropriate cascading deletions for data integrity (e.g., course deletion cascades to related knowledge points and materials). - Ensured logical consistency in foreign key relationships. 2. Added and optimized database indexes: - Added suitable indexes to all models for improved query performance. - Named indexes meaningfully for easier maintenance and debugging. - Designed composite indexes for common query scenarios (e.g., subject and grade for courses). 3. Implemented uniqueness constraints: - Ensured uniqueness constraints for student answers and learning records (e.g., one answer per student per question). - Added tests to validate these constraints. 4. Added cascading deletion tests: - Wrote comprehensive tests to verify cascading deletion behaviors. - Confirmed user deletion does not delete courses but sets teacher fields to null. - Confirmed course deletion cascades to related knowledge points and materials. 5. Generated and applied migration files: - Created necessary migration files to align database structure with model definitions. - Applied migrations and verified correct database structure.\n</info added on 2025-05-22T08:14:53.197Z>",
+          "status": "done"
         },
         {
           "id": 6,

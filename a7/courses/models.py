@@ -11,7 +11,8 @@ class Course(models.Model):
     grade_level = models.CharField(max_length=20, verbose_name='年级水平')
     teacher = models.ForeignKey(
         User, 
-        on_delete=models.CASCADE, 
+        on_delete=models.SET_NULL,  # 修改为SET_NULL，避免删除教师时连带删除课程
+        null=True,  # 允许为空，配合SET_NULL使用
         related_name='courses',
         verbose_name='教师'
     )
@@ -21,6 +22,10 @@ class Course(models.Model):
         verbose_name = '课程'
         verbose_name_plural = '课程'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['subject', 'grade_level'], name='course_subj_grade_idx'),
+            models.Index(fields=['teacher', 'created_at'], name='course_teacher_date_idx')
+        ]
     
     def __str__(self):
         return self.title
@@ -32,7 +37,7 @@ class KnowledgePoint(models.Model):
     """
     course = models.ForeignKey(
         Course, 
-        on_delete=models.CASCADE, 
+        on_delete=models.CASCADE,  # 保持CASCADE，删除课程时连带删除知识点
         related_name='knowledge_points',
         verbose_name='所属课程'
     )
@@ -45,7 +50,7 @@ class KnowledgePoint(models.Model):
     )
     parent = models.ForeignKey(
         'self', 
-        on_delete=models.CASCADE, 
+        on_delete=models.CASCADE,  # 保持CASCADE，删除父知识点时连带删除子知识点
         null=True, 
         blank=True, 
         related_name='children',
@@ -56,6 +61,10 @@ class KnowledgePoint(models.Model):
         verbose_name = '知识点'
         verbose_name_plural = '知识点'
         ordering = ['importance', 'title']
+        indexes = [
+            models.Index(fields=['course', 'importance'], name='kp_course_imp_idx'),
+            models.Index(fields=['parent'], name='kp_parent_idx')
+        ]
     
     def __str__(self):
         return self.title
@@ -76,7 +85,7 @@ class Courseware(models.Model):
     
     course = models.ForeignKey(
         Course, 
-        on_delete=models.CASCADE, 
+        on_delete=models.CASCADE,  # 保持CASCADE，删除课程时连带删除课件
         related_name='coursewares',
         verbose_name='所属课程'
     )
@@ -90,7 +99,8 @@ class Courseware(models.Model):
     )
     created_by = models.ForeignKey(
         User, 
-        on_delete=models.CASCADE, 
+        on_delete=models.SET_NULL,  # 修改为SET_NULL，避免删除用户时连带删除课件
+        null=True,  # 允许为空，配合SET_NULL使用
         related_name='created_coursewares',
         verbose_name='创建者'
     )
@@ -100,6 +110,10 @@ class Courseware(models.Model):
         verbose_name = '课件'
         verbose_name_plural = '课件'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['course', 'type'], name='cw_course_type_idx'),
+            models.Index(fields=['created_by', 'created_at'], name='cw_creator_date_idx')
+        ]
     
     def __str__(self):
         return self.title
@@ -140,7 +154,7 @@ class Exercise(models.Model):
     )
     knowledge_point = models.ForeignKey(
         KnowledgePoint,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,  # 保持CASCADE，删除知识点时连带删除练习题
         related_name='exercises',
         verbose_name='关联知识点'
     )
@@ -155,6 +169,10 @@ class Exercise(models.Model):
         verbose_name = '练习题'
         verbose_name_plural = '练习题'
         ordering = ['knowledge_point', 'difficulty', '-created_at']
+        indexes = [
+            models.Index(fields=['knowledge_point', 'difficulty'], name='ex_kp_diff_idx'),
+            models.Index(fields=['type'], name='ex_type_idx')
+        ]
     
     def __str__(self):
         return self.title
@@ -165,13 +183,13 @@ class StudentAnswer(models.Model):
     """
     student = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,  # 保持CASCADE，删除学生时删除其所有答案
         related_name='answers',
         verbose_name='学生'
     )
     exercise = models.ForeignKey(
         Exercise,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,  # 保持CASCADE，删除练习题时删除相关答案
         related_name='student_answers',
         verbose_name='练习题'
     )
@@ -192,7 +210,11 @@ class StudentAnswer(models.Model):
         verbose_name = '学生答案'
         verbose_name_plural = '学生答案'
         ordering = ['-submitted_at']
-        unique_together = ['student', 'exercise']  # 每个学生对每道题只能有一个答案
+        unique_together = ['student', 'exercise']  # 保持约束，每个学生对每道题只能有一个答案
+        indexes = [
+            models.Index(fields=['student', 'submitted_at'], name='ans_stud_date_idx'),
+            models.Index(fields=['exercise', 'score'], name='ans_ex_score_idx')
+        ]
     
     def __str__(self):
         return f"{self.student.username} - {self.exercise.title}"
@@ -210,19 +232,19 @@ class LearningRecord(models.Model):
     
     student = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,  # 保持CASCADE，删除学生时删除其所有学习记录
         related_name='learning_records',
         verbose_name='学生'
     )
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,  # 保持CASCADE，删除课程时删除相关学习记录
         related_name='learning_records',
         verbose_name='课程'
     )
     knowledge_point = models.ForeignKey(
         KnowledgePoint,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,  # 保持CASCADE，删除知识点时删除相关学习记录
         related_name='learning_records',
         verbose_name='知识点'
     )
@@ -258,11 +280,12 @@ class LearningRecord(models.Model):
         verbose_name = '学习记录'
         verbose_name_plural = '学习记录'
         ordering = ['-last_accessed']
-        unique_together = ['student', 'knowledge_point']
+        unique_together = ['student', 'knowledge_point']  # 保持约束，每个学生对每个知识点只有一条记录
         indexes = [
-            models.Index(fields=['student', 'course']),
-            models.Index(fields=['status']),
-            models.Index(fields=['last_accessed']),
+            models.Index(fields=['student', 'course'], name='lr_stud_course_idx'),
+            models.Index(fields=['status'], name='lr_status_idx'),
+            models.Index(fields=['last_accessed'], name='lr_access_idx'),
+            models.Index(fields=['progress'], name='lr_progress_idx')
         ]
     
     def __str__(self):

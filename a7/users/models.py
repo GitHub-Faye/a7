@@ -19,6 +19,9 @@ class Role(models.Model):
     class Meta:
         verbose_name = '角色'
         verbose_name_plural = '角色'
+        indexes = [
+            models.Index(fields=['name'], name='role_name_idx')
+        ]
     
     def __str__(self):
         return self.name
@@ -40,7 +43,7 @@ class User(AbstractUser):
     # 新增与Role模型的关联
     role_obj = models.ForeignKey(
         Role, 
-        on_delete=models.SET_NULL, 
+        on_delete=models.SET_NULL,  # 使用SET_NULL，避免删除角色时影响用户
         null=True, 
         blank=True, 
         related_name='users',
@@ -57,6 +60,11 @@ class User(AbstractUser):
             ('manage_courses', '管理课程'),
             ('generate_teaching_content', '生成教学内容'),
         )
+        indexes = [
+            models.Index(fields=['role'], name='user_role_idx'),
+            models.Index(fields=['username', 'email'], name='user_login_idx'),
+            models.Index(fields=['created_at'], name='user_created_idx')
+        ]
     
     def __str__(self):
         return self.username

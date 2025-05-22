@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord
-from users.models import User
+from users.models import Role
 
 User = get_user_model()
 
@@ -554,3 +554,217 @@ class LearningRecordModelTest(TestCase):
         
         # 即使状态为需要复习，is_complete属性也应为False
         self.assertFalse(record.is_complete)
+
+class ModelRelationshipTest(TestCase):
+    """测试模型之间的关系和级联删除行为"""
+    
+    def setUp(self):
+        # 创建角色
+        self.teacher_role = Role.objects.create(name='teacher', description='教师角色')
+        self.student_role = Role.objects.create(name='student', description='学生角色')
+        
+        # 创建用户
+        self.teacher = User.objects.create_user(
+            username='teacher', 
+            password='password',
+            email='teacher@example.com',
+            role='teacher',
+            role_obj=self.teacher_role
+        )
+        
+        self.student = User.objects.create_user(
+            username='student', 
+            password='password',
+            email='student@example.com',
+            role='student',
+            role_obj=self.student_role
+        )
+        
+        # 创建课程
+        self.course = Course.objects.create(
+            title='测试课程',
+            description='这是一个测试课程',
+            subject='数学',
+            grade_level='高一',
+            teacher=self.teacher
+        )
+        
+        # 创建知识点
+        self.kp1 = KnowledgePoint.objects.create(
+            course=self.course,
+            title='一级知识点',
+            content='一级知识点内容',
+            importance=8
+        )
+        
+        self.kp2 = KnowledgePoint.objects.create(
+            course=self.course,
+            title='二级知识点',
+            content='二级知识点内容',
+            importance=6,
+            parent=self.kp1
+        )
+        
+        # 创建课件
+        self.courseware = Courseware.objects.create(
+            course=self.course,
+            title='测试课件',
+            content='测试课件内容',
+            type='document',
+            created_by=self.teacher
+        )
+        
+        # 创建练习题
+        self.exercise = Exercise.objects.create(
+            title='测试题目',
+            content='1+1=?',
+            type='short_answer',
+            difficulty=2,
+            knowledge_point=self.kp1,
+            answer_template='2'
+        )
+        
+        # 创建学生答案
+        self.answer = StudentAnswer.objects.create(
+            student=self.student,
+            exercise=self.exercise,
+            content='2',
+            score=100
+        )
+        
+        # 创建学习记录
+        self.learning_record = LearningRecord.objects.create(
+            student=self.student,
+            course=self.course,
+            knowledge_point=self.kp1,
+            status='in_progress',
+            progress=50
+        )
+    
+    def test_delete_teacher_nullifies_course_teacher(self):
+        """测试删除教师时，课程的teacher字段设为null而不是删除课程"""
+        course_id = self.course.id
+        self.teacher.delete()
+        
+        # 检查课程是否依然存在
+        self.assertTrue(Course.objects.filter(id=course_id).exists())
+        
+        # 检查课程teacher是否为null
+        refreshed_course = Course.objects.get(id=course_id)
+        self.assertIsNone(refreshed_course.teacher)
+    
+    def test_delete_teacher_nullifies_courseware_creator(self):
+        """测试删除教师时，课件的created_by字段设为null而不是删除课件"""
+        courseware_id = self.courseware.id
+        self.teacher.delete()
+        
+        # 检查课件是否依然存在
+        self.assertTrue(Courseware.objects.filter(id=courseware_id).exists())
+        
+        # 检查课件created_by是否为null
+        refreshed_courseware = Courseware.objects.get(id=courseware_id)
+        self.assertIsNone(refreshed_courseware.created_by)
+    
+    def test_delete_course_cascades(self):
+        """测试删除课程时，相关知识点、课件和学习记录都被删除"""
+        kp1_id = self.kp1.id
+        kp2_id = self.kp2.id
+        courseware_id = self.courseware.id
+        learning_record_id = self.learning_record.id
+        exercise_id = self.exercise.id
+        
+        self.course.delete()
+        
+        # 检查相关记录是否被删除
+        self.assertFalse(KnowledgePoint.objects.filter(id=kp1_id).exists())
+        self.assertFalse(KnowledgePoint.objects.filter(id=kp2_id).exists())
+        self.assertFalse(Courseware.objects.filter(id=courseware_id).exists())
+        self.assertFalse(LearningRecord.objects.filter(id=learning_record_id).exists())
+        self.assertFalse(Exercise.objects.filter(id=exercise_id).exists())
+    
+    def test_delete_knowledge_point_cascades(self):
+        """测试删除知识点时，子知识点、练习题和学习记录都被删除"""
+        kp2_id = self.kp2.id
+        exercise_id = self.exercise.id
+        learning_record_id = self.learning_record.id
+        
+        self.kp1.delete()
+        
+        # 检查相关记录是否被删除
+        self.assertFalse(KnowledgePoint.objects.filter(id=kp2_id).exists())
+        self.assertFalse(Exercise.objects.filter(id=exercise_id).exists())
+        self.assertFalse(LearningRecord.objects.filter(id=learning_record_id).exists())
+    
+    def test_delete_exercise_cascades_to_answers(self):
+        """测试删除练习题时，相关学生答案被删除"""
+        answer_id = self.answer.id
+        
+        self.exercise.delete()
+        
+        # 检查相关答案是否被删除
+        self.assertFalse(StudentAnswer.objects.filter(id=answer_id).exists())
+    
+    def test_delete_student_cascades_to_answers_and_records(self):
+        """测试删除学生用户时，相关答案和学习记录被删除"""
+        answer_id = self.answer.id
+        learning_record_id = self.learning_record.id
+        
+        self.student.delete()
+        
+        # 检查相关记录是否被删除
+        self.assertFalse(StudentAnswer.objects.filter(id=answer_id).exists())
+        self.assertFalse(LearningRecord.objects.filter(id=learning_record_id).exists())
+    
+    def test_unique_constraints_student_answer(self):
+        """测试学生答案的唯一性约束"""
+        # 尝试为同一学生同一练习题创建另一个答案
+        try:
+            StudentAnswer.objects.create(
+                student=self.student,
+                exercise=self.exercise,
+                content='错误答案',
+                score=0
+            )
+            self.fail("应该抛出IntegrityError异常，因为已经存在相同学生相同练习的答案")
+        except IntegrityError:
+            pass # 预期行为
+    
+    def test_unique_constraints_learning_record(self):
+        """测试学习记录的唯一性约束"""
+        # 尝试为同一学生同一知识点创建另一个学习记录
+        try:
+            LearningRecord.objects.create(
+                student=self.student,
+                course=self.course,
+                knowledge_point=self.kp1,
+                status='completed',
+                progress=100
+            )
+            self.fail("应该抛出IntegrityError异常，因为已经存在相同学生相同知识点的学习记录")
+        except IntegrityError:
+            pass # 预期行为
+    
+    def test_indexes(self):
+        """测试索引（只能在数据库层面真正生效，这里只是基本检查）"""
+        # 检查索引是否已经定义在Meta类中
+        course_indexes = [index.name for index in Course._meta.indexes]
+        self.assertIn('course_subj_grade_idx', course_indexes)
+        self.assertIn('course_teacher_date_idx', course_indexes)
+        
+        kp_indexes = [index.name for index in KnowledgePoint._meta.indexes]
+        self.assertIn('kp_course_imp_idx', kp_indexes)
+        self.assertIn('kp_parent_idx', kp_indexes)
+        
+        exercise_indexes = [index.name for index in Exercise._meta.indexes]
+        self.assertIn('ex_kp_diff_idx', exercise_indexes)
+        self.assertIn('ex_type_idx', exercise_indexes)
+        
+        answer_indexes = [index.name for index in StudentAnswer._meta.indexes]
+        self.assertIn('ans_stud_date_idx', answer_indexes)
+        self.assertIn('ans_ex_score_idx', answer_indexes)
+        
+        learning_indexes = [index.name for index in LearningRecord._meta.indexes]
+        self.assertIn('lr_stud_course_idx', learning_indexes)
+        self.assertIn('lr_status_idx', learning_indexes)
+        self.assertIn('lr_access_idx', learning_indexes)
+        self.assertIn('lr_progress_idx', learning_indexes)
