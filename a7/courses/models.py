@@ -196,3 +196,99 @@ class StudentAnswer(models.Model):
     
     def __str__(self):
         return f"{self.student.username} - {self.exercise.title}"
+
+class LearningRecord(models.Model):
+    """
+    学习记录模型，跟踪学生在特定课程和知识点上的学习进度
+    """
+    STATUS_CHOICES = (
+        ('not_started', '未开始'),
+        ('in_progress', '学习中'),
+        ('completed', '已完成'),
+        ('review_needed', '需要复习'),
+    )
+    
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='learning_records',
+        verbose_name='学生'
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='learning_records',
+        verbose_name='课程'
+    )
+    knowledge_point = models.ForeignKey(
+        KnowledgePoint,
+        on_delete=models.CASCADE,
+        related_name='learning_records',
+        verbose_name='知识点'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='not_started',
+        verbose_name='状态'
+    )
+    progress = models.FloatField(
+        default=0.0,
+        verbose_name='进度百分比',
+        help_text='0-100的数值，表示完成百分比'
+    )
+    time_spent = models.PositiveIntegerField(
+        default=0,
+        verbose_name='学习时间(分钟)'
+    )
+    last_accessed = models.DateTimeField(
+        auto_now=True,
+        verbose_name='最后访问时间'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='创建时间'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='更新时间'
+    )
+    
+    class Meta:
+        verbose_name = '学习记录'
+        verbose_name_plural = '学习记录'
+        ordering = ['-last_accessed']
+        unique_together = ['student', 'knowledge_point']
+        indexes = [
+            models.Index(fields=['student', 'course']),
+            models.Index(fields=['status']),
+            models.Index(fields=['last_accessed']),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.knowledge_point.title} ({self.get_status_display()})"
+    
+    @property
+    def is_complete(self):
+        """判断是否已完成学习"""
+        return self.status == 'completed'
+    
+    def update_progress(self, progress_value):
+        """更新学习进度"""
+        if 0 <= progress_value <= 100:
+            self.progress = progress_value
+            if progress_value >= 100:
+                self.status = 'completed'
+            elif progress_value > 0:
+                self.status = 'in_progress'
+            self.save()
+            return True
+        return False
+    
+    def add_time_spent(self, minutes):
+        """添加学习时间（分钟）"""
+        if minutes > 0:
+            self.time_spent += minutes
+            self.save()
+            return True
+        return False

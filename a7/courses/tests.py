@@ -1,7 +1,11 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.db.utils import IntegrityError
-from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer
+from django.utils import timezone
+from datetime import timedelta
+
+from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord
+from users.models import User
 
 User = get_user_model()
 
@@ -280,3 +284,273 @@ class StudentAnswerModelTests(TestCase):
                 score=60.0,
                 feedback='答案不正确'
             )
+
+class LearningRecordModelTest(TestCase):
+    """学习记录模型的测试类"""
+    
+    def setUp(self):
+        # 创建测试用户
+        self.student = User.objects.create_user(
+            username='student1',
+            email='student1@example.com',
+            password='student1password'
+        )
+        
+        self.teacher = User.objects.create_user(
+            username='teacher1',
+            email='teacher1@example.com',
+            password='teacher1password'
+        )
+        
+        # 创建测试课程
+        self.course = Course.objects.create(
+            title='测试课程',
+            description='这是一个测试课程',
+            subject='数学',
+            grade_level='高一',
+            teacher=self.teacher
+        )
+        
+        # 创建测试知识点
+        self.knowledge_point = KnowledgePoint.objects.create(
+            course=self.course,
+            title='函数基础',
+            content='了解函数的概念和基础应用',
+            importance=8
+        )
+        
+        # 创建测试学习记录
+        self.learning_record = LearningRecord.objects.create(
+            student=self.student,
+            course=self.course,
+            knowledge_point=self.knowledge_point,
+            status='in_progress',
+            progress=45.0,
+            time_spent=30
+        )
+    
+    def test_learning_record_creation(self):
+        """测试LearningRecord模型实例创建"""
+        self.assertEqual(self.learning_record.student, self.student)
+        self.assertEqual(self.learning_record.course, self.course)
+        self.assertEqual(self.learning_record.knowledge_point, self.knowledge_point)
+        self.assertEqual(self.learning_record.status, 'in_progress')
+        self.assertEqual(self.learning_record.progress, 45.0)
+        self.assertEqual(self.learning_record.time_spent, 30)
+        self.assertIsNotNone(self.learning_record.created_at)
+        self.assertIsNotNone(self.learning_record.updated_at)
+        self.assertIsNotNone(self.learning_record.last_accessed)
+    
+    def test_is_complete_property(self):
+        """测试is_complete属性"""
+        # 初始状态为in_progress
+        self.assertFalse(self.learning_record.is_complete)
+        
+        # 更新状态为completed
+        self.learning_record.status = 'completed'
+        self.learning_record.save()
+        self.assertTrue(self.learning_record.is_complete)
+    
+    def test_update_progress_method(self):
+        """测试update_progress方法"""
+        # 更新进度到60%
+        result = self.learning_record.update_progress(60.0)
+        self.assertTrue(result)
+        self.assertEqual(self.learning_record.progress, 60.0)
+        self.assertEqual(self.learning_record.status, 'in_progress')
+        
+        # 更新进度到100%，状态应变为completed
+        result = self.learning_record.update_progress(100.0)
+        self.assertTrue(result)
+        self.assertEqual(self.learning_record.progress, 100.0)
+        self.assertEqual(self.learning_record.status, 'completed')
+        
+        # 测试无效进度值
+        result = self.learning_record.update_progress(110.0)
+        self.assertFalse(result)
+        self.assertEqual(self.learning_record.progress, 100.0)  # 保持原值
+    
+    def test_add_time_spent_method(self):
+        """测试add_time_spent方法"""
+        # 初始值为30分钟
+        initial_time = self.learning_record.time_spent
+        
+        # 添加15分钟
+        result = self.learning_record.add_time_spent(15)
+        self.assertTrue(result)
+        self.assertEqual(self.learning_record.time_spent, initial_time + 15)
+        
+        # 添加负值时应该失败
+        result = self.learning_record.add_time_spent(-5)
+        self.assertFalse(result)
+        self.assertEqual(self.learning_record.time_spent, initial_time + 15)  # 保持上次值
+    
+    def test_str_representation(self):
+        """测试LearningRecord的字符串表示"""
+        expected_str = f"{self.student.username} - {self.knowledge_point.title} ({self.learning_record.get_status_display()})"
+        self.assertEqual(str(self.learning_record), expected_str)
+    
+    def test_ordering(self):
+        """测试LearningRecord的排序（按最后访问时间倒序）"""
+        # 修改当前记录的last_accessed为更早的时间
+        old_time = timezone.now() - timedelta(days=1)
+        LearningRecord.objects.filter(pk=self.learning_record.pk).update(last_accessed=old_time)
+        
+        # 创建新的学习记录
+        new_knowledge_point = KnowledgePoint.objects.create(
+            course=self.course,
+            title='函数进阶',
+            content='学习更复杂的函数',
+            importance=7
+        )
+        
+        new_record = LearningRecord.objects.create(
+            student=self.student,
+            course=self.course,
+            knowledge_point=new_knowledge_point,
+            status='not_started',
+            progress=0.0
+        )
+        
+        # 确保较新访问的记录排在前面
+        all_records = list(LearningRecord.objects.all())
+        self.assertEqual(all_records[0], new_record)
+        self.assertEqual(all_records[1], self.learning_record)
+    
+    def test_unique_constraint(self):
+        """测试student和knowledge_point的唯一约束"""
+        # 尝试创建具有相同student和knowledge_point的记录应该引发异常
+        with self.assertRaises(Exception):
+            LearningRecord.objects.create(
+                student=self.student,
+                course=self.course,
+                knowledge_point=self.knowledge_point,
+                status='not_started'
+            )
+            
+    def test_learning_progress_tracking(self):
+        """测试完整的学习进度跟踪流程"""
+        # 1. 创建多个知识点
+        kp1 = KnowledgePoint.objects.create(
+            course=self.course,
+            title='函数定义',
+            content='理解函数定义和基本性质',
+            importance=7
+        )
+        
+        kp2 = KnowledgePoint.objects.create(
+            course=self.course,
+            title='函数图像',
+            content='理解函数图像和几何意义',
+            importance=6
+        )
+        
+        # 2. 为学生创建这些知识点的学习记录
+        record1 = LearningRecord.objects.create(
+            student=self.student,
+            course=self.course,
+            knowledge_point=kp1,
+            status='not_started',
+            progress=0.0,
+            time_spent=0
+        )
+        
+        record2 = LearningRecord.objects.create(
+            student=self.student,
+            course=self.course,
+            knowledge_point=kp2,
+            status='not_started',
+            progress=0.0,
+            time_spent=0
+        )
+        
+        # 3. 更新学习记录以模拟学习过程
+        # 学生开始学习第一个知识点
+        record1.update_progress(25.0)
+        record1.add_time_spent(15)
+        self.assertEqual(record1.status, 'in_progress')
+        self.assertEqual(record1.progress, 25.0)
+        self.assertEqual(record1.time_spent, 15)
+        
+        # 学生继续学习第一个知识点
+        record1.update_progress(60.0)
+        record1.add_time_spent(30)
+        self.assertEqual(record1.status, 'in_progress')
+        self.assertEqual(record1.progress, 60.0)
+        self.assertEqual(record1.time_spent, 45)
+        
+        # 学生完成第一个知识点
+        record1.update_progress(100.0)
+        record1.add_time_spent(15)
+        self.assertEqual(record1.status, 'completed')
+        self.assertEqual(record1.progress, 100.0)
+        self.assertEqual(record1.time_spent, 60)
+        self.assertTrue(record1.is_complete)
+        
+        # 学生开始学习第二个知识点
+        record2.update_progress(40.0)
+        record2.add_time_spent(25)
+        self.assertEqual(record2.status, 'in_progress')
+        self.assertEqual(record2.progress, 40.0)
+        self.assertEqual(record2.time_spent, 25)
+        
+        # 4. 验证课程整体学习进度（可以计算平均进度）
+        all_records = LearningRecord.objects.filter(
+            student=self.student,
+            course=self.course
+        )
+        
+        # 计算课程总体进度（包括原始的self.learning_record）
+        total_progress = sum(record.progress for record in all_records)
+        avg_progress = total_progress / all_records.count()
+        
+        # 期望的平均进度: (45 + 100 + 40) / 3 = 61.67
+        expected_avg = (45.0 + 100.0 + 40.0) / 3
+        self.assertAlmostEqual(avg_progress, expected_avg, places=1)
+        
+        # 5. 验证已完成的知识点计数
+        completed_count = all_records.filter(status='completed').count()
+        self.assertEqual(completed_count, 1)  # 只有一个知识点完成
+        
+        # 6. 验证总学习时间
+        total_time = sum(record.time_spent for record in all_records)
+        expected_time = 30 + 60 + 25  # 原始记录 + 第一个知识点 + 第二个知识点
+        self.assertEqual(total_time, expected_time)
+    
+    def test_learning_status_transitions(self):
+        """测试学习状态转换"""
+        # 创建一个新的学习记录，初始状态为not_started
+        new_kp = KnowledgePoint.objects.create(
+            course=self.course,
+            title='复合函数',
+            content='理解复合函数的概念和应用',
+            importance=9
+        )
+        
+        record = LearningRecord.objects.create(
+            student=self.student,
+            course=self.course,
+            knowledge_point=new_kp,
+            status='not_started',
+            progress=0.0
+        )
+        
+        # 验证初始状态
+        self.assertEqual(record.status, 'not_started')
+        self.assertEqual(record.progress, 0.0)
+        
+        # 开始学习，状态应变为in_progress
+        record.update_progress(10.0)
+        self.assertEqual(record.status, 'in_progress')
+        
+        # 完成学习，状态应变为completed
+        record.update_progress(100.0)
+        self.assertEqual(record.status, 'completed')
+        
+        # 手动设置为需要复习状态
+        record.status = 'review_needed'
+        record.save()
+        self.assertEqual(record.status, 'review_needed')
+        
+        # 即使状态为需要复习，is_complete属性也应为False
+        self.assertFalse(record.is_complete)

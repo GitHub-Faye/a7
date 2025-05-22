@@ -23,6 +23,9 @@ a7/                           # 项目根目录
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   └── core/             # 核心应用程序
 │   │       ├── __init__.py   # Python包初始化文件
+│   │       ├── admin.py      # 核心应用Admin配置
+│   │       ├── models.py     # 核心应用模型定义
+│   │       ├── tests.py      # 核心应用测试文件
 │   │       ├── urls.py       # 核心应用路由配置
 │   │       └── views.py      # 核心应用视图
 │   ├── users/                # 用户管理应用
@@ -86,6 +89,9 @@ a7/                           # 项目根目录
 
 - **a7/apps/__init__.py**: Python包标识文件，将apps目录标记为Python包。
 - **a7/apps/core/__init__.py**: Core应用的Python包标识文件。
+- **a7/apps/core/models.py**: 模型定义，包含UsageStatistics（使用统计）和PerformanceMetric（性能指标）模型，用于记录用户活动和系统性能。
+- **a7/apps/core/admin.py**: Django Admin后台配置，定义UsageStatistics和PerformanceMetric模型在管理界面的展示方式和操作功能。
+- **a7/apps/core/tests.py**: 测试文件，包含对UsageStatistics和PerformanceMetric模型的全面测试，包括基础功能测试、JSON字段处理测试和真实场景模拟测试。
 - **a7/apps/core/urls.py**: Core应用的URL路由配置，定义了API端点路径与视图的映射。
 - **a7/apps/core/views.py**: Core应用的视图文件，包含API端点的实现逻辑，如健康检查接口。
 
@@ -109,10 +115,10 @@ a7/                           # 项目根目录
 ### 课程管理应用文件
 
 - **a7/courses/__init__.py**: Courses应用的Python包标识文件。
-- **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise和StudentAnswer模型在管理界面的展示方式和操作功能。
+- **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
-- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）和StudentAnswer（学生答案）模型，实现课程内容管理和练习评测系统。
-- **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题和学生答案的测试用例。
+- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
+- **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例，包括学习进度跟踪和状态转换测试。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 
 ### 测试文件
@@ -120,7 +126,8 @@ a7/                           # 项目根目录
 - **test_html/auth_test.html**: 用于测试登录/登出/密码更改功能的HTML页面，提供基本UI和JavaScript测试代码，通过浏览器直接测试认证API。
 - **test_html/permissions_test.html**: 角色权限测试页面，用于测试不同角色用户的权限访问控制，支持多角色登录和API权限验证。
 - **a7/users/tests.py**: 包含完整的自动化测试套件，测试认证功能（登录、登出、密码更改）、基于角色的权限控制以及完整的用户流程端到端测试。
-- **a7/courses/tests.py**: 包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题和学生答案的功能测试，包括约束和关系测试。
+- **a7/courses/tests.py**: 包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题、学生答案和学习记录的功能测试，包括学习进度跟踪、状态转换和统计分析测试。
+- **a7/apps/core/tests.py**: 包含核心模型的自动化测试，验证用户活动跟踪和系统性能监控功能，测试JSON字段处理方法和真实应用场景模拟。
 
 ### 配置文件
 
@@ -193,9 +200,9 @@ a7/                           # 项目根目录
    - `permission.log`记录权限中间件的访问检查日志，帮助调试和监控权限系统。
 
 3. **课程内容管理系统**:
-   - `a7/courses/models.py`定义Course、KnowledgePoint、Courseware、Exercise和StudentAnswer模型，实现课程内容的组织和管理以及练习评测功能。
+   - `a7/courses/models.py`定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型，实现课程内容的组织和管理以及练习评测功能。
    - `a7/courses/admin.py`配置课程相关模型在Django Admin中的展示和操作方式。
-   - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性，以及练习题和学生答案的功能测试。
+   - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性，以及练习题、学生答案和学习记录的功能测试。
    - `a7/courses/models.py`中的KnowledgePoint模型使用自引用外键实现知识点的层次结构。
    - Course模型与User模型（教师）建立外键关系，表示课程的创建者。
    - Courseware模型与Course和User模型建立外键关系，表示课件所属课程和创建者。
@@ -214,7 +221,7 @@ a7/                           # 项目根目录
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
    - `test_html/permissions_test.html`提供角色权限测试界面，用于验证不同角色用户的权限控制和API访问限制。
    - `a7/users/tests.py`包含自动化单元测试，覆盖认证、权限和端到端用户场景测试。
-   - `a7/courses/tests.py`包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题和学生答案的功能测试，包括约束和关系测试。
+   - `a7/courses/tests.py`包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题、学生答案和学习记录的功能测试，包括学习进度跟踪、状态转换和统计分析测试。
 
 6. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -225,6 +232,20 @@ a7/                           # 项目根目录
    - `a7.code-workspace`定义VS Code的项目视图和配置。
    - `.cursor/`包含Cursor IDE的特定配置。
    - `.env.example`提供需要的环境变量配置模板。
+
+8. **用户活动和性能监控系统**:
+   - `a7/apps/core/models.py`定义UsageStatistics和PerformanceMetric模型，用于跟踪用户活动和系统性能。
+   - `a7/apps/core/admin.py`配置这些模型在Django Admin中的展示和操作方式。
+   - `a7/apps/core/tests.py`提供这些模型的自动化测试，验证其功能正确性。
+   - UsageStatistics模型与User模型建立外键关系，跟踪特定用户的系统使用情况。
+   - UsageStatistics和PerformanceMetric模型都使用JSON字段存储复杂的详细信息，并提供解析方法。
+
+9. **学习进度跟踪系统**:
+   - `a7/courses/models.py`中的LearningRecord模型用于跟踪学生的学习进度和时间投入。
+   - LearningRecord模型通过外键关联User(student)、Course和KnowledgePoint模型，建立学生-课程-知识点的学习关系。
+   - LearningRecord模型提供进度更新方法、时间累计方法和状态判断属性，实现完整的学习进度跟踪功能。
+   - `a7/courses/admin.py`配置LearningRecord模型在Django Admin中的展示和操作方式。
+   - `a7/courses/tests.py`提供学习记录模型的自动化测试，验证学习进度跟踪、状态转换和统计分析功能。
 
 ## 目录组织逻辑
 
@@ -327,6 +348,29 @@ a7/                           # 项目根目录
    - 练习题推荐API（基于学习进度）
    - 答案自动评测逻辑
    - 学习记录和统计分析
+
+## 数据监控和分析系统
+
+新增的UsageStatistics、PerformanceMetric和LearningRecord模型为系统提供以下功能支持：
+
+1. **用户活动跟踪**:
+   - 记录用户在系统中的各类操作（模块、动作、详情）
+   - 捕获用户环境信息（IP地址、用户代理）
+   - 支持通过JSON字段存储详细操作日志
+   - 提供时间轴分析和用户行为模式识别基础
+
+2. **系统性能监控**:
+   - 记录多种性能指标类型（响应时间、CPU使用率、内存使用率等）
+   - 支持与特定实体（API、服务器）关联
+   - 通过JSON字段存储丰富的上下文信息
+   - 为性能优化和问题诊断提供数据支持
+
+3. **学习进度跟踪**:
+   - 记录学生在特定课程和知识点上的学习状态和进度
+   - 跟踪学习时间投入，支持时间统计分析
+   - 提供进度更新和时间累计方法
+   - 支持学习完成状态判断和进度统计
+   - 为学习推荐和个性化学习提供数据基础
 
 ## 管理和更新
 
