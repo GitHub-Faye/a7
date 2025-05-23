@@ -55,11 +55,41 @@ All functional requirements are met, including:
 - Full CRUD operations and custom endpoints.
 </info added on 2025-05-23T08:16:35.772Z>
 
-## 3. Courseware CRUD API Implementation [pending]
+## 3. Courseware CRUD API Implementation [done]
 ### Dependencies: None
 ### Description: Implement CRUD endpoints for Courseware entity including create, read, update, and delete operations.
 ### Details:
 Develop RESTful endpoints for Courseware operations with proper request/response handling.
+<info added on 2025-05-23T08:42:04.820Z>
+The Courseware CRUD API has been successfully implemented and tested. Key components include:
+
+1. **Serializers**:
+   - `CoursewareSerializer`: Handles reading courseware details, including extended fields like course title, creator name, and type display name.
+   - `CoursewareCreateSerializer`: Automatically sets the current user as the creator when creating new courseware.
+   - `CoursewareUpdateSerializer`: Restricts updates to specific fields only.
+
+2. **Permissions**:
+   - `IsCoursewareCreatorOrAdmin`: Ensures only the courseware creator or an admin can modify or delete courseware.
+
+3. **ViewSets**:
+   - `CoursewareViewSet`: Provides full CRUD operations with support for filtering by course and type.
+   - Includes a custom action `by_course` to retrieve all courseware for a specified course.
+
+4. **Routing**:
+   - Registered `CoursewareViewSet` with `DefaultRouter` to generate standard RESTful API paths.
+
+5. **Testing**:
+   - All 21 tests passed, including 8 specific test cases in `CoursewareAPITests`.
+   - Verified permissions, filtering, and custom actions work as expected.
+
+**API Endpoints**:
+- `GET /api/coursewares/`: List all courseware (supports filtering by course and type).
+- `POST /api/coursewares/`: Create new courseware (requires teacher or admin permissions).
+- `GET /api/coursewares/{id}/`: Retrieve specific courseware details.
+- `PUT/PATCH /api/coursewares/{id}/`: Update specific courseware (requires creator or admin permissions).
+- `DELETE /api/coursewares/{id}/`: Delete specific courseware (requires creator or admin permissions).
+- `GET /api/coursewares/by_course/?course={id}`: Retrieve all courseware for a specified course.
+</info added on 2025-05-23T08:42:04.820Z>
 
 ## 4. Implement Validations [pending]
 ### Dependencies: 5.1, 5.2, 5.3

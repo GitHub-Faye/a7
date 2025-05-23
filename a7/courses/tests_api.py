@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
-from .models import Course, KnowledgePoint
+from .models import Course, KnowledgePoint, Courseware
 from users.models import User, Role
 import json
 
@@ -675,4 +675,357 @@ class KnowledgePointAPITests(TestCase):
         # 验证子知识点排序（按importance降序和title排序）
         self.assertEqual(results[0]['importance'], 5)  # self.child_kp的importance是5
         self.assertEqual(results[1]['importance'], 4)
-        self.assertEqual(results[2]['importance'], 3) 
+        self.assertEqual(results[2]['importance'], 3)
+
+
+class CoursewareAPITests(TestCase):
+    """测试课件API的功能"""
+    
+    def setUp(self):
+        """测试前准备工作"""
+        # 创建角色
+        self.admin_role = Role.objects.create(name='admin', description='管理员角色')
+        self.teacher_role = Role.objects.create(name='teacher', description='教师角色')
+        self.student_role = Role.objects.create(name='student', description='学生角色')
+        
+        # 创建测试用户
+        self.admin_user = User.objects.create_user(
+            username='admin', 
+            email='admin@example.com', 
+            password='adminpass',
+            role='admin',
+            is_staff=True
+        )
+        
+        self.teacher_user = User.objects.create_user(
+            username='teacher', 
+            email='teacher@example.com', 
+            password='teacherpass',
+            role='teacher'
+        )
+        
+        self.student_user = User.objects.create_user(
+            username='student', 
+            email='student@example.com', 
+            password='studentpass',
+            role='student'
+        )
+        
+        # 创建一个测试课程
+        self.course = Course.objects.create(
+            title='测试课程',
+            description='这是一个测试课程',
+            subject='计算机科学',
+            grade_level='高中',
+            teacher=self.teacher_user
+        )
+        
+        # 创建一个测试课件
+        self.courseware = Courseware.objects.create(
+            title='测试课件',
+            content='这是一个测试课件的内容',
+            type='document',
+            course=self.course,
+            created_by=self.teacher_user
+        )
+        
+        # 初始化API客户端
+        self.client = APIClient()
+    
+    def test_list_coursewares(self):
+        """测试获取课件列表"""
+        # 1. 未认证用户无法访问
+        response = self.client.get(reverse('courseware-list'))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # 2. 认证用户可以访问
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.get(reverse('courseware-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证响应结构和数据
+        self.assertTrue('success' in response.data)
+        self.assertTrue(response.data['success'])
+        self.assertTrue('data' in response.data)
+        self.assertTrue('results' in response.data['data'])
+        
+        # 验证课件数据
+        results = response.data['data']['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], '测试课件')
+    
+    def test_retrieve_courseware(self):
+        """测试获取单个课件"""
+        # 认证用户可以获取课件详情
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.get(reverse('courseware-detail', args=[self.courseware.id]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证响应结构和数据
+        self.assertTrue('success' in response.data)
+        self.assertTrue(response.data['success'])
+        self.assertTrue('data' in response.data)
+        
+        # 验证课件数据
+        courseware_data = response.data['data']
+        self.assertEqual(courseware_data['title'], '测试课件')
+        self.assertEqual(courseware_data['type'], 'document')
+        self.assertEqual(courseware_data['course'], self.course.id)
+    
+    def test_create_courseware(self):
+        """测试创建课件"""
+        url = reverse('courseware-list')
+        data = {
+            'title': '新课件',
+            'content': '这是一个新课件的内容',
+            'type': 'video',
+            'course': self.course.id
+        }
+        
+        # 1. 未认证用户无法创建
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # 2. 学生无法创建课件
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # 3. 教师可以创建课件
+        self.client.force_authenticate(user=self.teacher_user)
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # 验证创建的课件
+        self.assertEqual(Courseware.objects.count(), 2)
+        new_courseware = Courseware.objects.get(title='新课件')
+        self.assertEqual(new_courseware.type, 'video')
+        self.assertEqual(new_courseware.created_by, self.teacher_user)
+        
+        # 4. 管理员也可以创建课件
+        data['title'] = '管理员课件'
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # 验证创建的课件
+        self.assertEqual(Courseware.objects.count(), 3)
+    
+    def test_update_courseware(self):
+        """测试更新课件"""
+        url = reverse('courseware-detail', args=[self.courseware.id])
+        data = {
+            'title': '更新后的课件',
+            'content': '这是更新后的课件内容',
+            'type': 'document'
+        }
+        
+        # 1. 学生无法更新课件
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # 2. 非创建者教师无法更新课件
+        another_teacher = User.objects.create_user(
+            username='teacher2', 
+            email='teacher2@example.com', 
+            password='teacher2pass',
+            role='teacher'
+        )
+        self.client.force_authenticate(user=another_teacher)
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # 3. 课件创建者可以更新课件
+        self.client.force_authenticate(user=self.teacher_user)
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证更新后的课件
+        self.courseware.refresh_from_db()
+        self.assertEqual(self.courseware.title, '更新后的课件')
+        self.assertEqual(self.courseware.content, '这是更新后的课件内容')
+        
+        # 4. 管理员可以更新任何课件
+        data['title'] = '管理员更新的课件'
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证更新后的课件
+        self.courseware.refresh_from_db()
+        self.assertEqual(self.courseware.title, '管理员更新的课件')
+    
+    def test_delete_courseware(self):
+        """测试删除课件"""
+        url = reverse('courseware-detail', args=[self.courseware.id])
+        
+        # 1. 学生无法删除课件
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # 2. 非创建者教师无法删除课件
+        another_teacher = User.objects.create_user(
+            username='teacher3', 
+            email='teacher3@example.com', 
+            password='teacher3pass',
+            role='teacher'
+        )
+        self.client.force_authenticate(user=another_teacher)
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # 3. 创建更多测试课件
+        courseware2 = Courseware.objects.create(
+            title='测试课件2',
+            content='这是第二个测试课件的内容',
+            type='document',
+            course=self.course,
+            created_by=self.teacher_user
+        )
+        
+        # 4. 课件创建者可以删除自己的课件
+        self.client.force_authenticate(user=self.teacher_user)
+        delete_url = reverse('courseware-detail', args=[courseware2.id])
+        response = self.client.delete(delete_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        # 验证课件已删除
+        with self.assertRaises(Courseware.DoesNotExist):
+            Courseware.objects.get(id=courseware2.id)
+        
+        # 5. 管理员可以删除任何课件
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        # 验证课件已删除
+        with self.assertRaises(Courseware.DoesNotExist):
+            Courseware.objects.get(id=self.courseware.id)
+    
+    def test_filter_by_course(self):
+        """测试按课程筛选课件"""
+        # 创建另一个课程和课件
+        course2 = Course.objects.create(
+            title='测试课程2',
+            description='这是另一个测试课程',
+            subject='数学',
+            grade_level='初中',
+            teacher=self.teacher_user
+        )
+        
+        courseware2 = Courseware.objects.create(
+            title='课程2的课件',
+            content='这是课程2的课件内容',
+            type='document',
+            course=course2,
+            created_by=self.teacher_user
+        )
+        
+        # 认证用户
+        self.client.force_authenticate(user=self.student_user)
+        
+        # 按课程筛选
+        response = self.client.get(f"{reverse('courseware-list')}?course={self.course.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证只返回了指定课程的课件
+        results = response.data['data']['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], '测试课件')
+        
+        # 测试course2
+        response = self.client.get(f"{reverse('courseware-list')}?course={course2.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证只返回了指定课程的课件
+        results = response.data['data']['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], '课程2的课件')
+    
+    def test_filter_by_type(self):
+        """测试按类型筛选课件"""
+        # 创建不同类型的课件
+        Courseware.objects.create(
+            title='视频课件',
+            content='这是一个视频课件的内容',
+            type='video',
+            course=self.course,
+            created_by=self.teacher_user
+        )
+        
+        # 认证用户
+        self.client.force_authenticate(user=self.student_user)
+        
+        # 按类型筛选
+        response = self.client.get(f"{reverse('courseware-list')}?type=document")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证只返回了document类型的课件
+        results = response.data['data']['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], '测试课件')
+        
+        # 测试video类型
+        response = self.client.get(f"{reverse('courseware-list')}?type=video")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证只返回了video类型的课件
+        results = response.data['data']['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], '视频课件')
+    
+    def test_by_course_action(self):
+        """测试by_course自定义动作"""
+        # 创建额外的课件用于测试
+        Courseware.objects.create(
+            title='课程1的额外课件',
+            content='这是课程1的额外课件内容',
+            type='video',
+            course=self.course,
+            created_by=self.teacher_user
+        )
+        
+        # 创建另一个课程和对应课件
+        course2 = Course.objects.create(
+            title='测试课程2',
+            description='这是另一个测试课程',
+            subject='数学',
+            grade_level='初中',
+            teacher=self.teacher_user
+        )
+        
+        Courseware.objects.create(
+            title='课程2的课件',
+            content='这是课程2的课件内容',
+            type='document',
+            course=course2,
+            created_by=self.teacher_user
+        )
+        
+        # 认证用户
+        self.client.force_authenticate(user=self.student_user)
+        
+        # 1. 不提供课程ID参数
+        response = self.client.get(reverse('courseware-by-course'))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # 2. 提供有效的课程ID
+        response = self.client.get(f"{reverse('courseware-by-course')}?course={self.course.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证只返回了指定课程的所有课件
+        self.assertTrue('success' in response.data)
+        self.assertTrue(response.data['success'])
+        self.assertTrue('data' in response.data)
+        
+        if 'results' in response.data['data']:
+            results = response.data['data']['results']
+        else:
+            results = response.data['data']
+            
+        self.assertEqual(len(results), 2)
+        titles = [item['title'] for item in results]
+        self.assertIn('测试课件', titles)
+        self.assertIn('课程1的额外课件', titles) 

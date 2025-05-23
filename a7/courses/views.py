@@ -11,9 +11,17 @@ from .serializers import (
     CourseUpdateSerializer,
     KnowledgePointSerializer,
     KnowledgePointCreateSerializer,
-    KnowledgePointUpdateSerializer
+    KnowledgePointUpdateSerializer,
+    CoursewareSerializer,
+    CoursewareCreateSerializer,
+    CoursewareUpdateSerializer
 )
-from .permissions import IsTeacherOrAdmin, IsCourseTeacherOrAdmin, IsKnowledgePointCourseTeacherOrAdmin
+from .permissions import (
+    IsTeacherOrAdmin, 
+    IsCourseTeacherOrAdmin, 
+    IsKnowledgePointCourseTeacherOrAdmin,
+    IsCoursewareCreatorOrAdmin
+)
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -169,3 +177,84 @@ class KnowledgePointViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(children, many=True)
         return Response(serializer.data)
+
+
+class CoursewareViewSet(viewsets.ModelViewSet):
+    """
+    课件视图集，提供课件的增删改查功能
+    """
+    queryset = Courseware.objects.all().order_by('-created_at')
+    serializer_class = CoursewareSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title', 'content', 'type']
+    ordering_fields = ['created_at', 'title', 'type']
+    
+    def get_queryset(self):
+        """
+        可根据URL参数过滤课件：
+        - course: 按课程ID过滤
+        - type: 按课件类型过滤
+        """
+        queryset = super().get_queryset()
+        
+        # 按课程过滤
+        course_id = self.request.query_params.get('course')
+        if course_id:
+            queryset = queryset.filter(course_id=course_id)
+        
+        # 按类型过滤
+        courseware_type = self.request.query_params.get('type')
+        if courseware_type:
+            queryset = queryset.filter(type=courseware_type)
+            
+        return queryset
+    
+    def get_serializer_class(self):
+        """
+        根据操作类型返回不同的序列化器
+        """
+        if self.action == 'create':
+            return CoursewareCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return CoursewareUpdateSerializer
+        return CoursewareSerializer
+    
+    def get_permissions(self):
+        """
+        根据操作类型设置不同的权限
+        """
+        if self.action == 'create':
+            # 只有教师和管理员可以创建课件
+            self.permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            # 只有课件创建者和管理员可以修改或删除课件
+            self.permission_classes = [permissions.IsAuthenticated, IsCoursewareCreatorOrAdmin]
+        return super().get_permissions()
+    
+    @swagger_auto_schema(
+        operation_summary="获取指定课程的所有课件",
+        operation_description="返回属于指定课程ID的所有课件资料"
+    )
+    @action(detail=False, methods=['get'])
+    def by_course(self, request):
+        """
+        获取指定课程的所有课件
+        必须参数: course - 课程ID
+        """
+        course_id = request.query_params.get('course')
+        if not course_id:
+            return Response(
+                {"success": False, "message": "必须提供课程ID参数", "errors": ["缺少课程ID参数"]}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        queryset = self.queryset.filter(course_id=course_id)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"success": True, "data": serializer.data})

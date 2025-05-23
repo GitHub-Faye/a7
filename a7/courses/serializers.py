@@ -136,3 +136,54 @@ class KnowledgePointUpdateSerializer(serializers.ModelSerializer):
             current = current.parent
             
         return False 
+
+# Courseware序列化器
+class CoursewareSerializer(serializers.ModelSerializer):
+    """课件序列化器，用于读取课件信息"""
+    
+    course_title = serializers.SerializerMethodField()
+    creator_name = serializers.SerializerMethodField()
+    type_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Courseware
+        fields = ['id', 'title', 'content', 'type', 'type_display', 'course', 
+                 'course_title', 'created_by', 'creator_name', 'created_at']
+        read_only_fields = ['created_by', 'created_at']
+    
+    def get_course_title(self, obj):
+        """获取课程标题"""
+        if obj.course:
+            return obj.course.title
+        return ""
+    
+    def get_creator_name(self, obj):
+        """获取创建者姓名"""
+        if obj.created_by:
+            return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.username
+        return ""
+    
+    def get_type_display(self, obj):
+        """获取课件类型显示名称"""
+        return obj.get_type_display()
+
+
+class CoursewareCreateSerializer(serializers.ModelSerializer):
+    """课件创建序列化器"""
+    
+    class Meta:
+        model = Courseware
+        fields = ['title', 'content', 'type', 'course']
+    
+    def create(self, validated_data):
+        # 设置当前请求用户为创建者
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class CoursewareUpdateSerializer(serializers.ModelSerializer):
+    """课件更新序列化器"""
+    
+    class Meta:
+        model = Courseware
+        fields = ['title', 'content', 'type'] 

@@ -44,3 +44,19 @@ class IsKnowledgePointCourseTeacherOrAdmin(permissions.BasePermission):
 
         # 检查用户是否是知识点所属课程的创建者
         return obj.course.teacher == request.user 
+
+class IsCoursewareCreatorOrAdmin(permissions.BasePermission):
+    """
+    只允许课件创建者或管理员修改课件
+    """
+    def has_object_permission(self, request, view, obj):
+        # 检查用户是否已登录
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # 管理员始终有权限
+        if request.user.is_staff:
+            return True
+
+        # 检查用户是否是课件的创建者
+        return obj.created_by == request.user 
