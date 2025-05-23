@@ -68,8 +68,11 @@ a7/                           # 项目根目录
 │   │   ├── permissions.py    # 课程权限类
 │   │   ├── urls.py           # 课程应用URL配置
 │   │   ├── views.py          # 课程相关视图和API实现
+│   │   ├── validations.py    # 通用验证工具类
+│   │   ├── utils.py          # 工具函数，包含请求参数验证
 │   │   ├── tests.py          # 课程模型的测试用例
 │   │   ├── tests_api.py      # 课程API的测试用例
+│   │   ├── tests_validation.py # 验证逻辑的测试用例
 │   │   └── migrations/       # 课程模型数据库迁移文件
 │   ├── db.sqlite3            # SQLite数据库文件
 │   ├── permission.log        # 项目级权限日志文件
@@ -148,12 +151,15 @@ a7/                           # 项目根目录
 - **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
 - **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
-- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）和CourseUpdateSerializer（更新）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。
+- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）和CourseUpdateSerializer（更新）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
 - **a7/courses/urls.py**: 课程应用的URL路由配置，使用DefaultRouter注册CourseViewSet和KnowledgePointViewSet。
-- **a7/courses/views.py**: 课程相关的视图文件，包含CourseViewSet视图集，实现课程的CRUD操作和自定义操作(如my_courses)，提供完整的课程API功能。还包含KnowledgePointViewSet视图集，实现知识点的CRUD操作、按课程和父知识点筛选以及自定义操作（如top_level和children），支持层级结构管理和动态序列化器。
+- **a7/courses/views.py**: 课程相关的视图文件，包含CourseViewSet视图集，实现课程的CRUD操作和自定义操作(如my_courses)，提供完整的课程API功能。还包含KnowledgePointViewSet视图集，实现知识点的CRUD操作、按课程和父知识点筛选以及自定义操作（如top_level和children），支持层级结构管理和动态序列化器。还实现了请求参数验证，确保API输入数据的有效性。
+- **a7/courses/validations.py**: 通用验证工具类，提供了字段验证（validate_text_field）、对象存在性验证（validate_existence）和唯一性验证（validate_uniqueness）等方法，为序列化器提供复用的验证逻辑。
+- **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
 - **a7/courses/tests_api.py**: 课程API测试文件，包含API接口的功能测试，验证权限控制、CRUD操作和自定义操作的正确性，包括KnowledgePointAPITests测试类，验证知识点API的功能完整性和权限控制。
+- **a7/courses/tests_validation.py**: 验证逻辑测试文件，包含对课程、知识点和课件API的验证逻辑测试，验证字段验证、唯一性检查、关系完整性（如循环引用检测）等验证功能的正确性。测试不同场景下的验证行为，确保数据一致性和业务规则的强制执行。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 
 ### 测试文件
@@ -248,8 +254,10 @@ a7/                           # 项目根目录
    - `a7/courses/serializers.py`定义序列化器，将课程和知识点模型转换为JSON格式以支持API接口，包括课程相关的序列化器实现自动设置当前用户为教师，知识点序列化器实现层级结构的展示和验证（包括防止循环引用和跨课程引用）。
    - `a7/courses/permissions.py`定义权限类，实现基于角色和所有权的访问控制，确保只有教师和管理员可以创建课程和知识点，只有课程/知识点创建者和管理员可以修改或删除它们。
    - `a7/courses/views.py`实现CourseViewSet和KnowledgePointViewSet视图集，提供完整的CRUD API功能和自定义接口(如my_courses, top_level, children)，使用权限类控制访问，根据不同操作类型动态选择序列化器，支持丰富的筛选功能。
-   - `a7/courses/urls.py`使用DefaultRouter注册视图集，生成标准化的RESTful URL路径，包括课程和知识点的API端点。
-   - `a7/courses/tests_api.py`提供完整的API测试套件，验证课程和知识点API的功能和权限控制，测试不同角色用户对API的访问权限和CRUD操作的正确性。
+   - `a7/courses/validations.py`提供重用的验证逻辑，如字段验证、对象存在性验证和唯一性验证，为序列化器提供标准化的验证方法，确保API输入数据有效性。
+   - `a7/courses/utils.py`包含请求参数验证函数，用于验证必需参数是否存在，确保API收到所需的输入数据，提高API健壮性和用户体验。
+   - `a7/courses/tests_validation.py`提供对验证逻辑的专门测试，验证字段验证、唯一性检查、关系完整性验证等功能的正确性，确保数据一致性和业务规则的强制执行。
+   - `a7/courses/urls.py`将课程应用的URL配置集成到主URL配置中，启用API路由。
    - `a7/a7/urls.py`将课程应用的URL配置集成到主URL配置中，启用API路由。
    - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置提供API基础设置，包括认证、分页、搜索和过滤功能，被课程和知识点API继承和使用。
    - `a7/apps/core/middleware/request_processor_middleware.py`将API响应标准化为统一格式，包装原始响应数据，为所有API（包括课程和知识点API）提供一致的响应结构。
@@ -434,7 +442,11 @@ a7/                           # 项目根目录
    - `/api/knowledge-points/<id>/` - 知识点详情、更新和删除
    - `/api/knowledge-points/top_level/` - 获取顶级知识点（没有父级的知识点，支持按课程筛选）
    - `/api/knowledge-points/<id>/children/` - 获取特定知识点的子知识点列表（按重要性降序排序）
+   - `/api/courseware/` - 课件列表和创建（支持分页、搜索和按课程筛选）
+   - `/api/courseware/<id>/` - 课件详情、更新和删除
+   - `/api/courseware/by_course/` - 获取指定课程的所有课件
    - 所有端点实现权限控制，确保只有教师和管理员可以创建课程和知识点，只有课程/知识点创建者和管理员可以修改或删除
+   - 所有端点包含全面的验证逻辑，确保数据一致性、有效性和适当的错误处理
    - 所有端点返回标准化的响应格式，包含状态码、成功标志和数据
 
 ## 练习与评测系统

@@ -22,6 +22,7 @@ from .permissions import (
     IsKnowledgePointCourseTeacherOrAdmin,
     IsCoursewareCreatorOrAdmin
 )
+from .utils import validate_required_params
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -66,16 +67,22 @@ class CourseViewSet(viewsets.ModelViewSet):
         """
         获取当前用户创建的课程列表
         """
-        user = request.user
-        queryset = self.queryset.filter(teacher=user)
-        
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        try:
+            user = request.user
+            queryset = self.queryset.filter(teacher=user)
+            
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response(
+                {"success": False, "message": "获取课程失败", "errors": [str(e)]},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class KnowledgePointViewSet(viewsets.ModelViewSet):
@@ -148,7 +155,14 @@ class KnowledgePointViewSet(viewsets.ModelViewSet):
         queryset = KnowledgePoint.objects.filter(parent__isnull=True)
         
         if course_id:
-            queryset = queryset.filter(course_id=course_id)
+            try:
+                course_id = int(course_id)
+                queryset = queryset.filter(course_id=course_id)
+            except ValueError:
+                return Response(
+                    {"success": False, "message": "无效的课程ID", "errors": ["课程ID必须是整数"]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -167,16 +181,27 @@ class KnowledgePointViewSet(viewsets.ModelViewSet):
         """
         获取指定知识点的直接子知识点
         """
-        knowledge_point = self.get_object()
-        children = knowledge_point.children.all().order_by('-importance', 'title')
-        
-        page = self.paginate_queryset(children)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(children, many=True)
-        return Response(serializer.data)
+        try:
+            knowledge_point = self.get_object()
+            children = knowledge_point.children.all().order_by('-importance', 'title')
+            
+            page = self.paginate_queryset(children)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(children, many=True)
+            return Response(serializer.data)
+        except KnowledgePoint.DoesNotExist:
+            return Response(
+                {"success": False, "message": "知识点不存在", "errors": [f"ID为{pk}的知识点不存在"]},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "message": "获取子知识点失败", "errors": [str(e)]},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class CoursewareViewSet(viewsets.ModelViewSet):
@@ -242,13 +267,12 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         获取指定课程的所有课件
         必须参数: course - 课程ID
         """
+        # 验证必要参数
+        validation_error = validate_required_params(request, ['course'])
+        if validation_error:
+            return validation_error
+        
         course_id = request.query_params.get('course')
-        if not course_id:
-            return Response(
-                {"success": False, "message": "必须提供课程ID参数", "errors": ["缺少课程ID参数"]}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
         queryset = self.queryset.filter(course_id=course_id)
         
         page = self.paginate_queryset(queryset)
