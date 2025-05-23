@@ -7,6 +7,13 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+    TokenBlacklistView
+)
 
 from .models import Role
 from .serializers import (
@@ -14,7 +21,11 @@ from .serializers import (
     UserCreateSerializer, 
     UserUpdateSerializer, 
     RoleSerializer,
-    PasswordChangeSerializer
+    PasswordChangeSerializer,
+    TokenObtainPairResponseSerializer,
+    TokenRefreshResponseSerializer,
+    TokenVerifyResponseSerializer,
+    TokenBlacklistResponseSerializer
 )
 from .permissions import (
     IsAdminOrReadOnly, 
@@ -74,6 +85,10 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
     
+    @swagger_auto_schema(
+        request_body=PasswordChangeSerializer,
+        responses={200: Response({"detail": "密码修改成功"})}
+    )
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def change_password(self, request):
         """
@@ -152,12 +167,70 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         return response
 
 
+class DecoratedTokenObtainPairView(CustomTokenObtainPairView):
+    """
+    自定义的令牌获取视图，同时为Swagger文档添加响应示例
+    """
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: TokenObtainPairResponseSerializer,
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class DecoratedTokenRefreshView(TokenRefreshView):
+    """
+    装饰的令牌刷新视图，为Swagger文档添加响应示例
+    """
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: TokenRefreshResponseSerializer,
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class DecoratedTokenVerifyView(TokenVerifyView):
+    """
+    装饰的令牌验证视图，为Swagger文档添加响应示例
+    """
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: TokenVerifyResponseSerializer,
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class DecoratedTokenBlacklistView(TokenBlacklistView):
+    """
+    装饰的令牌黑名单视图，为Swagger文档添加响应示例
+    """
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: TokenBlacklistResponseSerializer,
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
 class LogoutView(APIView):
     """
     用户登出视图，将刷新令牌加入黑名单
     """
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        responses={
+            status.HTTP_200_OK: Response({"detail": "登出成功，令牌已失效"}),
+            status.HTTP_400_BAD_REQUEST: Response({"error": "需要提供refresh token"})
+        }
+    )
     def post(self, request):
         try:
             # 获取请求中的refresh token

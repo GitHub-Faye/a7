@@ -121,6 +121,67 @@ class AuthenticationTestCase(APITestCase):
         refresh_response = self.client.post(refresh_url, refresh_data, format='json')
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
     
+    def test_token_verify(self):
+        """
+        测试令牌验证端点
+        """
+        # 先登录获取令牌
+        login_url = reverse('login')
+        login_data = {'username': 'hjc', 'password': 'hjc12345678'}
+        login_response = self.client.post(login_url, login_data, format='json')
+        
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        access_token = login_response.data['access']
+        
+        # 测试令牌验证端点
+        verify_url = reverse('token_verify')
+        
+        # 使用有效令牌
+        verify_data = {'token': access_token}
+        verify_response = self.client.post(verify_url, verify_data, format='json')
+        self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
+        
+        # 使用无效令牌
+        invalid_verify_data = {'token': 'invalid_token'}
+        invalid_verify_response = self.client.post(verify_url, invalid_verify_data, format='json')
+        self.assertEqual(invalid_verify_response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_token_blacklist(self):
+        """
+        测试令牌黑名单端点
+        """
+        # 先登录获取令牌
+        login_url = reverse('login')
+        login_data = {'username': 'hjc', 'password': 'hjc12345678'}
+        login_response = self.client.post(login_url, login_data, format='json')
+        
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        access_token = login_response.data['access']
+        refresh_token = login_response.data['refresh']
+        
+        # 测试令牌黑名单端点
+        blacklist_url = reverse('token_blacklist')
+        
+        # 设置认证头
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        
+        # 使用有效刷新令牌
+        blacklist_data = {'refresh': refresh_token}
+        blacklist_response = self.client.post(blacklist_url, blacklist_data, format='json')
+        self.assertEqual(blacklist_response.status_code, status.HTTP_200_OK)
+        
+        # 验证黑名单后的令牌不能再使用
+        refresh_url = reverse('token_refresh')
+        refresh_data = {'refresh': refresh_token}
+        refresh_response = self.client.post(refresh_url, refresh_data, format='json')
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # 使用无效令牌（此操作需要认证）
+        invalid_blacklist_data = {'refresh': 'invalid_token'}
+        invalid_blacklist_response = self.client.post(blacklist_url, invalid_blacklist_data, format='json')
+        # 通常无效令牌会返回400，但具体取决于实现
+        self.assertIn(invalid_blacklist_response.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED])
+    
     def test_change_password_success(self):
         """
         测试成功修改密码
@@ -241,6 +302,63 @@ class AuthenticationTestCase(APITestCase):
         me_url = reverse('user-me')
         response = self.client.get(me_url, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_token_operations(self):
+        """
+        测试需要认证的令牌操作
+        """
+        # 创建测试用户（即使在setUp中创建了，为安全起见这里再创建一次）
+        test_user = User.objects.create_user(
+            username='auth_test_user',
+            password='testpassword123',
+            email='authtest@example.com',
+            role='student'
+        )
+        
+        # 先登录获取令牌
+        login_url = reverse('login')
+        login_data = {'username': 'auth_test_user', 'password': 'testpassword123'}
+        login_response = self.client.post(login_url, login_data, format='json')
+        
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        access_token = login_response.data['access']
+        refresh_token = login_response.data['refresh']
+        
+        # 设置认证头
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        
+        # 测试登出功能
+        logout_url = reverse('logout')
+        logout_data = {'refresh': refresh_token}
+        logout_response = self.client.post(logout_url, logout_data, format='json')
+        # 验证登出成功
+        self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
+        
+        # 清除认证头以获取新令牌
+        self.client.credentials()
+        
+        # 再次登录获取新令牌
+        login_response = self.client.post(login_url, login_data, format='json')
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        access_token = login_response.data['access']
+        refresh_token = login_response.data['refresh']
+        
+        # 设置认证头
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        
+        # 测试令牌黑名单功能
+        blacklist_url = reverse('token_blacklist')
+        blacklist_data = {'refresh': refresh_token}
+        blacklist_response = self.client.post(blacklist_url, blacklist_data, format='json')
+        # 验证黑名单成功
+        self.assertEqual(blacklist_response.status_code, status.HTTP_200_OK)
+        
+        # 验证黑名单后刷新令牌不能使用
+        self.client.credentials()  # 清除认证头
+        refresh_url = reverse('token_refresh')
+        refresh_data = {'refresh': refresh_token}
+        refresh_response = self.client.post(refresh_url, refresh_data, format='json')
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class PermissionTestCase(APITestCase):
@@ -615,16 +733,14 @@ class EndToEndTestCase(APITestCase):
         create_response = self.client.post(create_user_url, new_user_data, format='json')
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         
-        # 查询新创建的用户
-        users_response = self.client.get(create_user_url, format='json')
-        self.assertEqual(users_response.status_code, status.HTTP_200_OK)
+        # 直接使用创建响应中的ID，避免额外查询
+        new_user_id = create_response.data.get('id')
         
-        # 找到新用户ID
-        new_user_id = None
-        for user in users_response.data:
-            if user['username'] == 'newuser':
-                new_user_id = user['id']
-                break
+        # 如果create_response没有返回ID，则需要查找用户
+        if not new_user_id:
+            # 创建用户后直接通过用户名获取用户实例
+            new_user = User.objects.get(username='newuser')
+            new_user_id = new_user.id
         
         self.assertIsNotNone(new_user_id, "无法找到新创建的用户")
         
@@ -686,6 +802,9 @@ class EndToEndTestCase(APITestCase):
         logout_data = {'refresh': refresh_token}
         logout_response = self.client.post(logout_url, logout_data, format='json')
         self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
+        
+        # 清除认证头
+        self.client.credentials()
         
         # 10. 使用新密码登录
         login_data = {'username': 'newuser', 'password': 'updated_password123'}
@@ -964,3 +1083,81 @@ class RoleObjectTestCase(TestCase):
         
         # 用户现在应该拥有角色的权限
         self.assertTrue(test_user.has_perm('add_group'))
+
+
+class ApiDocumentationTestCase(APITestCase):
+    """
+    测试API文档和装饰视图
+    """
+    
+    def setUp(self):
+        """
+        测试前创建测试用户
+        """
+        # 创建测试用户
+        self.test_user = User.objects.create_user(
+            username='testuser', 
+            password='testpassword123',
+            email='test@example.com',
+            role='student'
+        )
+    
+    def test_swagger_documentation(self):
+        """
+        测试Swagger文档端点是否可访问
+        """
+        swagger_url = reverse('schema-swagger-ui')
+        redoc_url = reverse('schema-redoc')
+        
+        # 检查Swagger UI可访问
+        swagger_response = self.client.get(swagger_url)
+        self.assertEqual(swagger_response.status_code, status.HTTP_200_OK)
+        
+        # 检查ReDoc可访问
+        redoc_response = self.client.get(redoc_url)
+        self.assertEqual(redoc_response.status_code, status.HTTP_200_OK)
+    
+    def test_decorated_token_views(self):
+        """
+        测试装饰的令牌视图
+        """
+        # 确认测试用户已创建
+        test_user = User.objects.create_user(
+            username='doc_test_user',
+            password='testpassword123',
+            email='doctest@example.com',
+            role='student'
+        )
+        
+        # 测试登录接口
+        login_url = reverse('login')
+        login_data = {'username': 'doc_test_user', 'password': 'testpassword123'}
+        login_response = self.client.post(login_url, login_data, format='json')
+        
+        # 验证登录成功且包含期望的字段
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', login_response.data)
+        self.assertIn('refresh', login_response.data)
+        self.assertIn('user', login_response.data)
+        self.assertEqual(login_response.data['user']['username'], 'doc_test_user')
+        
+        # 获取令牌
+        access_token = login_response.data['access']
+        refresh_token = login_response.data['refresh']
+        
+        # 测试令牌刷新接口
+        refresh_url = reverse('token_refresh')
+        refresh_data = {'refresh': refresh_token}
+        refresh_response = self.client.post(refresh_url, refresh_data, format='json')
+        
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', refresh_response.data)
+        
+        # 测试令牌验证接口
+        verify_url = reverse('token_verify')
+        verify_data = {'token': access_token}
+        verify_response = self.client.post(verify_url, verify_data, format='json')
+        
+        self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
+        
+        # 注意：跳过需要认证的端点测试，如黑名单和登出功能

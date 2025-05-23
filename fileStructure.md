@@ -54,7 +54,10 @@ a7/                           # 项目根目录
 │   │   ├── apps.py           # 课程应用配置
 │   │   ├── models.py         # 课程相关模型定义
 │   │   ├── tests.py          # 课程模型的测试用例
+│   │   ├── views.py          # 课程相关视图（待实现）
 │   │   └── migrations/       # 课程模型数据库迁移文件
+│   ├── db.sqlite3            # SQLite数据库文件
+│   ├── permission.log        # 项目级权限日志文件
 │   └── manage.py             # Django命令行工具
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
@@ -84,6 +87,8 @@ a7/                           # 项目根目录
 - **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。
 - **a7/a7/wsgi.py**: WSGI（Web服务器网关接口）应用配置，用于传统Web服务器部署。
 - **a7/manage.py**: Django命令行工具，用于执行各种管理任务，如运行开发服务器、数据库迁移等。
+- **a7/db.sqlite3**: SQLite数据库文件，存储项目的所有数据，包括用户、角色、权限、课程、知识点等实体数据。在开发环境中使用，包含测试和示例数据。
+- **a7/permission.log**: 项目级权限检查日志文件，记录权限中间件在a7目录下的日志。
 
 ### Django应用文件
 
@@ -104,11 +109,11 @@ a7/                           # 项目根目录
 - **a7/users/permissions.py**: 自定义权限类，定义基于角色和功能的权限类，如IsAdmin、IsTeacher、IsAdminOrTeacher等。
 - **a7/users/permission_utils.py**: 权限工具函数，提供权限分配、管理和同步功能，实现基于角色的权限自动分配。
 - **a7/users/middleware.py**: 基于角色的权限中间件，实现权限检查日志记录和自定义权限拒绝响应。
-- **a7/users/serializers.py**: 序列化器类，处理用户和角色数据的序列化和反序列化，以及密码更改验证。
+- **a7/users/serializers.py**: 序列化器类，处理用户和角色数据的序列化和反序列化，以及密码更改验证，还包括各种令牌响应的序列化器（用于Swagger/ReDoc文档）。
 - **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌和分配权限的逻辑，以及角色和权限变更的处理。
 - **a7/users/tests.py**: 测试文件，包含用户认证系统和角色权限的全面单元测试，验证登录、登出、密码更改和基于角色的权限控制功能。
-- **a7/users/urls.py**: URL路由配置，定义用户API端点。
-- **a7/users/views.py**: 视图文件，包含UserViewSet（含权限控制）和RoleViewSet视图集及登录/登出视图的实现。
+- **a7/users/urls.py**: URL路由配置，定义用户API端点，包括用户管理、角色管理、登录和登出端点。
+- **a7/users/views.py**: 视图文件，包含UserViewSet（含权限控制）和RoleViewSet视图集，自定义的认证视图（CustomTokenObtainPairView和装饰类），以及登出视图（LogoutView）。还包括完整的Swagger文档装饰类（DecoratedTokenObtainPairView、DecoratedTokenRefreshView、DecoratedTokenVerifyView、DecoratedTokenBlacklistView）。
 - **a7/users/management/commands/init_roles.py**: 管理命令，用于初始化角色和权限，并更新现有用户的权限设置。
 - **a7/users/management/commands/sync_roles.py**: 管理命令，用于同步用户角色和权限数据，修复数据不一致问题。
 
@@ -119,6 +124,7 @@ a7/                           # 项目根目录
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
 - **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例，包括学习进度跟踪和状态转换测试。
+- **a7/courses/views.py**: 课程相关的视图文件，当前为空，预留用于后续实现课程管理、内容展示和学习交互的API端点。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 
 ### 测试文件
@@ -150,7 +156,7 @@ a7/                           # 项目根目录
   - **rules-debug/**: 调试和错误处理相关规则。
   - **rules-test/**: 测试和质量保证相关规则。
   
-- **.cursor/**: Cursor IDE的配置和扩展设置，包括特定于编辑器的功能规则。
+- **.cursor/**: Cursor IDE的配置和扩展设置，包括MCP（Model Control Protocol）配置、环境变量设置和编辑器特定功能规则。用于增强IDE与项目的集成，提供自定义命令和工具支持。
 
 - **scripts/**: 包含各种实用工具脚本和配置模板。
   - **example_prd.txt**: 产品需求文档(PRD)的示例模板，用于Task Master解析并生成任务。
@@ -191,9 +197,10 @@ a7/                           # 项目根目录
    - `a7/users/signals.py`处理用户创建、角色变更和权限同步的信号，确保权限系统的一致性。
    - `a7/users/management/commands/init_roles.py`提供管理命令初始化角色和权限数据。
    - `a7/users/management/commands/sync_roles.py`提供管理命令同步用户角色和权限数据，修复数据不一致问题。
-   - `a7/users/serializers.py`实现数据转换，支持REST API的用户数据处理，包含密码更改的验证逻辑。
-   - `a7/users/views.py`提供用户和角色管理的API端点，以及登录/登出/密码更改功能，并使用权限类控制访问。
-   - `a7/users/urls.py`定义用户API路由，被主urls.py包含。
+   - `a7/users/serializers.py`实现数据转换，支持REST API的用户数据处理，包含密码更改的验证逻辑以及各种令牌响应的序列化器（为Swagger/ReDoc文档提供示例）。
+   - `a7/users/views.py`提供用户和角色管理的API端点，以及登录/登出/密码更改功能，并使用权限类控制访问。该文件还包括增强的JWT令牌视图实现，通过装饰器模式为Swagger文档提供标准化响应，以及令牌验证和黑名单功能。
+   - `a7/users/urls.py`定义用户API路由，被主urls.py包含，负责将请求路由到对应的视图函数。
+   - `a7/a7/urls.py`定义顶级URL路由，集成JWT认证端点(`/api/token/`, `/api/token/refresh/`, `/api/token/verify/`, `/api/token/blacklist/`)以及各应用的URL配置。
    - `a7/a7/settings.py`中的`AUTH_USER_MODEL`设置指向自定义User模型，还包含MIDDLEWARE配置中的权限中间件和日志配置。
    - `a7/a7/settings.py`中的`SIMPLE_JWT`配置定义JWT令牌的行为，包括黑名单和令牌轮换设置。
    - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置与JWT认证和权限系统集成，通过`DEFAULT_AUTHENTICATION_CLASSES`和`DEFAULT_PERMISSION_CLASSES`确保API端点的安全访问。
@@ -342,12 +349,12 @@ a7/                           # 项目根目录
    - **测试配置**: 测试客户端默认使用JSON格式
 
 2. **认证端点**:
-   - `/api/token/` - 获取JWT认证令牌
-   - `/api/token/refresh/` - 刷新JWT令牌
-   - `/api/token/verify/` - 验证JWT令牌的有效性
-   - `/api/token/blacklist/` - JWT令牌黑名单端点
+   - `/api/token/` - 获取JWT认证令牌（DecoratedTokenObtainPairView），返回用户信息和访问/刷新令牌
+   - `/api/token/refresh/` - 刷新JWT令牌（DecoratedTokenRefreshView）
+   - `/api/token/verify/` - 验证JWT令牌的有效性（DecoratedTokenVerifyView）
+   - `/api/token/blacklist/` - JWT令牌黑名单端点（DecoratedTokenBlacklistView），使令牌失效
    - `/api/login/` - 自定义登录端点，返回JWT令牌和用户信息
-   - `/api/logout/` - 登出端点，使令牌失效
+   - `/api/logout/` - 登出端点，将刷新令牌加入黑名单使其失效
 
 3. **用户管理API**:
    - `/api/users/` - 用户列表和创建

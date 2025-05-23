@@ -19,6 +19,7 @@
 - 提供@action装饰器用于自定义API端点（如密码更改）
 - 支持序列化器验证和字段定制（如密码验证）
 - 包含APITestCase和APIClient类用于API测试
+- 支持Swagger/OpenAPI文档集成与自动生成
 
 ## djangorestframework-simplejwt
 - 提供JWT认证功能
@@ -27,6 +28,9 @@
 - 可自定义令牌内容
 - 与Django用户认证系统集成，支持密码管理
 - 提供令牌验证视图和黑名单功能
+- 包含TokenObtainPairView, TokenRefreshView, TokenVerifyView, TokenBlacklistView视图类
+- 令牌响应格式自定义功能
+- 可扩展的令牌类与验证
 
 ## Django权限与角色系统
 - Django自带权限系统(Permission)支持细粒度权限控制
@@ -140,6 +144,29 @@
 - 测试复杂的多级级联删除场景
 - 使用独立的测试方法和事务隔离确保测试纯净性
 - 确保测试覆盖所有关键的外键关系配置
+
+## API认证端点设计模式
+
+### JWT端点设计
+- 提供标准化的令牌获取/刷新/验证/黑名单端点
+- 使用装饰器为API文档提供响应示例
+- 扩展基本视图添加自定义响应格式（如用户信息）
+- 集中配置URL路由保持一致性
+- 使用统一的命名规范（token_obtain_pair, token_refresh等）
+
+### API文档最佳实践
+- 使用swagger_auto_schema装饰器定义响应结构
+- 创建专用的文档序列化器（不实现create/update方法）
+- 为序列化器字段添加help_text提供说明
+- 为视图方法添加清晰的注释和说明
+- 统一错误响应格式和状态码
+
+### 用户认证流程
+- 登录返回令牌和用户信息
+- 登出时将刷新令牌加入黑名单
+- 提供专用的密码修改端点
+- 实现细粒度的权限控制
+- 异常处理保证友好的错误提示
 
 
 ```

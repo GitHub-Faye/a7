@@ -86,4 +86,51 @@ class PasswordChangeSerializer(serializers.Serializer):
         if password.isdigit() or password.isalpha():
             raise serializers.ValidationError({"new_password": "密码必须包含字母和数字"})
         
-        return attrs 
+        return attrs
+
+
+# 以下序列化器用于Swagger文档
+class TokenObtainPairResponseSerializer(serializers.Serializer):
+    """令牌获取响应序列化器（用于文档）"""
+    access = serializers.CharField(help_text="访问令牌")
+    refresh = serializers.CharField(help_text="刷新令牌")
+    user = UserSerializer(help_text="用户信息")
+
+    def create(self, validated_data):
+        raise NotImplementedError()
+
+    def update(self, instance, validated_data):
+        raise NotImplementedError()
+
+
+class TokenRefreshResponseSerializer(serializers.Serializer):
+    """令牌刷新响应序列化器（用于文档）"""
+    access = serializers.CharField(help_text="新的访问令牌")
+
+    def create(self, validated_data):
+        raise NotImplementedError()
+
+    def update(self, instance, validated_data):
+        raise NotImplementedError()
+
+
+class TokenVerifyResponseSerializer(serializers.Serializer):
+    """令牌验证响应序列化器（用于文档）"""
+    # 验证成功时返回空对象
+    
+    def create(self, validated_data):
+        raise NotImplementedError()
+
+    def update(self, instance, validated_data):
+        raise NotImplementedError()
+
+
+class TokenBlacklistResponseSerializer(serializers.Serializer):
+    """令牌黑名单响应序列化器（用于文档）"""
+    # 成功加入黑名单时返回空对象
+    
+    def create(self, validated_data):
+        raise NotImplementedError()
+
+    def update(self, instance, validated_data):
+        raise NotImplementedError() 
