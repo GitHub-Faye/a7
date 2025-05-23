@@ -116,7 +116,68 @@
       "priority": "high",
       "details": "Define the models for User, Role, Permission, Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord, UsageStatistics, and PerformanceMetric. Implement relationships and constraints as per the PRD.",
       "testStrategy": "Test model creation, relationships, and constraints using Django's test framework. Ensure data integrity and validation.",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Define User/Role/Permission models",
+          "description": "Create the data models for users, roles, and permissions, including their attributes and basic functionalities.",
+          "dependencies": [],
+          "details": "Define fields like username, email for User; name, description for Role; and action, resource for Permission.\n<info added on 2025-05-21T08:48:43.016Z>\nImplemented User/Role/Permission models with the following updates: 1. Modified User model to include a foreign key relationship (role_obj) with Role model while retaining the legacy role string field for backward compatibility. 2. Integrated Django's built-in Permission model for role-based permission assignment, establishing a many-to-many relationship between Role and Permission. 3. Added automatic synchronization between role and role_obj fields in User.save() to ensure data consistency. 4. Enhanced User.has_perm() and has_module_perms() methods to support both direct permission checks and role-based checks. 5. Developed utility functions in permission_utils.py for role permission assignment, default role creation, and user role synchronization. 6. Implemented signal handlers in signals.py for user creation, role updates, and permission synchronization, with syncing_roles parameter to prevent recursive calls. 7. Created a management command sync_roles.py to resolve data inconsistencies by synchronizing user roles and permissions. 8. Enhanced admin.py with additional functionalities for user and role management, including synchronization and permission handling. 9. Conducted comprehensive testing covering role synchronization, role-permission relationships, permission cascading, management command functionality, and the impact of role updates on user permissions. All tests passed, confirming a robust role-based permission system with backward compatibility.\n</info added on 2025-05-21T08:48:43.016Z>",
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "title": "Define Course/KP/Courseware models",
+          "description": "Design the models for courses, knowledge points (KP), and courseware, including their attributes.",
+          "dependencies": [],
+          "details": "Define fields like title, description for Course; name, level for KP; and title, content for Courseware.\n<info added on 2025-05-21T09:13:29.586Z>\nThe models for Course, KnowledgePoint, and Courseware have been successfully designed and implemented. Key details include:\n\n1. **Models Created**:\n   - **Course**: Fields include title, description, subject, grade_level, teacher (foreign key to User), and created_at.\n   - **KnowledgePoint**: Fields include course (foreign key), title, content, importance (1-10 rating), and parent (self-referential foreign key for hierarchical structure).\n   - **Courseware**: Fields include course (foreign key), title, content, type (document/video/audio), created_by (foreign key to User), and created_at.\n\n2. **Model Relationships**:\n   - User to Course: One-to-many (a teacher can create multiple courses).\n   - Course to KnowledgePoint: One-to-many (a course contains multiple knowledge points).\n   - KnowledgePoint self-referential: Hierarchical structure via parent field.\n   - Course to Courseware: One-to-many (a course has multiple courseware items).\n   - User to Courseware: One-to-many (a user can create multiple courseware items).\n\n3. **Model Configuration**:\n   - Verbose names and plural names for admin interface.\n   - Ordering: Courses and courseware by created_at (descending), knowledge points by importance and title.\n   - __str__ methods for string representation.\n\n4. **Admin Interface**:\n   - List display fields, filters, search fields, date hierarchy, and raw_id_fields for foreign keys.\n\n5. **Testing**:\n   - Validated model creation, field assignments, relationships, and string representations.\n\n6. **Deployment**:\n   - Added to INSTALLED_APPS, created and applied migrations, all tests passed.\n\nThe models meet PRD requirements, with the hierarchical KnowledgePoint structure supporting complex content organization and diverse courseware types accommodating various teaching resources.\n</info added on 2025-05-21T09:13:29.586Z>",
+          "status": "done"
+        },
+        {
+          "id": 3,
+          "title": "Define Exercise/Answer models",
+          "description": "Create models for exercises and answers, detailing their structure and relationships.",
+          "dependencies": [
+            2
+          ],
+          "details": "Define fields like question, type for Exercise; and content, isCorrect for Answer.\n<info added on 2025-05-22T06:45:04.375Z>\nExercise model implemented with fields: title, content, type (single/multiple choice, fill-in, etc.), difficulty level (1-5), foreign key relationship with KnowledgePoint, answer template for standard answers/options, and custom sorting/string representation. StudentAnswer model implemented with fields: content, score, feedback, foreign key relationships with User and Exercise, unique_together constraint to ensure one answer per student per exercise, and time-based sorting. Both models registered in Django Admin with appropriate display/filter configurations. Database migration files created and applied. Comprehensive unit tests written and passed, covering model creation, relationships, and constraints. Models support exercise and evaluation functionality as per PRD specifications.\n</info added on 2025-05-22T06:45:04.375Z>",
+          "status": "done"
+        },
+        {
+          "id": 4,
+          "title": "Define Learning/Usage models",
+          "description": "Design models to track learning progress and usage statistics.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Define fields like progress, completion for Learning; and timestamp, action for Usage.\n<info added on 2025-05-22T07:26:22.601Z>\nDefine fields like progress, completion for Learning; and timestamp, action for Usage. Completed model implementation and testing: 1. Successfully created three key models for tracking user activity and learning progress: - UsageStatistics model: Records various user actions in the system, including fields like user, module, action, details (JSON), IP address, and user agent. - PerformanceMetric model: Stores system performance metrics, including fields like metric type, value, unit, related entity, and context information. - LearningRecord model: Tracks student learning progress, including fields like student, course, knowledge point, status, progress percentage, and learning time. 2. Developed comprehensive test suites for all models: - Basic functionality tests: Validated model creation, field value storage, and model methods. - JSON field handling: Verified JSON data parsing and edge case handling. - Real-world scenario simulations: Simulated user behavior with UsageStatistics and monitored system performance with PerformanceMetric. - Learning progress tracking: Validated state transitions, progress updates, time accumulation, and statistical analysis. All models have been added to the Admin backend and passed all tests. These models provide complete user activity tracking and learning progress monitoring, supporting future analysis and improvements.\n</info added on 2025-05-22T07:26:22.601Z>",
+          "status": "done"
+        },
+        {
+          "id": 5,
+          "title": "Implement relationships",
+          "description": "Establish the relationships between all defined models to ensure proper data interaction.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "Define foreign keys, many-to-many relationships, and cascading behaviors as needed.\n<info added on 2025-05-22T08:14:53.197Z>\nDefine foreign keys, many-to-many relationships, and cascading behaviors as needed. Completed implementation of model relationships with the following details: 1. Optimized database relationship design: - Modified on_delete strategies for key foreign keys, e.g., SET_NULL for user-related foreign keys to prevent data loss. - Retained appropriate cascading deletions for data integrity (e.g., course deletion cascades to related knowledge points and materials). - Ensured logical consistency in foreign key relationships. 2. Added and optimized database indexes: - Added suitable indexes to all models for improved query performance. - Named indexes meaningfully for easier maintenance and debugging. - Designed composite indexes for common query scenarios (e.g., subject and grade for courses). 3. Implemented uniqueness constraints: - Ensured uniqueness constraints for student answers and learning records (e.g., one answer per student per question). - Added tests to validate these constraints. 4. Added cascading deletion tests: - Wrote comprehensive tests to verify cascading deletion behaviors. - Confirmed user deletion does not delete courses but sets teacher fields to null. - Confirmed course deletion cascades to related knowledge points and materials. 5. Generated and applied migration files: - Created necessary migration files to align database structure with model definitions. - Applied migrations and verified correct database structure.\n</info added on 2025-05-22T08:14:53.197Z>",
+          "status": "done"
+        },
+        {
+          "id": 6,
+          "title": "Test models",
+          "description": "Validate the models and their relationships through testing to ensure correctness and robustness.",
+          "dependencies": [
+            5
+          ],
+          "details": "Create test cases to verify CRUD operations, relationships, and edge cases.\n<info added on 2025-05-22T15:08:43.882Z>\nCompleted comprehensive testing of database models. Implemented the following tests:\n1. ComprehensiveModelRelationshipTest: Verified all model relationships, foreign keys, reverse queries, and cascade behaviors. Confirmed correct handling of teacher deletion (setting course teacher field to null) and course deletion (cascading deletion of knowledge points).\n2. ModelFieldUpdateTest: Tested all model field updates and validations, including business logic for methods like LearningRecord.update_progress() and add_time_spent().\n3. EdgeCaseAndSpecialConditionTest: Tested boundary conditions such as null values, extremely long content, empty content, deep nesting, and special case handling.\n4. AdvancedQueryTest: Tested advanced query functionalities, including Q objects, F expressions, Case When expressions, and complex aggregation queries.\nAll 81 test cases passed, thoroughly validating model correctness and robustness. Resolved an issue related to negative value constraints for learning record time fields.\nTesting covered all models (User/Role, Course/KnowledgePoint/Courseware, Exercise/StudentAnswer, LearningRecord, etc.) for CRUD operations, relationship validation, cascade behaviors, and constraint checks.\n</info added on 2025-05-22T15:08:43.882Z>",
+          "status": "done"
+        }
+      ]
     },
     {
       "id": 4,

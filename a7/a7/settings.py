@@ -145,12 +145,55 @@ AUTH_USER_MODEL = 'users.User'
 
 # REST Framework 配置
 REST_FRAMEWORK = {
+    # 认证类配置
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT令牌认证
+        'rest_framework.authentication.SessionAuthentication',  # 会话认证（支持浏览器可视化API）
     ),
+    
+    # 权限类配置
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.IsAuthenticated',  # 默认要求身份验证
     ),
+    
+    # 分页配置
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',  # 使用页码分页
+    'PAGE_SIZE': 20,  # 默认每页20条数据
+    
+    # 渲染器配置 - 定义API输出格式
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',  # JSON渲染器
+        'rest_framework.renderers.BrowsableAPIRenderer',  # 可视化API渲染器
+    ],
+    
+    # 解析器配置 - 定义API输入解析方式
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',  # JSON解析器
+        'rest_framework.parsers.FormParser',  # 表单数据解析器
+        'rest_framework.parsers.MultiPartParser',  # 多部分表单数据解析器，支持文件上传
+    ],
+    
+    # 异常处理配置
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',  # 默认异常处理器
+    
+    # 过滤配置
+    'DEFAULT_FILTER_BACKENDS': [
+        'rest_framework.filters.SearchFilter',  # 搜索过滤
+        'rest_framework.filters.OrderingFilter',  # 排序过滤
+    ],
+    
+    # 版本控制配置
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.NamespaceVersioning',  # 使用URL命名空间进行版本控制
+    
+    # JSON格式配置
+    'COMPACT_JSON': True,  # 压缩JSON以减少响应大小
+    
+    # 时间格式配置
+    'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',  # 日期时间格式
+    'DATE_FORMAT': '%Y-%m-%d',  # 日期格式
+    
+    # 测试配置
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json',  # 测试客户端默认使用JSON格式
 }
 
 # JWT 配置

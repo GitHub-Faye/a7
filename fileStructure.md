@@ -80,7 +80,7 @@ a7/                           # 项目根目录
 
 - **a7/a7/__init__.py**: Python包标识文件，表明该目录是一个Python包。
 - **a7/a7/asgi.py**: ASGI（异步服务器网关接口）应用配置，用于异步服务器部署。
-- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。
+- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（JWT和会话认证）、权限控制、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤、版本控制、JSON格式和时间格式等全局设置。
 - **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。
 - **a7/a7/wsgi.py**: WSGI（Web服务器网关接口）应用配置，用于传统Web服务器部署。
 - **a7/manage.py**: Django命令行工具，用于执行各种管理任务，如运行开发服务器、数据库迁移等。
@@ -176,6 +176,7 @@ a7/                           # 项目根目录
 
 1. **Django项目结构**:
    - `a7/a7/settings.py`定义Django项目的核心配置，如数据库连接、安装的应用等。
+   - `a7/a7/settings.py`中的`REST_FRAMEWORK`字典配置REST API框架的全局行为，包括认证、权限、分页、渲染器、解析器、过滤和版本控制等，为所有API端点提供一致的基础设置。
    - `a7/a7/urls.py`配置URL路由，将请求映射到对应的视图函数。
    - `a7/a7/asgi.py`和`a7/a7/wsgi.py`提供异步和同步Web服务器网关接口。
    - `a7/manage.py`是命令行工具入口，用于执行Django管理命令。
@@ -195,6 +196,7 @@ a7/                           # 项目根目录
    - `a7/users/urls.py`定义用户API路由，被主urls.py包含。
    - `a7/a7/settings.py`中的`AUTH_USER_MODEL`设置指向自定义User模型，还包含MIDDLEWARE配置中的权限中间件和日志配置。
    - `a7/a7/settings.py`中的`SIMPLE_JWT`配置定义JWT令牌的行为，包括黑名单和令牌轮换设置。
+   - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置与JWT认证和权限系统集成，通过`DEFAULT_AUTHENTICATION_CLASSES`和`DEFAULT_PERMISSION_CLASSES`确保API端点的安全访问。
    - `a7/users/tests.py`提供认证和权限功能的自动化测试，确保系统按预期工作。
    - `test_html/auth_test.html`和`test_html/permissions_test.html`提供基于浏览器的手动测试界面，验证API交互。
    - `permission.log`记录权限中间件的访问检查日志，帮助调试和监控权限系统。
@@ -257,6 +259,19 @@ a7/                           # 项目根目录
     - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有级联删除行为和唯一性约束。ModelFieldUpdateTest测试类验证字段更新和业务逻辑，EdgeCaseAndSpecialConditionTest测试类验证边界条件和特殊情况，AdvancedQueryTest测试类验证高级查询功能。
     - UsageStatistics模型采用SET_NULL策略连接User模型，避免删除用户时丢失重要的使用统计数据。
     - 所有模型的索引都有明确的命名约定，如lr_stud_course_idx、ans_ex_score_idx等，便于维护和调试。
+    - `a7/a7/settings.py`中的DRF分页、过滤和搜索配置与模型查询优化协同工作，确保API响应高效且符合最佳实践。
+
+11. **REST Framework API系统**:
+    - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置定义全局API行为和标准。
+    - DRF配置与用户认证系统无缝集成，提供JWT令牌和会话认证支持。
+    - 分页配置确保大型数据集的高效处理，防止返回过多数据导致性能问题。
+    - 渲染器配置支持多种格式输出，既可返回生产环境的JSON数据，也支持开发环境的可视化API界面。
+    - 解析器配置支持多种输入格式，包括JSON数据、表单数据和文件上传。
+    - 过滤和搜索配置为API提供强大的数据查询能力，支持高级搜索和结果排序。
+    - 异常处理确保API错误以一致的格式返回，便于客户端处理。
+    - 版本控制配置支持API演进和向后兼容性管理。
+    - 格式配置优化响应大小和时间表示，提高API效率和可用性。
+    - 测试配置简化API自动化测试开发。
 
 ## 目录组织逻辑
 
@@ -314,7 +329,19 @@ a7/                           # 项目根目录
 
 项目已配置以下API结构：
 
-1. **认证端点**:
+1. **REST Framework全局配置**:
+   - **认证配置**: 使用JWT令牌认证和会话认证（支持API浏览器）
+   - **权限配置**: 默认要求用户身份验证
+   - **分页配置**: 使用页码分页，默认每页20条数据
+   - **渲染器配置**: 支持JSON和可浏览API格式输出
+   - **解析器配置**: 支持JSON、表单数据和多部分表单数据（含文件上传）输入
+   - **异常处理**: 使用默认异常处理器处理API错误
+   - **过滤配置**: 支持搜索过滤和结果排序
+   - **版本控制**: 使用URL命名空间进行API版本控制
+   - **格式配置**: 启用压缩JSON减少响应大小，自定义日期时间格式
+   - **测试配置**: 测试客户端默认使用JSON格式
+
+2. **认证端点**:
    - `/api/token/` - 获取JWT认证令牌
    - `/api/token/refresh/` - 刷新JWT令牌
    - `/api/token/verify/` - 验证JWT令牌的有效性
@@ -322,7 +349,7 @@ a7/                           # 项目根目录
    - `/api/login/` - 自定义登录端点，返回JWT令牌和用户信息
    - `/api/logout/` - 登出端点，使令牌失效
 
-2. **用户管理API**:
+3. **用户管理API**:
    - `/api/users/` - 用户列表和创建
    - `/api/users/<id>/` - 用户详情、更新和删除
    - `/api/users/me/` - 获取当前登录用户信息
@@ -332,10 +359,10 @@ a7/                           # 项目根目录
    - `/api/roles/<id>/` - 角色详情、更新和删除
    - `/api/roles/<id>/permissions/` - 获取特定角色的权限信息
 
-3. **核心API**:
+4. **核心API**:
    - `/api/health/` - 健康检查端点，提供API服务状态
 
-4. **文档端点**:
+5. **文档端点**:
    - `/swagger/` - Swagger UI API交互式文档
    - `/redoc/` - ReDoc 格式的API文档
 

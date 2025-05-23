@@ -192,7 +192,48 @@
       "priority": "medium",
       "details": "Configure Django REST Framework settings. Implement basic API endpoints for authentication and user management. Set up authentication middleware and error handling.",
       "testStrategy": "Test API endpoints for authentication and user management. Verify error handling and response formats.",
-      "subtasks": []
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Configure DRF settings",
+          "description": "Set up Django REST Framework settings in the project configuration file.",
+          "dependencies": [],
+          "details": "Update settings.py to include DRF configurations such as default authentication classes, pagination, and renderers.\n<info added on 2025-05-22T15:39:26.157Z>\nUpdated settings.py with the following DRF configurations: 1. Authentication classes: JWT token and session authentication. 2. Permission classes: Default authentication required. 3. Pagination: PageNumberPagination with 20 items per page. 4. Renderers: JSONRenderer and BrowsableAPIRenderer. 5. Parsers: JSONParser, FormParser, and MultiPartParser. 6. Exception handling: Default exception handlers. 7. Filtering: SearchFilter and OrderingFilter. 8. Versioning: NamespaceVersioning. 9. JSON format: Enabled compressed JSON. 10. Time format: Configured datetime format. 11. Testing: Set test client to use JSON format by default. All configurations include detailed Chinese comments for clarity. Validated using Django's check command and confirmed functionality by running the development server.\n</info added on 2025-05-22T15:39:26.157Z>",
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "title": "Implement auth endpoints",
+          "description": "Create authentication endpoints for user registration, login, and logout.",
+          "dependencies": [
+            1
+          ],
+          "details": "Use DRF's built-in views or custom views to handle user authentication and token management.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Set up middleware",
+          "description": "Configure middleware to handle authentication and request processing.",
+          "dependencies": [
+            1
+          ],
+          "details": "Add necessary middleware classes to settings.py to manage authentication tokens and request/response cycles.",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Implement error handling",
+          "description": "Create custom error handlers for API responses.",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "Define custom exception handlers in DRF to return consistent error responses for different HTTP status codes.",
+          "status": "pending"
+        }
+      ]
     },
     {
       "id": 5,
