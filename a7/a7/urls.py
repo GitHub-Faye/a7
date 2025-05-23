@@ -58,4 +58,7 @@ urlpatterns = [
     
     # 用户应用
     path('api/', include('users.urls')),
+    
+    # 课程应用
+    path('api/', include('courses.urls')),
 ]

@@ -64,8 +64,12 @@ a7/                           # 项目根目录
 │   │   ├── admin.py          # 课程模型的Admin配置
 │   │   ├── apps.py           # 课程应用配置
 │   │   ├── models.py         # 课程相关模型定义
+│   │   ├── serializers.py    # 课程序列化器
+│   │   ├── permissions.py    # 课程权限类
+│   │   ├── urls.py           # 课程应用URL配置
+│   │   ├── views.py          # 课程相关视图和API实现
 │   │   ├── tests.py          # 课程模型的测试用例
-│   │   ├── views.py          # 课程相关视图（待实现）
+│   │   ├── tests_api.py      # 课程API的测试用例
 │   │   └── migrations/       # 课程模型数据库迁移文件
 │   ├── db.sqlite3            # SQLite数据库文件
 │   ├── permission.log        # 项目级权限日志文件
@@ -144,8 +148,12 @@ a7/                           # 项目根目录
 - **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
 - **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
-- **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例，包括学习进度跟踪和状态转换测试。
-- **a7/courses/views.py**: 课程相关的视图文件，当前为空，预留用于后续实现课程管理、内容展示和学习交互的API端点。
+- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）和CourseUpdateSerializer（更新）类，负责课程数据的序列化与反序列化。
+- **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。
+- **a7/courses/urls.py**: 课程应用的URL路由配置，使用DefaultRouter注册CourseViewSet。
+- **a7/courses/views.py**: 课程相关的视图文件，包含CourseViewSet视图集，实现课程的CRUD操作和自定义操作(如my_courses)，提供完整的课程API功能。
+- **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
+- **a7/courses/tests_api.py**: 课程API测试文件，包含API接口的功能测试，验证权限控制、CRUD操作和自定义操作的正确性。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 
 ### 测试文件
@@ -237,7 +245,14 @@ a7/                           # 项目根目录
    - `a7/courses/models.py`定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型，实现课程内容的组织和管理以及练习评测功能。
    - `a7/courses/admin.py`配置课程相关模型在Django Admin中的展示和操作方式。
    - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性，以及练习题、学生答案和学习记录的功能测试。
-   - `a7/courses/models.py`中的KnowledgePoint模型使用自引用外键实现知识点的层次结构。
+   - `a7/courses/serializers.py`定义序列化器，将课程模型转换为JSON格式以支持API接口，包括CustomSerializer实现教师名称获取，CreateSerializer实现自动设置当前用户为教师。
+   - `a7/courses/permissions.py`定义权限类，实现基于角色和所有权的访问控制，确保只有教师和管理员可以创建课程，只有课程创建者和管理员可以修改或删除课程。
+   - `a7/courses/views.py`实现CourseViewSet视图集，提供完整的CRUD API功能和自定义接口(如my_courses)，使用权限类控制访问，根据不同操作类型动态选择序列化器。
+   - `a7/courses/urls.py`使用DefaultRouter注册视图集，生成标准化的RESTful URL路径。
+   - `a7/courses/tests_api.py`提供完整的API测试套件，验证课程API的功能和权限控制，测试不同角色用户对API的访问权限和CRUD操作的正确性。
+   - `a7/a7/urls.py`将课程应用的URL配置集成到主URL配置中，启用API路由。
+   - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置提供API基础设置，包括认证、分页、搜索和过滤功能，被课程API继承和使用。
+   - `a7/apps/core/middleware/request_processor_middleware.py`将API响应标准化为统一格式，包装原始响应数据，为所有API（包括课程API）提供一致的响应结构。
    - Course模型与User模型（教师）建立外键关系，表示课程的创建者，采用SET_NULL策略避免删除教师时连带删除课程。
    - Courseware模型与Course和User模型建立外键关系，表示课件所属课程和创建者。Course关系使用CASCADE确保删除课程时级联删除课件，而User关系使用SET_NULL保护课件数据。
    - KnowledgePoint模型通过外键关联Course模型，表示知识点所属的课程，使用CASCADE级联删除。
@@ -410,6 +425,13 @@ a7/                           # 项目根目录
 5. **文档端点**:
    - `/swagger/` - Swagger UI API交互式文档
    - `/redoc/` - ReDoc 格式的API文档
+
+6. **课程管理API**:
+   - `/api/courses/` - 课程列表和创建（支持分页、搜索和排序）
+   - `/api/courses/<id>/` - 课程详情、更新和删除
+   - `/api/courses/my_courses/` - 获取当前登录教师创建的课程列表
+   - 所有端点实现权限控制，确保只有教师和管理员可以创建课程，只有课程创建者和管理员可以修改或删除课程
+   - 所有端点返回标准化的响应格式，包含状态码、成功标志和数据
 
 ## 练习与评测系统
 

@@ -9,3 +9,38 @@ Create CRUD endpoints for Course, KnowledgePoint, and Courseware models. Impleme
 
 # Test Strategy:
 Test CRUD operations for course content. Verify permissions and validation rules.
+
+# Subtasks:
+## 1. Course CRUD API Implementation [done]
+### Dependencies: None
+### Description: Implement CRUD endpoints for Course entity including create, read, update, and delete operations.
+### Details:
+Develop RESTful endpoints for Course operations with proper request/response handling.
+<info added on 2025-05-23T07:29:04.867Z>
+Develop RESTful endpoints for Course operations with proper request/response handling. The implementation includes: 1) Three serializers (CourseSerializer, CourseCreateSerializer, CourseUpdateSerializer); 2) Permission controls (IsTeacherOrAdmin, IsCourseTeacherOrAdmin); 3) CourseViewSet for full CRUD functionality and additional my_courses action; 4) URL routing configuration and integration with the main application; 5) Comprehensive test cases validating functionality and permissions. Testing revealed and resolved issues with API response formatting and permission controls. All tests passed, including list retrieval (with pagination), detail retrieval, creation (with permissions), update (with permissions), deletion (with permissions), and teacher-specific course retrieval. The Course API is fully implemented and meets requirements.
+</info added on 2025-05-23T07:29:04.867Z>
+
+## 2. KnowledgePoint CRUD API Implementation [pending]
+### Dependencies: None
+### Description: Implement CRUD endpoints for KnowledgePoint entity including create, read, update, and delete operations.
+### Details:
+Develop RESTful endpoints for KnowledgePoint operations with proper request/response handling.
+
+## 3. Courseware CRUD API Implementation [pending]
+### Dependencies: None
+### Description: Implement CRUD endpoints for Courseware entity including create, read, update, and delete operations.
+### Details:
+Develop RESTful endpoints for Courseware operations with proper request/response handling.
+
+## 4. Implement Validations [pending]
+### Dependencies: 5.1, 5.2, 5.3
+### Description: Add validation logic to all CRUD endpoints to ensure data integrity and proper error handling.
+### Details:
+Implement input validation, business rule validation, and proper error responses for all endpoints.
+
+## 5. Test Endpoints [pending]
+### Dependencies: 5.4
+### Description: Create and execute test cases for all CRUD endpoints to verify functionality and validation.
+### Details:
+Develop unit tests and integration tests for Course, KnowledgePoint, and Courseware endpoints.
+
