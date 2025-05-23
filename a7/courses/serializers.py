@@ -39,3 +39,100 @@ class CourseUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = ['title', 'description', 'subject', 'grade_level'] 
+
+# KnowledgePoint序列化器类
+class KnowledgePointSerializer(serializers.ModelSerializer):
+    """知识点序列化器，用于读取知识点信息"""
+    
+    course_title = serializers.SerializerMethodField()
+    parent_title = serializers.SerializerMethodField()
+    children = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = KnowledgePoint
+        fields = ['id', 'title', 'content', 'importance', 'course', 'course_title', 
+                 'parent', 'parent_title', 'children']
+        read_only_fields = ['course', 'parent', 'children']
+    
+    def get_course_title(self, obj):
+        """获取课程标题"""
+        if obj.course:
+            return obj.course.title
+        return ""
+    
+    def get_parent_title(self, obj):
+        """获取父知识点标题"""
+        if obj.parent:
+            return obj.parent.title
+        return ""
+    
+    def get_children(self, obj):
+        """获取子知识点列表（ID和标题）"""
+        children = obj.children.all()
+        if not children:
+            return []
+        return [{'id': child.id, 'title': child.title} for child in children]
+
+
+class KnowledgePointCreateSerializer(serializers.ModelSerializer):
+    """知识点创建序列化器"""
+    
+    class Meta:
+        model = KnowledgePoint
+        fields = ['title', 'content', 'importance', 'course', 'parent']
+    
+    def validate(self, data):
+        """验证创建数据"""
+        # 确保parent知识点属于同一个课程
+        parent = data.get('parent')
+        course = data.get('course')
+        
+        if parent and course and parent.course != course:
+            raise serializers.ValidationError(
+                {"parent": "父知识点必须属于同一个课程"}
+            )
+        
+        return data
+
+
+class KnowledgePointUpdateSerializer(serializers.ModelSerializer):
+    """知识点更新序列化器"""
+    
+    class Meta:
+        model = KnowledgePoint
+        fields = ['title', 'content', 'importance', 'parent']
+    
+    def validate(self, data):
+        """验证更新数据"""
+        # 获取要更新的实例
+        instance = self.instance
+        
+        # 确保parent知识点属于同一个课程
+        parent = data.get('parent')
+        if parent and instance.course != parent.course:
+            raise serializers.ValidationError(
+                {"parent": "父知识点必须属于同一个课程"}
+            )
+        
+        # 检查是否会形成循环引用
+        if parent and self._would_create_cycle(instance, parent):
+            raise serializers.ValidationError(
+                {"parent": "不能将知识点设为自己的子孙节点的父节点，这会形成循环引用"}
+            )
+            
+        return data
+    
+    def _would_create_cycle(self, instance, new_parent):
+        """检查是否会形成循环引用"""
+        # 如果new_parent是该知识点本身，则形成直接循环
+        if new_parent == instance:
+            return True
+            
+        # 递归检查new_parent的所有祖先，看是否包含instance
+        current = new_parent.parent
+        while current:
+            if current == instance:
+                return True
+            current = current.parent
+            
+        return False 
