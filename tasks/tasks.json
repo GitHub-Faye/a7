@@ -279,8 +279,8 @@
           "dependencies": [
             4
           ],
-          "details": "Develop unit tests and integration tests for Course, KnowledgePoint, and Courseware endpoints.",
-          "status": "pending"
+          "details": "Develop unit tests and integration tests for Course, KnowledgePoint, and Courseware endpoints.\n<info added on 2025-05-23T12:14:59.157Z>\nDevelop unit tests and integration tests for Course, KnowledgePoint, and Courseware endpoints. A comprehensive test file courses/tests_api_new.py has been created, covering: 1. Course API tests including role-based permissions (student, teacher, admin), CRUD operations, and special endpoints like my_courses. 2. KnowledgePoint API tests covering basic CRUD, filtering by course and parent, special endpoints like top_level and children, and cycle reference prevention. 3. Courseware API tests for basic CRUD, filtering by course and type, and special endpoints like by_course. The API consistently uses a nested data field in responses, which was accounted for in the test code. All 42 test cases passed, confirming the API's functional integrity and correctness.\n</info added on 2025-05-23T12:14:59.157Z>",
+          "status": "done"
         }
       ]
     },

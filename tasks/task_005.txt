@@ -100,9 +100,12 @@ Implement input validation, business rule validation, and proper error responses
 Validation logic has been fully implemented. Key updates include: 1. Created a ValidationUtils class for common validation tasks (text_field, existence, uniqueness). 2. Implemented a utility function validate_required_params for request parameter validation. 3. Added validation logic to all serializers, including field-level validation (validate_*), overall data validation (validate), object existence validation, uniqueness validation, and relationship integrity validation. 4. Updated custom actions in views to use validate_required_params for request parameter validation. 5. Added comprehensive tests covering various validation scenarios. 6. Leveraged the system's default exception handling mechanism without requiring custom exception handlers. The validation logic is now applied to all CRUD endpoints and custom actions, ensuring data integrity and consistency.
 </info added on 2025-05-23T09:31:38.637Z>
 
-## 5. Test Endpoints [pending]
+## 5. Test Endpoints [done]
 ### Dependencies: 5.4
 ### Description: Create and execute test cases for all CRUD endpoints to verify functionality and validation.
 ### Details:
 Develop unit tests and integration tests for Course, KnowledgePoint, and Courseware endpoints.
+<info added on 2025-05-23T12:14:59.157Z>
+Develop unit tests and integration tests for Course, KnowledgePoint, and Courseware endpoints. A comprehensive test file courses/tests_api_new.py has been created, covering: 1. Course API tests including role-based permissions (student, teacher, admin), CRUD operations, and special endpoints like my_courses. 2. KnowledgePoint API tests covering basic CRUD, filtering by course and parent, special endpoints like top_level and children, and cycle reference prevention. 3. Courseware API tests for basic CRUD, filtering by course and type, and special endpoints like by_course. The API consistently uses a nested data field in responses, which was accounted for in the test code. All 42 test cases passed, confirming the API's functional integrity and correctness.
+</info added on 2025-05-23T12:14:59.157Z>
 

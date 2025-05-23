@@ -17,7 +17,7 @@ a7/                           # 项目根目录
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   ├── asgi.py           # ASGI应用配置
 │   │   ├── settings.py       # Django设置文件
-│   │   ├── urls.py           # URL路由配置
+│   │   ├── urls.py           # URL路由配置，包含Swagger/ReDoc文档URL和JWT认证URL
 │   │   └── wsgi.py           # WSGI应用配置
 │   ├── apps/                 # Django应用程序目录
 │   │   ├── __init__.py       # Python包初始化文件
@@ -72,6 +72,7 @@ a7/                           # 项目根目录
 │   │   ├── utils.py          # 工具函数，包含请求参数验证
 │   │   ├── tests.py          # 课程模型的测试用例
 │   │   ├── tests_api.py      # 课程API的测试用例
+│   │   ├── tests_api_new.py  # 课程API的全面测试用例，包含CourseAPITests、KnowledgePointAPITests和CoursewareAPITests测试类
 │   │   ├── tests_validation.py # 验证逻辑的测试用例
 │   │   └── migrations/       # 课程模型数据库迁移文件
 │   ├── db.sqlite3            # SQLite数据库文件
@@ -141,7 +142,7 @@ a7/                           # 项目根目录
 - **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌和分配权限的逻辑，以及角色和权限变更的处理。
 - **a7/users/tests/test_jwt_middleware.py**: JWT中间件测试文件，包含对JWTAuthMiddleware的单元测试，验证令牌验证、过期令牌处理和认证日志记录功能。
 - **a7/users/urls.py**: URL路由配置，定义用户API端点，包括用户管理、角色管理、登录和登出端点。
-- **a7/users/views.py**: 视图文件，包含UserViewSet（含权限控制）和RoleViewSet视图集，自定义的认证视图（CustomTokenObtainPairView和装饰类），以及登出视图（LogoutView）。还包括完整的Swagger文档装饰类（DecoratedTokenObtainPairView、DecoratedTokenRefreshView、DecoratedTokenVerifyView、DecoratedTokenBlacklistView）。
+- **a7/users/views.py**: 视图文件，包含UserViewSet（含权限控制）和RoleViewSet视图集，自定义的认证视图（CustomTokenObtainPairView和装饰类），以及登出视图（LogoutView）。还包括完整的Swagger文档装饰类（DecoratedTokenObtainPairView、DecoratedTokenRefreshView、DecoratedTokenVerifyView、DecoratedTokenBlacklistView）。使用OpenAPI Schema定义视图响应格式，确保Swagger文档生成正确。
 - **a7/users/management/commands/init_roles.py**: 管理命令，用于初始化角色和权限，并更新现有用户的权限设置。
 - **a7/users/management/commands/sync_roles.py**: 管理命令，用于同步用户角色和权限数据，修复数据不一致问题。
 
@@ -159,6 +160,7 @@ a7/                           # 项目根目录
 - **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
 - **a7/courses/tests_api.py**: 课程API测试文件，包含API接口的功能测试，验证权限控制、CRUD操作和自定义操作的正确性，包括KnowledgePointAPITests测试类，验证知识点API的功能完整性和权限控制。
+- **a7/courses/tests_api_new.py**: 课程内容管理API的全面测试套件，包含CourseAPITests（验证课程CRUD和权限控制）、KnowledgePointAPITests（测试知识点层级结构和循环引用防护）和CoursewareAPITests（测试课件管理功能）三个主要测试类。共实现42个全面测试用例，验证不同用户角色（管理员、教师、学生）的权限控制、所有API端点的功能完整性以及特殊操作如my_courses、top_level、children和by_course等。测试包含边界情况处理、数据验证和错误响应。
 - **a7/courses/tests_validation.py**: 验证逻辑测试文件，包含对课程、知识点和课件API的验证逻辑测试，验证字段验证、唯一性检查、关系完整性（如循环引用检测）等验证功能的正确性。测试不同场景下的验证行为，确保数据一致性和业务规则的强制执行。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 
@@ -280,7 +282,10 @@ a7/                           # 项目根目录
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
    - `test_html/permissions_test.html`提供角色权限测试界面，用于验证不同角色用户的权限控制和API访问限制。
    - `a7/users/tests.py`包含自动化单元测试，覆盖认证、权限和端到端用户场景测试。
-   - `a7/courses/tests.py`包含课程模型的全面自动化测试，包括: 1) ComprehensiveModelRelationshipTest（测试所有模型关系和级联行为）；2) ModelFieldUpdateTest（测试字段更新和业务逻辑验证）；3) EdgeCaseAndSpecialConditionTest（测试边界条件和特殊情况）；4) AdvancedQueryTest（测试Q对象、F表达式、Case When表达式和复杂聚合查询）。通过81个完整测试用例全面验证模型功能的正确性和健壮性。
+   - `a7/courses/tests.py`包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题、学生答案和学习记录的功能测试，包括学习进度跟踪、状态转换和统计分析测试。
+   - `a7/apps/core/tests.py`: 包含核心模型的自动化测试，验证用户活动跟踪和系统性能监控功能，测试JSON字段处理方法和真实应用场景模拟。
+   - `a7/apps/core/tests/test_middleware.py`: 核心中间件测试文件，包含对RequestLoggingMiddleware和RequestProcessorMiddleware的单元测试，验证路径排除、日志记录、请求验证、响应处理和请求大小限制功能。
+   - `test_api.py`: API测试脚本，用于集成测试中间件功能，包括JWT认证、请求日志和请求处理。提供实际HTTP请求测试，验证中间件在真实环境中的表现。
 
 6. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -311,10 +316,7 @@ a7/                           # 项目根目录
     - 为所有模型添加了优化的索引设计，提高查询性能。
     - 实现了精心设计的外键关系级联删除策略：用户相关使用SET_NULL保护数据，内容关系使用CASCADE维持一致性。
     - 所有索引和外键关系均在迁移文件中正确定义，如`a7/courses/migrations/0004_rename_courses_lea_student_a74868_idx_lr_stud_course_idx_and_more.py`。
-    - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有级联删除行为和唯一性约束。ModelFieldUpdateTest测试类验证字段更新和业务逻辑，EdgeCaseAndSpecialConditionTest测试类验证边界条件和特殊情况，AdvancedQueryTest测试类验证高级查询功能。
-    - UsageStatistics模型采用SET_NULL策略连接User模型，避免删除用户时丢失重要的使用统计数据。
-    - 所有模型的索引都有明确的命名约定，如lr_stud_course_idx、ans_ex_score_idx等，便于维护和调试。
-    - `a7/a7/settings.py`中的DRF分页、过滤和搜索配置与模型查询优化协同工作，确保API响应高效且符合最佳实践。
+    - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有模型关系、外键、反向查询和级联删除行为，包括教师删除对课程的影响、课程删除对知识点的级联删除等。
 
 11. **REST Framework API系统**:
     - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置定义全局API行为和标准。
@@ -330,6 +332,8 @@ a7/                           # 项目根目录
     - 版本控制配置支持API演进和向后兼容性管理。
     - 格式配置优化响应大小和时间表示，提高API效率和可用性。
     - 测试配置简化API自动化测试开发。
+    - `a7/users/views.py`中的API视图使用`swagger_auto_schema`装饰器和OpenAPI Schema定义API文档，避免直接使用未渲染的Response对象，确保Swagger文档正确生成。
+    - API文档通过`drf-yasg`实现，提供Swagger UI和ReDoc两种交互式文档，帮助前端开发者了解API结构和使用方法。
 
 12. **API监控与日志系统**:
     - `a7/apps/core/middleware/request_logging_middleware.py`实现API请求监控，记录请求方法、路径、状态码和处理时间。
@@ -431,7 +435,7 @@ a7/                           # 项目根目录
    - `/api/health/` - 健康检查端点，提供API服务状态
 
 5. **文档端点**:
-   - `/swagger/` - Swagger UI API交互式文档
+   - `/swagger/` - Swagger UI API交互式文档，使用OpenAPI Schema定义响应格式
    - `/redoc/` - ReDoc 格式的API文档
 
 6. **课程管理API**:

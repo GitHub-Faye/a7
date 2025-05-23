@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -87,7 +88,17 @@ class UserViewSet(viewsets.ModelViewSet):
     
     @swagger_auto_schema(
         request_body=PasswordChangeSerializer,
-        responses={200: Response({"detail": "密码修改成功"})}
+        responses={
+            200: openapi.Response(
+                description='密码修改成功',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'detail': openapi.Schema(type=openapi.TYPE_STRING, description='操作结果信息')
+                    }
+                )
+            )
+        }
     )
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def change_password(self, request):
@@ -227,8 +238,24 @@ class LogoutView(APIView):
     
     @swagger_auto_schema(
         responses={
-            status.HTTP_200_OK: Response({"detail": "登出成功，令牌已失效"}),
-            status.HTTP_400_BAD_REQUEST: Response({"error": "需要提供refresh token"})
+            status.HTTP_200_OK: openapi.Response(
+                description='登出成功',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'detail': openapi.Schema(type=openapi.TYPE_STRING, description='登出状态信息')
+                    }
+                )
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description='请求错误',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, description='错误信息')
+                    }
+                )
+            )
         }
     )
     def post(self, request):
