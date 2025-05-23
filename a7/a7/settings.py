@@ -221,8 +221,9 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-
     "null",
+
+    "https://glowing-sunburst-d86f36.netlify.app"
 ]
 
 CORS_ALLOW_METHODS = [
