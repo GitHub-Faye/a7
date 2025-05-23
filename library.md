@@ -31,6 +31,22 @@
 - 包含TokenObtainPairView, TokenRefreshView, TokenVerifyView, TokenBlacklistView视图类
 - 令牌响应格式自定义功能
 - 可扩展的令牌类与验证
+- 提供JWTAuthentication认证类供中间件使用
+- 异常处理类(InvalidToken, TokenError, AuthenticationFailed)用于令牌验证
+- 支持过期令牌检测和自定义错误响应
+
+## Django中间件系统
+- 提供请求/响应处理的中间件架构
+- 支持自定义中间件类的创建与配置
+- 中间件执行顺序可通过MIDDLEWARE设置控制
+- 提供MiddlewareMixin简化中间件实现
+- 支持请求前处理和响应后处理
+- 可访问和修改请求和响应对象
+- 支持中间件链式处理和短路返回
+- 支持异常处理和请求拦截
+- 可用于实现认证、日志记录、内容处理等功能
+- 与Django日志系统集成，支持详细日志记录
+- 提供settings.py中的配置选项自定义中间件行为
 
 ## Django权限与角色系统
 - Django自带权限系统(Permission)支持细粒度权限控制
@@ -71,6 +87,9 @@
 - TestCase.setUp和TestCase.tearDown支持测试环境准备和清理
 - self.client用于HTTP请求测试
 - 列表解析和过滤用于测试复杂逻辑
+- unittest.mock提供强大的模拟功能，如patch和MagicMock
+- 支持中间件单元测试和集成测试
+- RequestFactory用于创建HTTP请求对象用于测试
 
 ## 主要依赖库版本
 
@@ -167,6 +186,35 @@
 - 提供专用的密码修改端点
 - 实现细粒度的权限控制
 - 异常处理保证友好的错误提示
+
+## 中间件实现最佳实践
+
+### JWT认证中间件
+- 使用JWTAuthentication类验证令牌有效性
+- 处理各种令牌异常情况(InvalidToken, TokenError, AuthenticationFailed)
+- 记录认证结果和性能指标，便于监控和调试
+- 支持排除不需要认证的URL路径
+- 为认证失败提供友好的错误消息和标准化响应
+- 在请求对象中保存令牌信息供后续使用
+- 通过settings.py配置中间件行为
+
+### 请求日志中间件
+- 记录请求详细信息（URL、方法、头部、IP地址等）
+- 记录响应状态码和处理时间等性能指标
+- 对敏感信息（如认证头和密码）进行脱敏处理
+- 支持不同日志级别的配置
+- 支持限制日志大小，避免过大日志
+- 可配置要排除的URL路径
+- 根据状态码自动调整日志级别
+
+### 请求内容处理中间件
+- 验证请求内容大小，防止过大请求
+- 处理JSON请求内容的解析和验证
+- 为响应添加安全相关的HTTP头部
+- 提供标准化的API响应格式
+- 支持自定义响应头部配置
+- 维护API版本信息
+- 优雅处理各种错误情况
 
 
 ```

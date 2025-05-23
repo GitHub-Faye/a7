@@ -64,7 +64,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'users.middleware.RoleBasedPermissionMiddleware',  # 添加基于角色的权限中间件
+    
+    # 自定义中间件
+    'apps.core.middleware.RequestLoggingMiddleware',  # 请求日志记录中间件
+    'users.middleware.JWTAuthMiddleware',  # JWT认证中间件
+    'apps.core.middleware.RequestProcessorMiddleware',  # 请求处理中间件
+    # 'users.middleware.RoleBasedPermissionMiddleware',  # 基于角色的权限中间件 - 计划将来实现
 ]
 
 ROOT_URLCONF = 'a7.urls'
@@ -250,11 +255,10 @@ SWAGGER_SETTINGS = {
             'in': 'header'
         }
     },
-    'USE_SESSION_AUTH': False
+    'USE_SESSION_AUTH': False,
+    'JSON_EDITOR': True,
+    'VALIDATOR_URL': None,
 }
-
-# 权限拒绝响应设置
-CUSTOM_PERMISSION_DENIED_RESPONSE = True
 
 # 日志配置
 LOGGING = {
@@ -274,24 +278,83 @@ LOGGING = {
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+            'formatter': 'verbose',
         },
-        'permission_file': {
+        'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'permission.log',
+            'filename': str(BASE_DIR.parent / 'permission.log'),
+            'formatter': 'verbose',
+        },
+        'jwt_auth_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': str(BASE_DIR.parent / 'jwt_auth.log'),
+            'formatter': 'verbose',
+        },
+        'request_log_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': str(BASE_DIR.parent / 'request.log'),
             'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
             'handlers': ['console'],
+            'level': 'INFO',
             'propagate': True,
         },
         'permission_log': {
-            'handlers': ['console', 'permission_file'],
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'jwt_auth': {
+            'handlers': ['jwt_auth_file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'request_log': {
+            'handlers': ['request_log_file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'request_processor': {
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
     },
 }
+
+# 中间件配置项
+# JWT认证中间件配置
+CUSTOM_JWT_ERROR_RESPONSE = True  # 是否使用自定义JWT错误响应
+
+# 请求日志中间件配置
+REQUEST_LOG_LEVEL = 'INFO'  # 日志级别：DEBUG, INFO, WARNING, ERROR
+LOG_REQUEST_BODY = False  # 是否记录请求体（默认不记录，避免记录敏感信息）
+MAX_BODY_LOG_LENGTH = 1000  # 请求体最大记录长度
+REQUEST_LOG_EXCLUDE_PATHS = [
+    '/admin/jsi18n/',
+    '/static/',
+    '/media/',
+    '/health-check/',
+]  # 不记录日志的URL路径
+
+# 请求处理中间件配置
+MAX_REQUEST_SIZE = 10 * 1024 * 1024  # 最大请求大小（10MB）
+STANDARDIZE_API_RESPONSE = True  # 是否标准化API响应
+API_EXTRA_HEADERS = {
+    'X-API-Version': '1.0',
+    'X-Content-Type-Options': 'nosniff',
+}  # 额外响应头
+PROCESSOR_EXCLUDE_PATHS = [
+    '/admin/',
+    '/static/',
+    '/media/',
+]  # 不进行处理的URL路径
+
+# 角色权限中间件配置
+CUSTOM_PERMISSION_DENIED_RESPONSE = True  # 是否使用自定义权限拒绝响应

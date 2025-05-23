@@ -25,20 +25,31 @@ a7/                           # 项目根目录
 │   │       ├── __init__.py   # Python包初始化文件
 │   │       ├── admin.py      # 核心应用Admin配置
 │   │       ├── models.py     # 核心应用模型定义
-│   │       ├── tests.py      # 核心应用测试文件
+│   │       ├── middleware/   # 核心应用中间件目录
+│   │       │   ├── __init__.py              # 中间件包初始化文件
+│   │       │   ├── request_logging_middleware.py  # 请求日志记录中间件
+│   │       │   └── request_processor_middleware.py # 请求处理中间件
+│   │       ├── tests/        # 核心应用测试目录
+│   │       │   ├── __init__.py              # 测试包初始化文件
+│   │       │   └── test_middleware.py       # 中间件测试文件
 │   │       ├── urls.py       # 核心应用路由配置
 │   │       └── views.py      # 核心应用视图
 │   ├── users/                # 用户管理应用
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   ├── admin.py          # Django Admin配置
 │   │   ├── apps.py           # 应用配置
-│   │   ├── middleware.py     # 基于角色的权限中间件
+│   │   ├── middleware/       # 用户中间件目录
+│   │   │   ├── __init__.py   # 中间件包初始化文件
+│   │   │   └── jwt_auth_middleware.py # JWT认证中间件
 │   │   ├── models.py         # 用户和角色模型
 │   │   ├── permissions.py    # 自定义权限类
 │   │   ├── permission_utils.py # 权限工具函数
 │   │   ├── serializers.py    # 序列化器
 │   │   ├── signals.py        # 信号处理
-│   │   ├── tests.py          # 测试文件，包含认证和权限的单元测试
+│   │   ├── tests/            # 用户应用测试目录
+│   │   │   ├── __init__.py   # 测试包初始化文件
+│   │   │   ├── test_jwt_middleware.py # JWT中间件测试
+│   │   │   └── test_models.py # 用户模型测试
 │   │   ├── urls.py           # URL路由配置
 │   │   ├── views.py          # API视图
 │   │   ├── management/       # 管理命令目录
@@ -58,6 +69,8 @@ a7/                           # 项目根目录
 │   │   └── migrations/       # 课程模型数据库迁移文件
 │   ├── db.sqlite3            # SQLite数据库文件
 │   ├── permission.log        # 项目级权限日志文件
+│   ├── request.log           # 请求日志文件
+│   ├── jwt_auth.log          # JWT认证日志文件
 │   └── manage.py             # Django命令行工具
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
@@ -65,6 +78,7 @@ a7/                           # 项目根目录
 ├── test_html/                # 测试HTML文件目录
 │   ├── auth_test.html        # 登录/登出/密码更改功能测试页面
 │   └── permissions_test.html # 角色权限测试页面
+├── test_api.py               # API测试脚本，用于测试中间件功能
 ├── .env.example              # 环境变量示例文件
 ├── .gitignore                # Git忽略配置文件
 ├── .roomodes                 # Roo模式配置文件
@@ -74,6 +88,8 @@ a7/                           # 项目根目录
 ├── fileStructure.md          # 项目文件结构文档（本文件）
 ├── library.md                # 项目库文档
 ├── permission.log            # 权限检查日志文件
+├── request.log               # 请求日志文件
+├── jwt_auth.log              # JWT认证日志文件
 └── prd.txt                   # 产品需求文档文件
 ```
 
@@ -100,6 +116,12 @@ a7/                           # 项目根目录
 - **a7/apps/core/urls.py**: Core应用的URL路由配置，定义了API端点路径与视图的映射。
 - **a7/apps/core/views.py**: Core应用的视图文件，包含API端点的实现逻辑，如健康检查接口。
 
+### 中间件文件
+
+- **a7/apps/core/middleware/request_logging_middleware.py**: 请求日志中间件，负责记录API请求信息，包括请求方法、路径、状态码和响应时间。支持排除特定路径，避免记录静态文件等不必要的请求。
+- **a7/apps/core/middleware/request_processor_middleware.py**: 请求处理中间件，负责验证请求内容、添加安全响应头和限制请求大小。实现了请求大小限制检查、JSON格式验证和API响应标准化。
+- **a7/users/middleware/jwt_auth_middleware.py**: JWT认证中间件，负责验证JWT令牌、记录认证过程和处理无效令牌情况。支持自定义错误响应和认证日志记录，提高API安全性。
+
 ### 用户管理应用文件
 
 - **a7/users/__init__.py**: Users应用的Python包标识文件。
@@ -108,10 +130,9 @@ a7/                           # 项目根目录
 - **a7/users/models.py**: 模型定义，包含扩展的User模型和Role模型，实现基于角色的用户模型和权限系统。
 - **a7/users/permissions.py**: 自定义权限类，定义基于角色和功能的权限类，如IsAdmin、IsTeacher、IsAdminOrTeacher等。
 - **a7/users/permission_utils.py**: 权限工具函数，提供权限分配、管理和同步功能，实现基于角色的权限自动分配。
-- **a7/users/middleware.py**: 基于角色的权限中间件，实现权限检查日志记录和自定义权限拒绝响应。
-- **a7/users/serializers.py**: 序列化器类，处理用户和角色数据的序列化和反序列化，以及密码更改验证，还包括各种令牌响应的序列化器（用于Swagger/ReDoc文档）。
+- **a7/users/middleware/jwt_auth_middleware.py**: JWT认证中间件，负责验证JWT令牌、记录认证过程和处理无效令牌情况。
 - **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌和分配权限的逻辑，以及角色和权限变更的处理。
-- **a7/users/tests.py**: 测试文件，包含用户认证系统和角色权限的全面单元测试，验证登录、登出、密码更改和基于角色的权限控制功能。
+- **a7/users/tests/test_jwt_middleware.py**: JWT中间件测试文件，包含对JWTAuthMiddleware的单元测试，验证令牌验证、过期令牌处理和认证日志记录功能。
 - **a7/users/urls.py**: URL路由配置，定义用户API端点，包括用户管理、角色管理、登录和登出端点。
 - **a7/users/views.py**: 视图文件，包含UserViewSet（含权限控制）和RoleViewSet视图集，自定义的认证视图（CustomTokenObtainPairView和装饰类），以及登出视图（LogoutView）。还包括完整的Swagger文档装饰类（DecoratedTokenObtainPairView、DecoratedTokenRefreshView、DecoratedTokenVerifyView、DecoratedTokenBlacklistView）。
 - **a7/users/management/commands/init_roles.py**: 管理命令，用于初始化角色和权限，并更新现有用户的权限设置。
@@ -134,6 +155,8 @@ a7/                           # 项目根目录
 - **a7/users/tests.py**: 包含完整的自动化测试套件，测试认证功能（登录、登出、密码更改）、基于角色的权限控制以及完整的用户流程端到端测试。
 - **a7/courses/tests.py**: 包含课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题、学生答案和学习记录的功能测试，包括学习进度跟踪、状态转换和统计分析测试。
 - **a7/apps/core/tests.py**: 包含核心模型的自动化测试，验证用户活动跟踪和系统性能监控功能，测试JSON字段处理方法和真实应用场景模拟。
+- **a7/apps/core/tests/test_middleware.py**: 核心中间件测试文件，包含对RequestLoggingMiddleware和RequestProcessorMiddleware的单元测试，验证路径排除、日志记录、请求验证、响应处理和请求大小限制功能。
+- **test_api.py**: API测试脚本，用于集成测试中间件功能，包括JWT认证、请求日志和请求处理。提供实际HTTP请求测试，验证中间件在真实环境中的表现。
 
 ### 配置文件
 
@@ -144,6 +167,8 @@ a7/                           # 项目根目录
 - **a7.code-workspace**: VS Code工作区配置，定义项目在VS Code中的显示和行为。
 - **.env.example**: 环境变量示例模板，用于配置各种API密钥和环境特定设置。
 - **permission.log**: 权限检查日志文件，记录权限中间件的访问尝试和拒绝信息。
+- **request.log**: 请求日志文件，由RequestLoggingMiddleware生成，记录API请求详情，包括方法、路径、状态码和响应时间。
+- **jwt_auth.log**: JWT认证日志文件，由JWTAuthMiddleware生成，记录令牌认证结果，包括成功认证和失败尝试。
 
 ### 目录
 
@@ -193,7 +218,7 @@ a7/                           # 项目根目录
    - `a7/users/models.py`定义自定义User模型和Role模型，是系统权限设计的基础，实现基于角色的用户模型和权限系统。
    - `a7/users/permissions.py`实现细粒度的权限控制系统，包含多种基于角色和功能的权限类。
    - `a7/users/permission_utils.py`提供权限工具函数，实现权限的自动分配、管理和同步。
-   - `a7/users/middleware.py`实现权限中间件，提供权限检查日志和自定义响应。
+   - `a7/users/middleware/jwt_auth_middleware.py`实现JWT认证中间件，提供令牌验证、认证日志记录和自定义错误响应，是整个认证系统的关键环节。
    - `a7/users/signals.py`处理用户创建、角色变更和权限同步的信号，确保权限系统的一致性。
    - `a7/users/management/commands/init_roles.py`提供管理命令初始化角色和权限数据。
    - `a7/users/management/commands/sync_roles.py`提供管理命令同步用户角色和权限数据，修复数据不一致问题。
@@ -271,6 +296,9 @@ a7/                           # 项目根目录
 11. **REST Framework API系统**:
     - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置定义全局API行为和标准。
     - DRF配置与用户认证系统无缝集成，提供JWT令牌和会话认证支持。
+    - `a7/users/middleware/jwt_auth_middleware.py`与DRF认证类协同工作，实现无缝的令牌验证和用户身份识别。
+    - `a7/apps/core/middleware/request_processor_middleware.py`确保API响应格式标准化，添加安全响应头，提高API交互的一致性和安全性。
+    - `a7/apps/core/middleware/request_logging_middleware.py`记录API调用信息，为性能优化和问题诊断提供数据支持。
     - 分页配置确保大型数据集的高效处理，防止返回过多数据导致性能问题。
     - 渲染器配置支持多种格式输出，既可返回生产环境的JSON数据，也支持开发环境的可视化API界面。
     - 解析器配置支持多种输入格式，包括JSON数据、表单数据和文件上传。
@@ -279,6 +307,16 @@ a7/                           # 项目根目录
     - 版本控制配置支持API演进和向后兼容性管理。
     - 格式配置优化响应大小和时间表示，提高API效率和可用性。
     - 测试配置简化API自动化测试开发。
+
+12. **API监控与日志系统**:
+    - `a7/apps/core/middleware/request_logging_middleware.py`实现API请求监控，记录请求方法、路径、状态码和处理时间。
+    - `a7/users/middleware/jwt_auth_middleware.py`记录认证过程，包括成功认证和失败尝试。
+    - `request.log`存储API请求日志，提供系统调用情况的完整记录。
+    - `jwt_auth.log`存储认证日志，记录用户认证活动，有助于安全审计和问题排查。
+    - `a7/a7/settings.py`中的`LOGGING`配置定义了日志记录的格式、级别和目标，实现灵活的日志管理。
+    - `REQUEST_LOG_EXCLUDE_PATHS`和`PROCESSOR_EXCLUDE_PATHS`配置排除某些路径，避免记录不必要的请求，提高系统效率。
+    - `a7/apps/core/tests/test_middleware.py`验证日志记录功能的正确性和完整性。
+    - 日志系统与性能监控系统(`PerformanceMetric`模型)协同工作，提供系统运行情况的全面视图。
 
 ## 目录组织逻辑
 
