@@ -1,6 +1,6 @@
 # Task ID: 5
 # Title: Implement Course Content Management API
-# Status: pending
+# Status: done
 # Dependencies: 3, 4
 # Priority: medium
 # Description: Develop API endpoints for managing course content, including courses, knowledge points, and courseware.
