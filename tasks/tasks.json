@@ -109,7 +109,7 @@
       "id": 3,
       "title": "Design and Implement Database Models",
       "description": "Create the database models for users, courses, exercises, and system monitoring as specified in the PRD.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         1
       ],
@@ -183,7 +183,7 @@
       "id": 4,
       "title": "Set Up API Framework",
       "description": "Establish the RESTful API framework using Django REST Framework.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         1,
         2,
@@ -227,7 +227,7 @@
       "id": 5,
       "title": "Implement Course Content Management API",
       "description": "Develop API endpoints for managing course content, including courses, knowledge points, and courseware.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         3,
         4

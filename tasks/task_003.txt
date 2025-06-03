@@ -1,6 +1,6 @@
 # Task ID: 3
 # Title: Design and Implement Database Models
-# Status: pending
+# Status: done
 # Dependencies: 1
 # Priority: high
 # Description: Create the database models for users, courses, exercises, and system monitoring as specified in the PRD.
