@@ -75,6 +75,10 @@ a7/                           # 项目根目录
 │   │   ├── tests_api_new.py  # 课程API的全面测试用例，包含CourseAPITests、KnowledgePointAPITests和CoursewareAPITests测试类
 │   │   ├── tests_validation.py # 验证逻辑的测试用例
 │   │   └── migrations/       # 课程模型数据库迁移文件
+│   ├── Dockerfile            # Docker容器构建配置文件
+│   ├── compose.yaml          # Docker Compose服务配置文件
+│   ├── README.Docker.md      # Docker部署和使用说明文档
+│   ├── .dockerignore         # Docker构建过程中要忽略的文件列表
 │   ├── db.sqlite3            # SQLite数据库文件
 │   ├── permission.log        # 项目级权限日志文件
 │   ├── request.log           # 请求日志文件
@@ -102,6 +106,13 @@ a7/                           # 项目根目录
 ```
 
 ## 文件用途说明
+
+### Docker部署相关文件
+
+- **a7/Dockerfile**: Docker容器构建配置文件，定义了基于Python 3.13.3的应用容器。使用非特权用户运行应用以提高安全性，配置了Python环境变量防止生成缓存文件，安装依赖并暴露8000端口。
+- **a7/compose.yaml**: Docker Compose服务配置文件，定义了应用服务的构建和运行方式。暴露8000端口到主机，并包含了PostgreSQL数据库集成的注释示例代码。
+- **a7/README.Docker.md**: Docker部署和使用说明文档，提供了如何构建和运行Docker容器的指导，包括本地开发和云部署说明。
+- **a7/.dockerignore**: Docker构建过程中要忽略的文件列表，用于排除不需要包含在Docker镜像中的文件，优化构建过程和减小镜像大小。
 
 ### Django项目文件
 
@@ -252,7 +263,7 @@ a7/                           # 项目根目录
 3. **课程内容管理系统**:
    - `a7/courses/models.py`定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型，实现课程内容的组织和管理以及练习评测功能。
    - `a7/courses/admin.py`配置课程相关模型在Django Admin中的展示和操作方式。
-   - `a7/courses/tests.py`提供课程模型的自动化测试，验证其功能正确性，以及练习题、学生答案和学习记录的功能测试。
+   - `a7/courses/tests.py`提供课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题、学生答案和学习记录的功能测试。
    - `a7/courses/serializers.py`定义序列化器，将课程和知识点模型转换为JSON格式以支持API接口，包括课程相关的序列化器实现自动设置当前用户为教师，知识点序列化器实现层级结构的展示和验证（包括防止循环引用和跨课程引用）。
    - `a7/courses/permissions.py`定义权限类，实现基于角色和所有权的访问控制，确保只有教师和管理员可以创建课程和知识点，只有课程/知识点创建者和管理员可以修改或删除它们。
    - `a7/courses/views.py`实现CourseViewSet和KnowledgePointViewSet视图集，提供完整的CRUD API功能和自定义接口(如my_courses, top_level, children)，使用权限类控制访问，根据不同操作类型动态选择序列化器，支持丰富的筛选功能。
@@ -345,6 +356,18 @@ a7/                           # 项目根目录
     - `a7/apps/core/tests/test_middleware.py`验证日志记录功能的正确性和完整性。
     - 日志系统与性能监控系统(`PerformanceMetric`模型)协同工作，提供系统运行情况的全面视图。
 
+13. **Docker部署系统**:
+    - `a7/Dockerfile`定义应用容器构建过程，通过分层构建优化缓存和镜像大小。
+    - `a7/compose.yaml`配置容器服务，定义网络设置、端口映射以及多容器协作方式。
+    - `a7/README.Docker.md`提供Docker使用指南，包括本地开发和云部署说明。
+    - `a7/.dockerignore`通过排除不必要文件优化构建过程和减小镜像体积。
+    - `a7/a7/wsgi.py`作为Gunicorn的入口点，提供容器化部署时的WSGI服务器支持。
+    - `requirements.txt`被Dockerfile使用，确保容器安装了所有依赖包。
+    - Docker配置与Django设置协同工作，容器启动时使用`a7/a7/settings.py`中的配置。
+    - Docker容器暴露的8000端口与Django开发服务器使用的端口一致，简化了开发到部署的过渡。
+    - 容器使用非特权用户运行应用以增强安全性，遵循Docker最佳实践。
+    - Docker环境变量（`PYTHONDONTWRITEBYTECODE`和`PYTHONUNBUFFERED`）优化了Python在容器环境中的运行。
+
 ## 目录组织逻辑
 
 项目采用了以下组织逻辑：
@@ -383,12 +406,14 @@ a7/                           # 项目根目录
    - Django应用目录使用全小写字母，单数形式命名，如`core/`、`users/`、`courses/`。
 
 2. **配置文件命名**:
-   - 以点(.)开头的隐藏文件用于配置，如`.taskmasterconfig`。
+   - 以点(.)开头的隐藏文件用于配置，如`.taskmasterconfig`、`.dockerignore`。
    - 采用全小写字母，使用描述性名称。
+   - Docker相关配置文件遵循行业标准命名，如`Dockerfile`（首字母大写，无扩展名）和`compose.yaml`（全小写）。
 
 3. **文档文件命名**:
-   - 使用驼峰式(CamelCase)或以单词首字母大写，如`fileStructure.md`。
+   - 使用驼峰式(CamelCase)或以单词首字母大写，如`fileStructure.md`、`README.Docker.md`。
    - 使用描述性名称，清晰表达文件内容。
+   - 特定工具或技术的README文件使用`.工具名.md`格式，如`README.Docker.md`。
 
 4. **代码约定**:
    - 代码文件（当添加时）将遵循各语言的标准命名约定。

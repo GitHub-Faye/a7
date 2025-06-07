@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-+2*)0s+_b-$d*e)!+q0rozaaybq8nhbx!vmcg!#f^&el_g&ebu
 DEBUG = True
 
 # 添加允许的主机
-ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost']
+ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0']
 
 
 
@@ -281,24 +281,24 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': str(BASE_DIR.parent / 'permission.log'),
-            'formatter': 'verbose',
-        },
-        'jwt_auth_file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': str(BASE_DIR.parent / 'jwt_auth.log'),
-            'formatter': 'verbose',
-        },
-        'request_log_file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': str(BASE_DIR.parent / 'request.log'),
-            'formatter': 'verbose',
-        },
+        # 'file': {
+        #     'level': 'INFO',
+        #     'class': 'logging.FileHandler',
+        #     'filename': str(BASE_DIR.parent / 'permission.log'),
+        #     'formatter': 'verbose',
+        # },
+        # 'jwt_auth_file': {
+        #     'level': 'INFO',
+        #     'class': 'logging.FileHandler',
+        #     'filename': str(BASE_DIR.parent / 'jwt_auth.log'),
+        #     'formatter': 'verbose',
+        # },
+        # 'request_log_file': {
+        #     'level': 'INFO',
+        #     'class': 'logging.FileHandler',
+        #     'filename': str(BASE_DIR.parent / 'request.log'),
+        #     'formatter': 'verbose',
+        # },
     },
     'loggers': {
         'django': {
@@ -307,17 +307,17 @@ LOGGING = {
             'propagate': True,
         },
         'permission_log': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'jwt_auth': {
-            'handlers': ['jwt_auth_file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'request_log': {
-            'handlers': ['request_log_file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
@@ -327,6 +327,34 @@ LOGGING = {
             'propagate': False,
         },
     },
+    # 'loggers': {
+    #     'django': {
+    #         'handlers': ['console'],
+    #         'level': 'INFO',
+    #         'propagate': True,
+    #     },
+    #     'permission_log': {
+    #         'handlers': ['file', 'console'],
+    #         'level': 'INFO',
+    #         'propagate': False,
+    #     },
+    #     'jwt_auth': {
+    #         'handlers': ['jwt_auth_file', 'console'],
+    #         'level': 'INFO',
+    #         'propagate': False,
+    #     },
+    #     'request_log': {
+    #         'handlers': ['request_log_file', 'console'],
+    #         'level': 'INFO',
+    #         'propagate': False,
+    #     },
+    #     'request_processor': {
+    #         'handlers': ['console'],
+    #         'level': 'INFO',
+    #         'propagate': False,
+    #     },
+    # },
+
 }
 
 # 中间件配置项
