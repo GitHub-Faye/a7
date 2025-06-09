@@ -8,6 +8,9 @@
 | drf-yasg | N/A (通过web_search获取) | Swagger/OpenAPI自动文档生成工具 |
 | Django | /django/django | Python Web框架 |
 | pytest-django | /pytest-dev/pytest-django | Django测试工具 |
+| pytest-asyncio | /pytest-dev/pytest-asyncio | 异步测试框架 |
+| aiohttp | /aio-libs/aiohttp | 异步HTTP客户端/服务器框架 |
+| n8n | N/A (通过web_search获取) | 工作流自动化工具 |
 
 # 主要库功能说明
 
@@ -47,6 +50,62 @@
 - 可用于实现认证、日志记录、内容处理等功能
 - 与Django日志系统集成，支持详细日志记录
 - 提供settings.py中的配置选项自定义中间件行为
+
+## pytest-asyncio
+- 提供异步测试功能，支持pytest框架下的异步测试
+- 通过@pytest.mark.asyncio标记装饰异步测试函数
+- 提供@pytest_asyncio.fixture装饰器创建异步测试固件
+- 支持多种事件循环作用域(function, class, module, session)设置
+- 提供asyncio_mode配置选项(auto, strict)控制异步模式
+- 与pytest-django兼容，支持Django测试数据库
+- 包含事件循环管理功能，避免事件循环共享问题
+- 支持异步上下文管理器和异步生成器
+- 提供可自定义的事件循环策略
+- 支持自动处理异步清理操作
+- 支持异步参数化测试
+- 处理异常和错误传播，保持清晰的测试失败报告
+- 支持多进程测试运行和并行测试执行
+
+## aiohttp
+- 提供异步HTTP客户端和服务器功能
+- 支持异步请求和响应处理
+- 提供ClientSession类用于HTTP客户端会话管理
+- 支持各种HTTP方法(GET, POST, PUT, DELETE等)
+- 支持请求参数、头部和Cookie设置
+- 提供ClientResponse类处理HTTP响应
+- 支持异常处理类(ClientError, ServerConnectionError, ClientResponseError等)
+- 支持超时设置和错误处理机制
+- 允许定制重试逻辑
+- 支持JSON、文本、字节等多种响应格式
+- 支持异步上下文管理器模式(async with)
+- 提供信号机制用于请求生命周期处理
+- 支持TCP连接池管理
+- 支持代理和SSL配置
+- 提供分块传输和流式处理
+- 支持HTTP/2协议
+- 提供丰富的高级功能，如请求追踪、超时控制和请求限流
+- 兼容asyncio库，能与其他异步框架协同工作
+- 支持自定义DNS解析器和连接工厂
+
+## n8n Webhook API
+- n8n是一个开源的工作流自动化工具
+- 提供webhook功能用于触发工作流
+- webhook URL可以接收HTTP POST请求
+- 支持JSON和表单格式的数据
+- 提供测试webhook端点的功能
+- 支持webhook认证（基本认证、JWT等）
+- 可以自定义webhook响应内容和状态码
+- 允许通过API动态创建和管理webhook
+- 支持webhook错误处理和重试机制
+- 提供webhook执行历史和日志
+- 与第三方服务集成（如AI服务、数据处理等）
+- 支持异步webhook执行
+- 提供事件和webhook触发器
+- 允许在webhook中执行自定义代码
+- 支持RAG(检索增强生成)AI任务和文本处理
+- 能处理自定义的任务类型和数据格式
+- 提供环境变量和加密凭据管理
+- 支持错误监控和指标收集
 
 ## Django权限与角色系统
 - Django自带权限系统(Permission)支持细粒度权限控制
@@ -101,11 +160,13 @@
 | drf-yasg | 1.21.x | API文档 |
 | django-cors-headers | 4.x | CORS支持 |
 | pytest-django | 4.5.x | Django测试扩展 |
+| pytest-asyncio | 0.21.x | 异步测试框架 |
+| aiohttp | 3.8.x | 异步HTTP客户端 |
 
 ## Django模型关系和测试技术
 
 ### 模型关系类型
-- ForeignKey: 一对多关系（如User-UsageStatistics, Course-KnowledgePoint）
+- ForeignKey: 一对多关系（如User-UsageStatistics, Course-KnowledgePoint, WebhookConfig-WebhookCallLog）
 - ManyToManyField: 多对多关系（如用户权限分配）
 - OneToOneField: 一对一关系
 - 自引用外键: 层次结构（如KnowledgePoint的parent字段）
@@ -128,6 +189,18 @@
 - 明确测试目标和期望结果
 - 给每个测试方法编写清晰的文档说明
 - 遵循独立性原则，测试之间不应相互依赖
+
+### 异步测试技术
+- 使用@pytest.mark.asyncio标记异步测试函数
+- 使用@pytest_asyncio.fixture创建异步测试固件
+- 通过sync_to_async包装同步数据库操作用于异步环境
+- 使用AsyncMock模拟异步方法和响应
+- 使用monkeypatch进行运行时方法替换
+- 创建模拟HTTP响应和异常情况
+- 通过pytest.ini配置异步测试环境
+- 设计异步测试事件循环和作用域
+- 使用标记区分单元测试和集成测试
+- 实现并发测试和异步资源管理
 
 ### 学习进度跟踪模型测试技术
 - 测试状态转换逻辑
@@ -215,6 +288,41 @@
 - 支持自定义响应头部配置
 - 维护API版本信息
 - 优雅处理各种错误情况
+
+## 异步测试与异步客户端技术
+
+### 异步HTTP客户端最佳实践
+- 使用ClientSession管理会话和连接
+- 实现适当的错误处理和超时控制
+- 采用异步上下文管理器(async with)安全使用资源
+- 确保所有异步操作都得到等待(await)
+- 使用专用异常类分类错误情况
+- 实现请求重试逻辑处理临时故障
+- 记录请求和响应信息用于调试
+- 优化连接复用提高性能
+- 处理并发请求限制避免过载
+
+### 异步测试模式
+- 配置pytest-asyncio提供异步测试环境
+- 使用AsyncMock和patch模拟异步依赖
+- 测试异步HTTP客户端的成功和错误场景
+- 模拟各种网络条件和响应类型
+- 验证异步中间件和异步视图行为
+- 测试超时处理和错误恢复机制
+- 验证异步日志记录功能
+- 测试并发请求处理能力
+- 确保异步资源正确清理
+
+### N8N Webhook服务测试策略
+- 测试API视图认证和权限控制
+- 验证请求参数验证和错误处理
+- 测试webhook配置查找和验证逻辑
+- 模拟webhook客户端请求和响应
+- 测试不同类型错误的处理(连接、超时、响应)
+- 验证日志记录功能和格式
+- 实现可选的真实集成测试
+- 提供测试固件创建必要的测试数据
+- 使用skip标记处理依赖外部服务的测试
 
 
 ```

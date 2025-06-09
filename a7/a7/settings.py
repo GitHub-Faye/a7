@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     'apps.core',
     'users',
     'courses',
+    'ai_services',  # 添加AI服务应用
+
 ]
 
 MIDDLEWARE = [
@@ -281,24 +283,24 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-        # 'file': {
-        #     'level': 'INFO',
-        #     'class': 'logging.FileHandler',
-        #     'filename': str(BASE_DIR.parent / 'permission.log'),
-        #     'formatter': 'verbose',
-        # },
-        # 'jwt_auth_file': {
-        #     'level': 'INFO',
-        #     'class': 'logging.FileHandler',
-        #     'filename': str(BASE_DIR.parent / 'jwt_auth.log'),
-        #     'formatter': 'verbose',
-        # },
-        # 'request_log_file': {
-        #     'level': 'INFO',
-        #     'class': 'logging.FileHandler',
-        #     'filename': str(BASE_DIR.parent / 'request.log'),
-        #     'formatter': 'verbose',
-        # },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': str(BASE_DIR.parent / 'permission.log'),
+            'formatter': 'verbose',
+        },
+        'jwt_auth_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': str(BASE_DIR.parent / 'jwt_auth.log'),
+            'formatter': 'verbose',
+        },
+        'request_log_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': str(BASE_DIR.parent / 'request.log'),
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'django': {
@@ -307,17 +309,17 @@ LOGGING = {
             'propagate': True,
         },
         'permission_log': {
-            'handlers': ['console'],
+            'handlers': ['file', 'console'],
             'level': 'INFO',
             'propagate': False,
         },
         'jwt_auth': {
-            'handlers': ['console'],
+            'handlers': ['jwt_auth_file', 'console'],
             'level': 'INFO',
             'propagate': False,
         },
         'request_log': {
-            'handlers': ['console'],
+            'handlers': ['request_log_file', 'console'],
             'level': 'INFO',
             'propagate': False,
         },
@@ -326,34 +328,12 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'ai_services': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
     },
-    # 'loggers': {
-    #     'django': {
-    #         'handlers': ['console'],
-    #         'level': 'INFO',
-    #         'propagate': True,
-    #     },
-    #     'permission_log': {
-    #         'handlers': ['file', 'console'],
-    #         'level': 'INFO',
-    #         'propagate': False,
-    #     },
-    #     'jwt_auth': {
-    #         'handlers': ['jwt_auth_file', 'console'],
-    #         'level': 'INFO',
-    #         'propagate': False,
-    #     },
-    #     'request_log': {
-    #         'handlers': ['request_log_file', 'console'],
-    #         'level': 'INFO',
-    #         'propagate': False,
-    #     },
-    #     'request_processor': {
-    #         'handlers': ['console'],
-    #         'level': 'INFO',
-    #         'propagate': False,
-    #     },
-    # },
 
 }
 
@@ -387,3 +367,13 @@ PROCESSOR_EXCLUDE_PATHS = [
 
 # 角色权限中间件配置
 CUSTOM_PERMISSION_DENIED_RESPONSE = True  # 是否使用自定义权限拒绝响应
+
+# n8n Webhook配置
+N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', '')
+N8N_WEBHOOK_HEADERS = {
+    'Authorization': os.environ.get('N8N_WEBHOOK_AUTH_TOKEN', ''),
+    'Content-Type': 'application/json',
+}
+
+# Aiohttp配置
+AIOHTTP_CLIENT_TIMEOUT = int(os.environ.get('AIOHTTP_CLIENT_TIMEOUT', 30))  # 30秒默认超时

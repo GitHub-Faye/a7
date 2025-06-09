@@ -34,6 +34,23 @@ a7/                           # 项目根目录
 │   │       │   └── test_middleware.py       # 中间件测试文件
 │   │       ├── urls.py       # 核心应用路由配置
 │   │       └── views.py      # 核心应用视图
+│   ├── ai_services/          # AI服务应用
+│   │   ├── __init__.py       # Python包初始化文件
+│   │   ├── admin.py          # AI服务的Admin配置
+│   │   ├── apps.py           # 应用配置
+│   │   ├── models.py         # WebhookConfig和WebhookCallLog模型定义
+│   │   ├── urls.py           # AI服务路由配置
+│   │   ├── views.py          # AI服务视图和API实现，包含N8nWebhookAPIView
+│   │   ├── services/         # 服务实现目录
+│   │   │   ├── __init__.py   # Python包初始化文件
+│   │   │   └── n8n_webhook/  # n8n Webhook服务目录
+│   │   │       ├── __init__.py          # Python包初始化文件
+│   │   │       ├── client.py            # N8nWebhookClient客户端实现
+│   │   │       └── exceptions.py        # 异常类定义
+│   │   └── tests/           # AI服务测试目录
+│   │       ├── __init__.py   # Python包初始化文件
+│   │       ├── conftest.py   # pytest配置文件
+│   │       └── test_n8n_service.py # n8n服务异步测试
 │   ├── users/                # 用户管理应用
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   ├── admin.py          # Django Admin配置
@@ -83,6 +100,7 @@ a7/                           # 项目根目录
 │   ├── permission.log        # 项目级权限日志文件
 │   ├── request.log           # 请求日志文件
 │   ├── jwt_auth.log          # JWT认证日志文件
+│   ├── pytest.ini            # pytest配置文件，定义异步测试模式和标记
 │   └── manage.py             # Django命令行工具
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
@@ -97,8 +115,8 @@ a7/                           # 项目根目录
 ├── .taskmasterconfig         # Task Master配置文件
 ├── .windsurfrules            # Windsurf规则配置文件
 ├── a7.code-workspace         # VS Code工作区配置文件
+├── context7_library.md       # Context7库ID记录文件
 ├── fileStructure.md          # 项目文件结构文档（本文件）
-├── library.md                # 项目库文档
 ├── permission.log            # 权限检查日志文件
 ├── request.log               # 请求日志文件
 ├── jwt_auth.log              # JWT认证日志文件
@@ -174,6 +192,30 @@ a7/                           # 项目根目录
 - **a7/courses/tests_api_new.py**: 课程内容管理API的全面测试套件，包含CourseAPITests（验证课程CRUD和权限控制）、KnowledgePointAPITests（测试知识点层级结构和循环引用防护）和CoursewareAPITests（测试课件管理功能）三个主要测试类。共实现42个全面测试用例，验证不同用户角色（管理员、教师、学生）的权限控制、所有API端点的功能完整性以及特殊操作如my_courses、top_level、children和by_course等。测试包含边界情况处理、数据验证和错误响应。
 - **a7/courses/tests_validation.py**: 验证逻辑测试文件，包含对课程、知识点和课件API的验证逻辑测试，验证字段验证、唯一性检查、关系完整性（如循环引用检测）等验证功能的正确性。测试不同场景下的验证行为，确保数据一致性和业务规则的强制执行。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
+
+### AI服务应用文件
+
+- **a7/ai_services/__init__.py**: AI服务应用的Python包标识文件。
+- **a7/ai_services/admin.py**: Django Admin配置，定义WebhookConfig和WebhookCallLog模型在管理界面的展示与操作方式。
+- **a7/ai_services/apps.py**: 应用配置文件，包含应用元数据和启动逻辑。
+- **a7/ai_services/models.py**: 模型定义，包含WebhookConfig（webhook配置）和WebhookCallLog（调用日志）模型，实现与外部服务集成和调用记录功能。
+- **a7/ai_services/urls.py**: URL路由配置，定义AI服务的API端点路径。
+- **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类，处理webhook请求并转发至n8n服务。
+
+### n8n Webhook服务文件
+
+- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，处理ragAI任务等。
+- **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，包括N8nWebhookError基类、N8nConnectionError（连接错误）、N8nTimeoutError（超时错误）和N8nResponseError（响应错误）。
+
+### AI服务测试文件
+
+- **a7/ai_services/tests/__init__.py**: AI服务测试包标识文件。
+- **a7/ai_services/tests/conftest.py**: pytest配置文件，包含测试固件（fixtures）、事件循环配置、测试标记注册以及全局测试设置。
+- **a7/ai_services/tests/test_n8n_service.py**: n8n Webhook服务的异步测试实现，包含TestN8nWebhookView（视图测试）和TestN8nWebhookClient（客户端测试）两个主要测试类。测试类使用pytest-asyncio实现异步测试，覆盖各种成功和错误情况，如连接错误、超时错误及认证错误等。
+
+### pytest配置文件
+
+- **a7/pytest.ini**: pytest测试框架配置文件，定义Django集成配置、异步测试模式设置、自定义测试标记以及日志输出格式配置。重点配置了asyncio_mode=strict确保异步测试的严格模式，以及asyncio_default_fixture_loop_scope设置事件循环作用域。
 
 ### 测试文件
 
@@ -368,6 +410,17 @@ a7/                           # 项目根目录
     - 容器使用非特权用户运行应用以增强安全性，遵循Docker最佳实践。
     - Docker环境变量（`PYTHONDONTWRITEBYTECODE`和`PYTHONUNBUFFERED`）优化了Python在容器环境中的运行。
 
+14. **AI服务系统**:
+    - `a7/ai_services/models.py`定义了webhook配置和调用日志的核心数据模型。
+    - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信。
+    - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
+    - `a7/ai_services/views.py`中的N8nWebhookAPIView处理API请求，调用客户端进行任务处理。
+    - `a7/ai_services/urls.py`将API视图与URL路径映射。
+    - WebhookConfig模型与WebhookCallLog模型通过外键关联，记录每次调用的详细信息。
+    - `a7/ai_services/tests/test_n8n_service.py`实现全面的异步测试，覆盖API视图和客户端功能。
+    - `a7/ai_services/tests/conftest.py`配置异步测试环境，提供共享事件循环和测试固件。
+    - `a7/pytest.ini`配置pytest框架，启用异步测试模式和定义测试标记。
+
 ## 目录组织逻辑
 
 项目采用了以下组织逻辑：
@@ -477,6 +530,16 @@ a7/                           # 项目根目录
    - 所有端点实现权限控制，确保只有教师和管理员可以创建课程和知识点，只有课程/知识点创建者和管理员可以修改或删除
    - 所有端点包含全面的验证逻辑，确保数据一致性、有效性和适当的错误处理
    - 所有端点返回标准化的响应格式，包含状态码、成功标志和数据
+
+7. **AI服务API**:
+   - `/api/ai/webhook/` - n8n Webhook API端点，接收并处理AI任务请求
+   - 支持POST方法，接收任务类型、任务数据和webhook配置ID
+   - 需要认证（JWT令牌）访问
+   - 支持不同任务类型，如"ragAI"（检索增强生成式AI）
+   - 处理请求数据验证、webhook配置查找和任务处理
+   - 返回标准化的API响应（成功或错误信息）
+   - 提供丰富的错误处理（请求错误、连接错误、超时错误）
+   - 与n8n工作流自动化工具集成，支持AI任务处理
 
 ## 练习与评测系统
 

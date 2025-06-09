@@ -61,4 +61,7 @@ urlpatterns = [
     
     # 课程应用
     path('api/', include('courses.urls')),
+    
+    # 添加AI服务应用URL
+    path('api/ai/', include('ai_services.urls', namespace='ai_services')),
 ]
