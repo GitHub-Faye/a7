@@ -39,9 +39,31 @@ class N8nResponseError(N8nWebhookError):
         
         # 保存详细错误信息
         self.error_data = kwargs.get('error_data', {})
+        self.validation_errors = kwargs.get('validation_errors', {})
         
     def __str__(self):
         base_str = super().__str__()
+        if self.validation_errors:
+            # 如果有验证错误，优先显示
+            return f"{base_str}\n验证错误: {self.validation_errors}"
         if self.error_data:
             return f"{base_str}\n错误详情: {self.error_data}"
+        return base_str
+
+
+class N8nInvalidRequestError(N8nWebhookError):
+    """n8n Webhook无效请求异常"""
+    def __init__(self, message=None, *args, **kwargs):
+        message = message or "无效的请求数据"
+        # 默认为400 Bad Request
+        kwargs.setdefault('status_code', 400)
+        super().__init__(message, *args, **kwargs)
+        
+        # 保存详细的验证错误
+        self.validation_errors = kwargs.get('validation_errors', {})
+        
+    def __str__(self):
+        base_str = super().__str__()
+        if self.validation_errors:
+            return f"{base_str}\n验证错误: {self.validation_errors}"
         return base_str 

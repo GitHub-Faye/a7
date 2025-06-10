@@ -64,12 +64,6 @@ Completed asynchronous testing development for the n8n Webhook service. Key upda
 任务6.1的所有要求已全部实现并验证完成。
 </info added on 2025-06-08T15:13:45.711Z>
 
-## 2. Standardize n8n Webhook formats [pending]
-### Dependencies: 6.1
-### Description: Define and standardize request/response formats specifically for n8n Webhook integration.
-### Details:
-Ensure all data exchanged with n8n Webhooks follows a consistent format that matches n8n's expected schema and our application needs.
-
 ## 4. Add retry logic for n8n Webhook calls [pending]
 ### Dependencies: 6.1, 6.2
 ### Description: Incorporate retry logic specifically for handling transient failures in n8n Webhook calls.
@@ -81,4 +75,13 @@ Define retry policies (e.g., exponential backoff) that account for n8n's rate li
 ### Description: Validate the service layer by testing with mock n8n Webhook services.
 ### Details:
 Create mock n8n Webhook services to simulate various scenarios (e.g., failures, delays, rate limiting) and verify reliability of our integration.
+
+## 2. Standardize n8n Webhook formats [done]
+### Dependencies: 6.1
+### Description: Define and standardize request/response formats specifically for n8n Webhook integration.
+### Details:
+Ensure all data exchanged with n8n Webhooks follows a consistent format that matches n8n's expected schema and our application needs.
+<info added on 2025-06-10T07:51:48.213Z>
+Completed implementation of standardized data format handling for n8n Webhooks integration. Key components include: Pydantic models for request/response data, enhanced error handling with custom exceptions, validation/parsing functions, client integration, standardized API responses, and comprehensive test coverage. The integration now ensures consistent data exchange while being robust and maintainable.
+</info added on 2025-06-10T07:51:48.213Z>
 

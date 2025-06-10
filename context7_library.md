@@ -11,6 +11,7 @@
 | pytest-asyncio | /pytest-dev/pytest-asyncio | 异步测试框架 |
 | aiohttp | /aio-libs/aiohttp | 异步HTTP客户端/服务器框架 |
 | n8n | N/A (通过web_search获取) | 工作流自动化工具 |
+| Pydantic | /pydantic/pydantic | 数据验证和设置管理库 |
 
 # 主要库功能说明
 
@@ -86,6 +87,13 @@
 - 提供丰富的高级功能，如请求追踪、超时控制和请求限流
 - 兼容asyncio库，能与其他异步框架协同工作
 - 支持自定义DNS解析器和连接工厂
+
+## Pydantic
+- 用于数据验证、序列化和反序列化
+- 使用 `BaseModel` 定义数据模型，支持复杂的嵌套结构
+- 自动进行类型转换和验证，并在失败时提供详细的错误信息
+- 在本项目中用于标准化 n8n Webhook 的请求和响应格式 (`formats.py`)
+- 支持字段验证、别名和默认值
 
 ## n8n Webhook API
 - n8n是一个开源的工作流自动化工具

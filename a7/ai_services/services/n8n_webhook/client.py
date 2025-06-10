@@ -20,6 +20,7 @@ from .exceptions import (
     N8nTimeoutError,
     N8nResponseError,
 )
+from .formats import validate_request_data, parse_response
 from ...models import WebhookConfig, WebhookCallLog
 
 logger = logging.getLogger(__name__)
@@ -217,14 +218,23 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 处理结果
         """
-        # 构建请求数据
-        request_data = {
+        # 1. 验证和格式化请求数据
+        validated_data_model = validate_request_data(task_type, task_data)
+        
+        # 2. 构建将发送到n8n的请求数据
+        request_data_to_send = {
             "task_type": task_type,
-            "data": task_data
+            "data": validated_data_model.model_dump()  # 使用验证后模型的数据
         }
         
-        # 发送请求并返回结果
-        return await self.send_request(request_data)
+        # 3. 发送请求并获取原始响应
+        raw_response = await self.send_request(request_data_to_send)
+        
+        # 4. 解析和验证响应数据
+        validated_response_model = parse_response(task_type, raw_response)
+        
+        # 5. 返回验证后模型的字典表示
+        return validated_response_model.model_dump()
     
     def process_ai_task_sync(self, task_type: str, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """

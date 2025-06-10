@@ -113,7 +113,8 @@ class TestN8nWebhookView:
         expected_api_response = {
             "success": True,
             "status_code": 200,
-            "data": expected_response_content
+            "data": expected_response_content,
+            "message": "任务处理成功"
         }
         mock_process_task = MagicMock(return_value=expected_response_content)
         monkeypatch.setattr(
@@ -315,7 +316,8 @@ class TestN8nWebhookView:
         expected_api_response = {
             "success": True,
             "status_code": 200,
-            "data": expected_response_content
+            "data": expected_response_content,
+            "message": "任务处理成功"
         }
         mock_process_task = MagicMock(return_value=expected_response_content)
         monkeypatch.setattr(
@@ -622,7 +624,6 @@ class TestN8nWebhookClient:
         """测试process_ai_task方法处理ragAI任务"""
         # 模拟send_request方法
         expected_response = {
-            "result": "success", 
             "answer": "今天天气晴朗，气温适宜，非常适合户外活动。",
             "sources": [
                 {"title": "天气预报", "url": "https://weather.example.com"}
@@ -647,3 +648,30 @@ class TestN8nWebhookClient:
             "task_type": task_type,
             "data": task_data
         })
+    
+    @pytest.mark.asyncio
+    async def test_process_ai_task_invalid_response(self, n8n_client, monkeypatch):
+        """测试process_ai_task方法处理无效响应"""
+        # 模拟send_request方法返回无效响应
+        invalid_response = {
+            "result": "error",
+            "message": "问答服务暂时不可用"
+        }
+        mock_send_request = AsyncMock(return_value=invalid_response)
+        monkeypatch.setattr(n8n_client, "send_request", mock_send_request)
+        
+        # 执行测试
+        task_type = "ragAI"
+        task_data = {
+            "chatInput": "今天天气怎么样?",
+            "sessionId": "test_session_456"
+        }
+        
+        # 验证是否抛出了N8nResponseError
+        with pytest.raises(N8nResponseError) as exc_info:
+            await n8n_client.process_ai_task(task_type, task_data)
+        
+        # 验证异常信息中包含验证错误
+        assert "响应数据格式无效" in str(exc_info.value)
+        assert exc_info.value.validation_errors is not None
+        assert "answer" in str(exc_info.value.validation_errors)
