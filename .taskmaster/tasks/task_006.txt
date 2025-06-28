@@ -64,15 +64,9 @@ Completed asynchronous testing development for the n8n Webhook service. Key upda
 任务6.1的所有要求已全部实现并验证完成。
 </info added on 2025-06-08T15:13:45.711Z>
 
-## 4. Add retry logic for n8n Webhook calls [pending]
-### Dependencies: 6.1, 6.2
-### Description: Incorporate retry logic specifically for handling transient failures in n8n Webhook calls.
-### Details:
-Define retry policies (e.g., exponential backoff) that account for n8n's rate limits and integrate them into the service layer.
-
 ## 5. Test n8n Webhook integration with mocks [pending]
-### Dependencies: 6.1, 6.2, 6.4
-### Description: Validate the service layer by testing with mock n8n Webhook services.
+### Dependencies: 6.1, 6.2
+### Description: Validate the service layer by testing with mock n8n Webhook services. [Updated: 2025/6/28]
 ### Details:
 Create mock n8n Webhook services to simulate various scenarios (e.g., failures, delays, rate limiting) and verify reliability of our integration.
 

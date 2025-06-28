@@ -336,6 +336,15 @@
           ],
           "details": "Ensure all data exchanged with n8n Webhooks follows a consistent format that matches n8n's expected schema and our application needs.\n<info added on 2025-06-10T07:51:48.213Z>\nCompleted implementation of standardized data format handling for n8n Webhooks integration. Key components include: Pydantic models for request/response data, enhanced error handling with custom exceptions, validation/parsing functions, client integration, standardized API responses, and comprehensive test coverage. The integration now ensures consistent data exchange while being robust and maintainable.\n</info added on 2025-06-10T07:51:48.213Z>",
           "status": "done"
+        },
+        {
+          "id": 6,
+          "title": "使用真实的n8n环境测试",
+          "description": "使用真实的n8n环境测试",
+          "details": "",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 6
         }
       ]
     },
