@@ -66,7 +66,7 @@ Completed asynchronous testing development for the n8n Webhook service. Key upda
 
 ## 5. Test n8n Webhook integration with mocks [pending]
 ### Dependencies: 6.1, 6.2
-### Description: Validate the service layer by testing with mock n8n Webhook services. [Updated: 2025/6/28]
+### Description: Validate the service layer by testing with mock n8n Webhook services.
 ### Details:
 Create mock n8n Webhook services to simulate various scenarios (e.g., failures, delays, rate limiting) and verify reliability of our integration.
 
@@ -78,4 +78,10 @@ Ensure all data exchanged with n8n Webhooks follows a consistent format that mat
 <info added on 2025-06-10T07:51:48.213Z>
 Completed implementation of standardized data format handling for n8n Webhooks integration. Key components include: Pydantic models for request/response data, enhanced error handling with custom exceptions, validation/parsing functions, client integration, standardized API responses, and comprehensive test coverage. The integration now ensures consistent data exchange while being robust and maintainable.
 </info added on 2025-06-10T07:51:48.213Z>
+
+## 6. 使用真实的n8n环境测试 [pending]
+### Dependencies: None
+### Description: 使用真实的n8n环境测试
+### Details:
+
 
