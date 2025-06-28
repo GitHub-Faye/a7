@@ -209,13 +209,13 @@ a7/                           # 项目根目录
 
 - **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑。
 - **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，包括N8nWebhookError基类、N8nConnectionError（连接错误）、N8nTimeoutError（超时错误）、N8nResponseError（响应错误）以及请求/响应验证相关的异常。
-- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型，并提供验证函数。
+- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型，这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。
 
 ### AI服务测试文件
 
 - **a7/ai_services/tests/__init__.py**: AI服务测试包标识文件。
 - **a7/ai_services/tests/conftest.py**: pytest配置文件，包含测试固件（fixtures）、事件循环配置、测试标记注册以及全局测试设置。
-- **a7/ai_services/tests/test_n8n_service.py**: n8n Webhook服务的异步测试实现，包含对请求/响应格式验证的测试。
+- **a7/ai_services/tests/test_n8n_service.py**: n8n Webhook服务的异步测试实现。包含使用模拟(mock)数据的单元测试和针对真实n8n环境的集成测试，以验证端到端的功能。
 
 ### pytest配置文件
 
@@ -418,11 +418,11 @@ a7/                           # 项目根目录
     - `a7/ai_services/models.py`定义了webhook配置和调用日志的核心数据模型。
     - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。
     - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
-    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义请求/响应数据模型。
+    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。
     - `a7/ai_services/views.py`中的N8nWebhookAPIView处理API请求，调用客户端进行任务处理，并使用标准化的响应格式。
     - `a7/ai_services/urls.py`将API视图与URL路径映射。
     - WebhookConfig模型与WebhookCallLog模型通过外键关联，记录每次调用的详细信息。
-    - `a7/ai_services/tests/test_n8n_service.py`实现全面的异步测试，覆盖API视图和客户端功能。
+    - `a7/ai_services/tests/test_n8n_service.py`实现全面的异步测试，包含单元测试和针对真实n8n环境的集成测试，覆盖API视图和客户端功能。
     - `a7/ai_services/tests/conftest.py`配置异步测试环境，提供共享事件循环和测试固件。
     - `a7/ai_services/api_response.py`提供标准化API响应的辅助函数。
 

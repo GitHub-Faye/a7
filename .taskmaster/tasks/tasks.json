@@ -288,7 +288,7 @@
       "id": 6,
       "title": "Integrate AI Services",
       "description": "Develop the AI service integration layer to interact with n8n's Webhook for AI services.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         4
       ],
@@ -313,7 +313,7 @@
             2
           ],
           "details": "Create mock n8n Webhook services to simulate various scenarios (e.g., failures, delays, rate limiting) and verify reliability of our integration.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,
@@ -329,8 +329,8 @@
           "id": 6,
           "title": "使用真实的n8n环境测试",
           "description": "使用真实的n8n环境测试",
-          "details": "",
-          "status": "pending",
+          "details": "<info added on 2025-06-28T13:37:04.378Z>\nSuccessfully completed integration testing using a live n8n environment (URL: http://localhost:5678/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d). Modified the `RagAIResponseData` model by making the `sources` field optional based on actual n8n responses, and updated corresponding test cases. The `test_real_n8n_workflow` test passed successfully, confirming core integration functionality including request handling, response processing, and logging.\n</info added on 2025-06-28T13:37:04.378Z>",
+          "status": "done",
           "dependencies": [],
           "parentTaskId": 6
         }

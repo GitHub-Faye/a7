@@ -559,20 +559,12 @@ class TestN8nWebhookClient:
     async def test_real_n8n_workflow(self):
         """
         使用真实的n8n工作流进行集成测试
-        
-        注意：运行此测试前，请确保:
-        1. n8n服务已经启动（默认地址: http://localhost:5678）
-        2. 在n8n界面上已经点击了"Execute workflow"按钮激活Webhook
-           (在测试模式下，webhook在激活后只能被调用一次)
-        
-        运行命令:
-        python -m pytest ai_services/tests/test_n8n_service.py::TestN8nWebhookClient::test_real_n8n_workflow -v
         """
         # 创建实际的webhook配置
         create_webhook = sync_to_async(WebhookConfig.objects.create)
         webhook_config = await create_webhook(
-            name="真实RagAI工作流",
-            url="http://localhost:5678/webhook/cd01b4a6-c53d-4357-8dad-fcbc61517dc5",
+            name="RAG AI测试Webhook",
+            url="http://localhost:5678/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d",
             headers={"Content-Type": "application/json"}
         )
         
@@ -587,11 +579,18 @@ class TestN8nWebhookClient:
         
         try:
             # 发送实际请求到n8n工作流
-            print("\n正在向n8n工作流发送请求，请确保已在n8n界面点击了'Execute workflow'按钮...")
+            print("\n正在向n8n RAG AI工作流发送请求...")
             result = await client.send_request(test_data)
             
-            # 验证结果 (这里无法完全预测AI的回复，但我们可以验证基本结构)
+            # 验证结果
             assert isinstance(result, dict)
+            assert "answer" in result
+            assert isinstance(result["answer"], str)
+            
+            # 仅当sources存在时才验证
+            if "sources" in result:
+                assert isinstance(result["sources"], list)
+            
             print(f"\n✅ 成功收到n8n工作流响应:\n{json.dumps(result, indent=2, ensure_ascii=False)}")
             
             # 验证日志记录
@@ -608,16 +607,18 @@ class TestN8nWebhookClient:
                     "\n❌ n8n webhook未激活或已过期。请执行以下步骤后再运行测试:\n"
                     "1. 确保n8n服务正在运行\n"
                     "2. 打开n8n工作流界面\n" 
-                    "3. 点击画布上的'Execute workflow'按钮激活webhook\n"
-                    "4. 立即运行此测试（webhook激活后只对一次请求有效）"
+                    "3. 点击画布上的'Execute workflow'或'Listen for test event'按钮激活webhook\n"
+                    "4. 立即运行此测试"
                 )
                 pytest.skip(message)
             else:
-                pytest.skip(f"\n❌ n8n响应错误: {str(e)}")
+                pytest.fail(f"\n❌ n8n响应错误: {str(e)}")
         except N8nConnectionError as e:
             pytest.skip(f"\n❌ 无法连接到n8n服务: {str(e)}\n请确保n8n服务正在运行，默认地址: http://localhost:5678")
+        except N8nWebhookError as e:
+            pytest.fail(f"\n❌ n8n Webhook基础错误: {str(e)}")
         except Exception as e:
-            pytest.skip(f"\n❌ 测试出现未预期的错误: {str(e)}")
+            pytest.fail(f"\n❌ 测试出现未预期的错误: {str(e)}")
     
     @pytest.mark.asyncio
     async def test_process_ai_task(self, n8n_client, monkeypatch):

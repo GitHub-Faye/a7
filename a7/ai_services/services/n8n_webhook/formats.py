@@ -43,7 +43,7 @@ class RagAISource(BaseResponse):
 class RagAIResponseData(BaseResponse):
     """ragAI任务的响应数据模型"""
     answer: str = Field(..., description="AI生成的回答")
-    sources: List[RagAISource] = Field(default_factory=list, description="回答所依据的来源列表")
+    sources: Optional[List[RagAISource]] = Field(default_factory=list, description="回答所依据的来源列表")
 
 
 # ==============================================================================

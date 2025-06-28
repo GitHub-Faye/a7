@@ -1,6 +1,6 @@
 # Task ID: 6
 # Title: Integrate AI Services
-# Status: pending
+# Status: done
 # Dependencies: 4
 # Priority: medium
 # Description: Develop the AI service integration layer to interact with n8n's Webhook for AI services.
@@ -64,7 +64,7 @@ Completed asynchronous testing development for the n8n Webhook service. Key upda
 任务6.1的所有要求已全部实现并验证完成。
 </info added on 2025-06-08T15:13:45.711Z>
 
-## 5. Test n8n Webhook integration with mocks [pending]
+## 5. Test n8n Webhook integration with mocks [done]
 ### Dependencies: 6.1, 6.2
 ### Description: Validate the service layer by testing with mock n8n Webhook services.
 ### Details:
@@ -79,9 +79,11 @@ Ensure all data exchanged with n8n Webhooks follows a consistent format that mat
 Completed implementation of standardized data format handling for n8n Webhooks integration. Key components include: Pydantic models for request/response data, enhanced error handling with custom exceptions, validation/parsing functions, client integration, standardized API responses, and comprehensive test coverage. The integration now ensures consistent data exchange while being robust and maintainable.
 </info added on 2025-06-10T07:51:48.213Z>
 
-## 6. 使用真实的n8n环境测试 [pending]
+## 6. 使用真实的n8n环境测试 [done]
 ### Dependencies: None
 ### Description: 使用真实的n8n环境测试
 ### Details:
-
+<info added on 2025-06-28T13:37:04.378Z>
+Successfully completed integration testing using a live n8n environment (URL: http://localhost:5678/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d). Modified the `RagAIResponseData` model by making the `sources` field optional based on actual n8n responses, and updated corresponding test cases. The `test_real_n8n_workflow` test passed successfully, confirming core integration functionality including request handling, response processing, and logging.
+</info added on 2025-06-28T13:37:04.378Z>
 
