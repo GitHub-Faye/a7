@@ -47,6 +47,40 @@ class RagAIResponseData(BaseResponse):
 
 
 # ==============================================================================
+# 课程内容生成任务格式 (Course Content Generation Task Formats)
+# ==============================================================================
+
+class CourseGenerationRequestData(BaseRequest):
+    """课程内容生成任务的请求数据模型"""
+    course_name: str = Field(..., description="课程名称")
+    chapter_count: int = Field(..., gt=0, description="章节数量")
+    course_description: str = Field(..., description="课程描述")
+    subject: str = Field(..., description="学科")
+    grade_level: str = Field(..., description="年级水平")
+    additional_requirements: Optional[str] = Field(None, description="额外要求")
+
+class KnowledgePointData(BaseResponse):
+    """知识点数据模型，支持层级结构"""
+    title: str = Field(..., description="知识点标题")
+    content: str = Field(..., description="知识点内容")
+    importance: int = Field(..., ge=1, le=10, description="重要性(1-10)")
+    children: List['KnowledgePointData'] = Field(default_factory=list, description="子知识点列表")
+
+class CourseData(BaseResponse):
+    """课程核心数据模型"""
+    title: str = Field(..., description="课程标题")
+    description: str = Field(..., description="课程描述")
+    subject: str = Field(..., description="学科")
+    grade_level: str = Field(..., description="年级水平")
+
+
+class CourseGenerationResponseData(BaseResponse):
+    """课程内容生成任务的响应数据模型"""
+    course: CourseData = Field(..., description="生成的课程核心信息")
+    knowledge_points: List[KnowledgePointData] = Field(..., description="生成的知识点层级结构")
+
+
+# ==============================================================================
 # 任务格式注册与管理 (Task Format Registry)
 # ==============================================================================
 
@@ -55,6 +89,10 @@ TASK_FORMATS: Dict[str, Dict[str, Any]] = {
     "ragAI": {
         "request": RagAIRequestData,
         "response": RagAIResponseData,
+    },
+    "courseGeneration": {
+        "request": CourseGenerationRequestData,
+        "response": CourseGenerationResponseData,
     },
     # 在这里可以添加其他任务类型的格式定义
     # "another_task": {

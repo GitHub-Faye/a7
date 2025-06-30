@@ -24,6 +24,13 @@ from .permissions import (
 )
 from .utils import validate_required_params
 
+# AI服务集成
+from ai_services.services.n8n_webhook.client import N8nWebhookClient
+from ai_services.services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
+from ai_services.api_response import create_api_response
+from django.db import transaction
+from rest_framework.views import APIView
+
 
 class CourseViewSet(viewsets.ModelViewSet):
     """
@@ -282,3 +289,103 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(queryset, many=True)
         return Response({"success": True, "data": serializer.data})
+
+
+class CourseContentGenerationView(APIView):
+    """
+    通过AI生成课程内容的API视图
+    """
+    permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+
+    def _create_knowledge_points_recursive(self, course, parent, knowledge_point_data):
+        """
+        递归创建知识点
+        """
+        kp = KnowledgePoint.objects.create(
+            course=course,
+            parent=parent,
+            title=knowledge_point_data['title'],
+            content=knowledge_point_data['content'],
+            importance=knowledge_point_data['importance']
+        )
+        for child_data in knowledge_point_data.get('children', []):
+            self._create_knowledge_points_recursive(course, kp, child_data)
+
+    @swagger_auto_schema(
+        operation_summary="使用AI生成课程内容",
+        operation_description="提供课程主题和要求，调用AI服务生成完整的课程大纲和知识点结构",
+        request_body=CourseCreateSerializer, # 这里可以后面定义一个更精确的序列化器
+        responses={
+            201: CourseSerializer,
+            400: "错误的请求",
+            500: "服务器内部错误"
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        处理课程内容生成请求
+        """
+        # 1. 验证请求参数
+        required_params = ['course_name', 'chapter_count', 'course_description', 'subject', 'grade_level']
+        missing_params = [param for param in required_params if param not in request.data]
+        if missing_params:
+            return create_api_response(
+                success=False,
+                error_code="MISSING_PARAMETERS",
+                message=f"缺少必要参数: {', '.join(missing_params)}",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        task_data = {
+            "course_name": request.data.get('course_name'),
+            "chapter_count": request.data.get('chapter_count'),
+            "course_description": request.data.get('course_description'),
+            "subject": request.data.get('subject'),
+            "grade_level": request.data.get('grade_level'),
+            "additional_requirements": request.data.get('additional_requirements', '')
+        }
+
+        try:
+            # 2. 调用AI服务生成内容
+            client = N8nWebhookClient()
+            ai_response = client.process_ai_task_sync('courseGeneration', task_data)
+
+            # 3. 在数据库事务中创建课程和知识点
+            with transaction.atomic():
+                # 创建课程
+                course_info = ai_response['course']
+                new_course = Course.objects.create(
+                    title=course_info['title'],
+                    description=course_info['description'],
+                    subject=course_info['subject'],
+                    grade_level=course_info['grade_level'],
+                    teacher=request.user
+                )
+
+                # 递归创建知识点
+                for kp_data in ai_response['knowledge_points']:
+                    self._create_knowledge_points_recursive(new_course, None, kp_data)
+            
+            # 4. 返回成功创建的课程信息
+            serializer = CourseSerializer(new_course)
+            return create_api_response(
+                success=True,
+                data=serializer.data,
+                message="课程内容生成成功",
+                status_code=status.HTTP_201_CREATED
+            )
+
+        except (N8nWebhookError, N8nInvalidRequestError) as e:
+            return create_api_response(
+                success=False,
+                error_code="AI_SERVICE_ERROR",
+                message=f"AI服务处理失败: {str(e)}",
+                status_code=getattr(e, 'status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
+            )
+        except Exception as e:
+            return create_api_response(
+                success=False,
+                error_code="INTERNAL_SERVER_ERROR",
+                message=f"处理请求时发生未知错误: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

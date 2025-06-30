@@ -14,6 +14,7 @@ from .services.n8n_webhook.client import N8nWebhookClient
 from .services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
 from .models import WebhookConfig
 from .api_response import create_api_response
+from .services.knowledge_converter import create_course_with_knowledge_points
 
 
 class N8nWebhookAPIView(views.APIView):
@@ -56,7 +57,23 @@ class N8nWebhookAPIView(views.APIView):
             client = N8nWebhookClient(webhook_config=webhook_config)
             result = client.process_ai_task_sync(task_type, task_data)
             
-            # 返回成功的API响应
+            # 如果是课程生成任务，则在数据库中创建课程和知识点
+            if task_type == 'courseGeneration':
+                course = create_course_with_knowledge_points(result, user=request.user)
+                # 返回新创建的课程信息，而不是原始的n8n响应
+                response_data = {
+                    'course_id': course.id,
+                    'title': course.title,
+                    'message': '课程已成功创建'
+                }
+                return create_api_response(
+                    success=True, 
+                    data=response_data,
+                    message="课程创建成功",
+                    status_code=status.HTTP_201_CREATED  # 使用 201 表示资源已创建
+                )
+
+            # 对于其他任务，返回原始结果
             return create_api_response(
                 success=True, 
                 data=result, 
