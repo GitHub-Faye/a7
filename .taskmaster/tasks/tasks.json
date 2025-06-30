@@ -374,7 +374,7 @@
             "id": 3,
             "title": "Develop Knowledge Point Data Conversion Module",
             "description": "Transform AI-generated content into the KnowledgePoint model data structure",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               2
             ],
@@ -487,7 +487,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-06-30T12:53:17.354Z",
+      "updated": "2025-06-30T13:56:47.529Z",
       "description": "Tasks for master context"
     }
   }

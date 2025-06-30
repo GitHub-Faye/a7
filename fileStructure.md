@@ -43,16 +43,21 @@ a7/                           # 项目根目录
 │   │   ├── urls.py           # AI服务路由配置
 │   │   ├── views.py          # AI服务视图和API实现，包含N8nWebhookAPIView
 │   │   ├── services/         # 服务实现目录
-│   │   │   ├── __init__.py   # Python包初始化文件
-│   │   │   └── n8n_webhook/  # n8n Webhook服务目录
+│   │   │   ├── __init__.py              # Python包初始化文件
+│   │   │   ├── knowledge_converter.py   # AI响应到课程模型的转换器
+│   │   │   └── n8n_webhook/             # n8n Webhook服务目录
 │   │   │       ├── __init__.py          # Python包初始化文件
 │   │   │       ├── client.py            # N8nWebhookClient客户端实现
 │   │   │       ├── exceptions.py        # 异常类定义
 │   │   │       └── formats.py           # 请求/响应格式定义
-│   │   └── tests/           # AI服务测试目录
-│   │       ├── __init__.py   # Python包初始化文件
-│   │       ├── conftest.py   # pytest配置文件
-│   │       └── test_n8n_service.py # n8n服务异步测试
+│   │   └── tests/                       # AI服务测试目录
+│   │       ├── __init__.py                  # Python包初始化文件
+│   │       ├── conftest.py                  # pytest配置文件
+│   │       ├── test_client.py               # n8n客户端测试
+│   │       ├── test_formats.py              # 数据格式模型测试
+│   │       ├── test_knowledge_converter.py  # 数据转换器测试
+│   │       ├── test_n8n_service.py          # n8n服务异步测试
+│   │       └── test_views_integration.py    # AI服务视图集成测试
 │   ├── users/                # 用户管理应用
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   ├── admin.py          # Django Admin配置
@@ -185,8 +190,8 @@ a7/                           # 项目根目录
 - **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
 - **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）和CourseUpdateSerializer（更新）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
-- **a7/courses/urls.py**: 课程应用的URL路由配置，使用DefaultRouter注册CourseViewSet和KnowledgePointViewSet。
-- **a7/courses/views.py**: 课程相关的视图文件，包含CourseViewSet视图集，实现课程的CRUD操作和自定义操作(如my_courses)，提供完整的课程API功能。还包含KnowledgePointViewSet视图集，实现知识点的CRUD操作、按课程和父知识点筛选以及自定义操作（如top_level和children），支持层级结构管理和动态序列化器。还实现了请求参数验证，确保API输入数据的有效性。
+- **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`和`CoursewareViewSet`，并为`CourseContentGenerationView`定义了专门的路由。
+- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`和`CourseContentGenerationView`视图，实现课程、知识点、课件的CRUD操作和AI内容生成功能。
 - **a7/courses/validations.py**: 通用验证工具类，提供了字段验证（validate_text_field）、对象存在性验证（validate_existence）和唯一性验证（validate_uniqueness）等方法，为序列化器提供复用的验证逻辑。
 - **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
@@ -203,19 +208,24 @@ a7/                           # 项目根目录
 - **a7/ai_services/api_response.py**: 标准化API响应格式化工具，提供`create_api_response`函数用于生成统一的API响应。
 - **a7/ai_services/models.py**: 模型定义，包含WebhookConfig（webhook配置）和WebhookCallLog（调用日志）模型，实现与外部服务集成和调用记录功能。
 - **a7/ai_services/urls.py**: URL路由配置，定义AI服务的API端点路径。
-- **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类，处理webhook请求并转发至n8n服务，使用标准化的响应格式。
+- **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类，处理webhook请求并转发至n8n服务，使用标准化的响应格式。在接收到课程生成结果后，会调用`a7/ai_services/services/knowledge_converter.py`将结果持久化。
+- **a7/ai_services/services/knowledge_converter.py**: 负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
 
 ### n8n Webhook服务文件
 
-- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑。
+- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。
 - **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，包括N8nWebhookError基类、N8nConnectionError（连接错误）、N8nTimeoutError（超时错误）、N8nResponseError（响应错误）以及请求/响应验证相关的异常。
-- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型，这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。
+- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。
 
 ### AI服务测试文件
 
 - **a7/ai_services/tests/__init__.py**: AI服务测试包标识文件。
 - **a7/ai_services/tests/conftest.py**: pytest配置文件，包含测试固件（fixtures）、事件循环配置、测试标记注册以及全局测试设置。
+- **a7/ai_services/tests/test_client.py**: n8n webhook客户端测试，主要测试课程内容生成方法的逻辑。
+- **a7/ai_services/tests/test_formats.py**: n8n webhook数据格式(Pydantic模型)的单元测试。
+- **a7/ai_services/tests/test_knowledge_converter.py**: knowledge_converter模块的单元测试，验证JSON到Django模型的转换逻辑、数据验证、递归深度限制和数据库操作的原子性（事务回滚）。
 - **a7/ai_services/tests/test_n8n_service.py**: n8n Webhook服务的异步测试实现。包含使用模拟(mock)数据的单元测试和针对真实n8n环境的集成测试，以验证端到端的功能。
+- **a7/ai_services/tests/test_views_integration.py**: N8nWebhookAPIView的集成测试，验证从API接收请求到数据持久化的完整流程。
 
 ### pytest配置文件
 
@@ -419,10 +429,11 @@ a7/                           # 项目根目录
     - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。
     - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
     - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。
-    - `a7/ai_services/views.py`中的N8nWebhookAPIView处理API请求，调用客户端进行任务处理，并使用标准化的响应格式。
+    - `a7/ai_services/views.py`中的N8nWebhookAPIView处理API请求，调用客户端进行任务处理，并在接收到课程生成响应后，调用`a7/ai_services/services/knowledge_converter.py`将结果持久化。
+    - `a7/ai_services/services/knowledge_converter.py`负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
     - `a7/ai_services/urls.py`将API视图与URL路径映射。
     - WebhookConfig模型与WebhookCallLog模型通过外键关联，记录每次调用的详细信息。
-    - `a7/ai_services/tests/test_n8n_service.py`实现全面的异步测试，包含单元测试和针对真实n8n环境的集成测试，覆盖API视图和客户端功能。
+    - `a7/ai_services/tests/` 目录下的多个测试文件(`test_client.py`, `test_formats.py`, `test_knowledge_converter.py`, `test_views_integration.py`)确保了整个AI服务（从数据格式、客户端通信、数据转换到API视图）的健壮性和正确性。
     - `a7/ai_services/tests/conftest.py`配置异步测试环境，提供共享事件循环和测试固件。
     - `a7/ai_services/api_response.py`提供标准化API响应的辅助函数。
 
@@ -532,6 +543,7 @@ a7/                           # 项目根目录
    - `/api/courseware/` - 课件列表和创建（支持分页、搜索和按课程筛选）
    - `/api/courseware/<id>/` - 课件详情、更新和删除
    - `/api/courseware/by_course/` - 获取指定课程的所有课件
+   - `/api/courses/generate-content/` - 使用AI生成课程内容的端点
    - 所有端点实现权限控制，确保只有教师和管理员可以创建课程和知识点，只有课程/知识点创建者和管理员可以修改或删除
    - 所有端点包含全面的验证逻辑，确保数据一致性、有效性和适当的错误处理
    - 所有端点返回标准化的响应格式，包含状态码、成功标志和数据

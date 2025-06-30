@@ -5,13 +5,16 @@
 数据转换函数的单元测试。
 """
 import pytest
+import re
 from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 
 from courses.models import Course, KnowledgePoint
 from users.models import User
 from ..services.knowledge_converter import (
     convert_ai_response_to_knowledge_points,
     create_course_with_knowledge_points,
+    MAX_RECURSION_DEPTH,
 )
 
 # 标记所有测试都使用Django数据库
@@ -72,6 +75,40 @@ def valid_ai_response():
             }
         ]
     }
+    
+@pytest.fixture
+def deep_ai_response():
+    """创建一个深度超过最大限制的AI响应数据"""
+    data = {"title": "Level 0", "content": "Content 0"}
+    node = data
+    for i in range(1, MAX_RECURSION_DEPTH + 5):
+        child = {"title": f"Level {i}", "content": f"Content {i}", "children": []}
+        node["children"] = [child]
+        node = child
+    return {"knowledge_points": [data]}
+
+@pytest.fixture
+def invalid_ai_response_missing_keys():
+    """提供一个缺少'title'和'content'键的无效AI响应"""
+    return {
+        "course": {
+            "title": "有效课程",
+            "description": "有效描述",
+            "subject": "有效主题",
+            "grade_level": "有效年级"
+        },
+        "knowledge_points": [{"importance": 10}]
+    }
+
+@pytest.fixture
+def invalid_ai_response_bad_structure():
+    """提供一个结构错误的AI响应('children'不是列表)"""
+    return {
+        "knowledge_points": [
+            {"title": "Valid", "content": "Valid Content", "children": {"not": "a list"}}
+        ]
+    }
+
 
 class TestKnowledgeConverter:
     """测试知识点转换器函数"""
@@ -99,6 +136,30 @@ class TestKnowledgeConverter:
         
         assert len(top_level_kps) == 0
         assert KnowledgePoint.objects.count() == 0
+        
+    def test_recursion_depth_limit(self, sample_course, deep_ai_response):
+        """测试是否正确处理超过最大递归深度的场景"""
+        with pytest.raises(ValueError, match="已达到最大递归深度"):
+            convert_ai_response_to_knowledge_points(sample_course, deep_ai_response)
+        
+        # 验证只创建了达到最大深度的知识点
+        assert KnowledgePoint.objects.count() == MAX_RECURSION_DEPTH + 1
+        
+    def test_invalid_data_missing_keys_raises_error(self, sample_course, invalid_ai_response_missing_keys):
+        """测试当知识点数据缺少键时是否会引发ValueError"""
+        expected_error = "知识点数据必须包含 'title' (不能为空) 和 'content' 字段。"
+        with pytest.raises(ValueError, match=re.escape(expected_error)):
+            convert_ai_response_to_knowledge_points(sample_course, invalid_ai_response_missing_keys)
+        assert KnowledgePoint.objects.count() == 0
+
+    def test_invalid_data_bad_structure_raises_error(self, sample_course, invalid_ai_response_bad_structure):
+        """测试当'children'字段不是列表时是否会引发ValueError"""
+        with pytest.raises(ValueError, match="知识点中的 'children' 必须是一个列表"):
+            convert_ai_response_to_knowledge_points(sample_course, invalid_ai_response_bad_structure)
+        assert KnowledgePoint.objects.count() == 1 # 父节点已创建
+
+class TestCourseCreation:
+    """测试包含知识点创建的整个课程创建流程"""
 
     def test_create_course_with_knowledge_points_success(self, teacher_user, valid_ai_response):
         """测试从AI响应成功创建课程和知识点"""
@@ -112,14 +173,33 @@ class TestKnowledgeConverter:
         assert course.knowledge_points.filter(parent=None).count() == 2
         assert KnowledgePoint.objects.count() == 4   # 所有知识点
 
-    def test_transaction_rolls_back_on_error(self, teacher_user, valid_ai_response):
-        """测试在创建过程中发生错误时，事务是否能正确回滚"""
-        # 修正：使用违反 NOT NULL 约束来触发 IntegrityError，这比 max_length 更可靠
+    def test_transaction_rolls_back_on_integrity_error(self, teacher_user, valid_ai_response):
+        """测试在创建过程中发生数据库完整性错误时，事务是否能正确回滚"""
+        # 使用违反 NOT NULL 约束来触发 IntegrityError
         valid_ai_response["knowledge_points"][0]["children"][0]["title"] = None
         
-        with pytest.raises(IntegrityError):
+        expected_error = "知识点数据必须包含 'title' (不能为空) 和 'content' 字段。"
+        with pytest.raises(ValueError, match=re.escape(expected_error)):
             create_course_with_knowledge_points(valid_ai_response, user=teacher_user)
             
         # 验证数据库中没有创建任何课程或知识点
+        assert Course.objects.count() == 0
+        assert KnowledgePoint.objects.count() == 0
+        
+    def test_transaction_rolls_back_on_validation_error(self, teacher_user, invalid_ai_response_missing_keys):
+        """测试在创建过程中发生自定义验证错误时，事务是否能正确回滚"""
+        expected_error = "知识点数据必须包含 'title' (不能为空) 和 'content' 字段。"
+        with pytest.raises(ValueError, match=re.escape(expected_error)):
+            create_course_with_knowledge_points(invalid_ai_response_missing_keys, user=teacher_user)
+            
+        # 验证数据库中没有创建任何课程或知识点
+        assert Course.objects.count() == 0
+        assert KnowledgePoint.objects.count() == 0
+        
+        # 测试课程数据无效的场景
+        invalid_course_data = {"course": {"title": None}}
+        with pytest.raises(ValueError, match="课程数据缺少必要的字段"):
+             create_course_with_knowledge_points(invalid_course_data, user=teacher_user)
+
         assert Course.objects.count() == 0
         assert KnowledgePoint.objects.count() == 0 
