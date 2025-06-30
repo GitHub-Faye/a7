@@ -338,17 +338,73 @@
     },
     {
       "id": 7,
-      "title": "Implement Teacher Assistance System APIs",
-      "description": "Develop APIs for generating lesson plans, assessments, and student answer analysis.",
+      "title": "Develop APIs for generating course content",
+      "description": "Develop API for automatically generating structured course content based on course name, number of chapters, and general description.",
       "status": "pending",
       "dependencies": [
         5,
         6
       ],
       "priority": "high",
-      "details": "Create endpoints for generating lesson plans and assessments. Implement student answer analysis functionality. Ensure proper permissions and validation.",
-      "testStrategy": "Test lesson plan and assessment generation. Verify analysis functionality with sample student answers.",
-      "subtasks": []
+      "details": "Create endpoints for generating course content that follows the KnowledgePoint model structure. The API should take course name, number of chapters, and course description as input. It should output parent knowledge points as chapter names and child knowledge points as detailed content points for each chapter. Integrate with n8n Webhook service for AI content generation. Implement proper validation, error handling, and permission controls.",
+      "testStrategy": "Test course content generation with various inputs. Verify structure correctness according to KnowledgePoint model. Test error handling and input validation.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Design Course Content Generation API Interface",
+          "description": "Define API input parameters (course name, number of chapters, course description) and output structure",
+          "dependencies": [],
+          "details": "Create the API specification document detailing the request and response formats for the course content generation feature",
+          "status": "pending",
+          "testStrategy": ""
+        },
+        {
+          "id": 2,
+          "title": "Implement n8n Webhook Integration Service",
+          "description": "Establish communication with n8n AI service to send generation requests and receive responses",
+          "dependencies": [
+            1
+          ],
+          "details": "Develop the service layer that handles the HTTP communication with n8n's AI endpoints, including request formatting and response parsing",
+          "status": "pending",
+          "testStrategy": ""
+        },
+        {
+          "id": 3,
+          "title": "Develop Knowledge Point Data Conversion Module",
+          "description": "Transform AI-generated content into the KnowledgePoint model data structure",
+          "dependencies": [
+            2
+          ],
+          "details": "Create data transformation logic that maps the AI service response to the application's internal knowledge point representation",
+          "status": "pending",
+          "testStrategy": ""
+        },
+        {
+          "id": 4,
+          "title": "Implement Course Generation Controller",
+          "description": "Integrate all components to provide complete course content generation functionality",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "Build the main controller that orchestrates the API interface, AI service call, and data transformation to deliver the complete feature",
+          "status": "pending",
+          "testStrategy": ""
+        },
+        {
+          "id": 5,
+          "title": "Develop API Testing and Validation",
+          "description": "Create test cases and validation logic to ensure API functionality and proper error handling",
+          "dependencies": [
+            4
+          ],
+          "details": "Implement unit tests, integration tests, and validation checks for all possible scenarios including edge cases and error conditions",
+          "status": "pending",
+          "testStrategy": ""
+        }
+      ]
     },
     {
       "id": 8,
@@ -427,5 +483,10 @@
       "testStrategy": "Measure performance improvements with benchmarks. Verify caching and query optimization.",
       "subtasks": []
     }
-  ]
+  ],
+  "metadata": {
+    "created": "2025-06-30T10:05:21.832Z",
+    "updated": "2025-06-30T10:05:21.832Z",
+    "description": "Tasks for master context"
+  }
 }
