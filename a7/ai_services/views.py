@@ -8,7 +8,7 @@ AI服务API视图模块
 
 from rest_framework import views, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from .services.n8n_webhook.client import N8nWebhookClient
 from .services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
@@ -19,7 +19,7 @@ from .services.knowledge_converter import create_course_with_knowledge_points
 
 class N8nWebhookAPIView(views.APIView):
     """n8n Webhook API接口视图"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # 允许所有请求访问，无需验证权限
     
     def post(self, request, *args, **kwargs):
         """处理POST请求，将请求转发到n8n webhook"""

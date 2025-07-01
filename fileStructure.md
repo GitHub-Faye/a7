@@ -143,7 +143,7 @@ a7/                           # 项目根目录
 
 - **a7/a7/__init__.py**: Python包标识文件，表明该目录是一个Python包。
 - **a7/a7/asgi.py**: ASGI（异步服务器网关接口）应用配置，用于异步服务器部署。
-- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（JWT和会话认证）、权限控制、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤、版本控制、JSON格式和时间格式等全局设置。
+- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（会话认证，JWT令牌认证已禁用）、权限控制（已设置为AllowAny允许所有访问）、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤、版本控制、JSON格式和时间格式等全局设置。
 - **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。
 - **a7/a7/wsgi.py**: WSGI（Web服务器网关接口）应用配置，用于传统Web服务器部署。
 - **a7/manage.py**: Django命令行工具，用于执行各种管理任务，如运行开发服务器、数据库迁移等。
@@ -164,7 +164,7 @@ a7/                           # 项目根目录
 
 - **a7/apps/core/middleware/request_logging_middleware.py**: 请求日志中间件，负责记录API请求信息，包括请求方法、路径、状态码和响应时间。支持排除特定路径，避免记录静态文件等不必要的请求。
 - **a7/apps/core/middleware/request_processor_middleware.py**: 请求处理中间件，负责验证请求内容、添加安全响应头和限制请求大小。实现了请求大小限制检查、JSON格式验证和API响应标准化。
-- **a7/users/middleware/jwt_auth_middleware.py**: JWT认证中间件，负责验证JWT令牌、记录认证过程和处理无效令牌情况。支持自定义错误响应和认证日志记录，提高API安全性。
+- **a7/users/middleware/jwt_auth_middleware.py**: JWT认证中间件（已禁用），原本负责验证JWT令牌、记录认证过程和处理无效令牌情况。
 
 ### 用户管理应用文件
 
@@ -172,9 +172,9 @@ a7/                           # 项目根目录
 - **a7/users/admin.py**: Django Admin后台配置，定义用户和角色模型在管理界面的展示方式和操作功能。
 - **a7/users/apps.py**: 应用配置文件，包含应用元数据和启动逻辑。
 - **a7/users/models.py**: 模型定义，包含扩展的User模型和Role模型，实现基于角色的用户模型和权限系统。
-- **a7/users/permissions.py**: 自定义权限类，定义基于角色和功能的权限类，如IsAdmin、IsTeacher、IsAdminOrTeacher等。
+- **a7/users/permissions.py**: 自定义权限类，定义基于角色和功能的权限类，如IsAdmin、IsTeacher、IsAdminOrTeacher等。新增AllowAll权限类，允许所有请求访问，无需验证权限。
 - **a7/users/permission_utils.py**: 权限工具函数，提供权限分配、管理和同步功能，实现基于角色的权限自动分配。
-- **a7/users/middleware/jwt_auth_middleware.py**: JWT认证中间件，负责验证JWT令牌、记录认证过程和处理无效令牌情况。
+- **a7/users/middleware/jwt_auth_middleware.py**: JWT认证中间件（已禁用），原本负责验证JWT令牌、记录认证过程和处理无效令牌情况。
 - **a7/users/signals.py**: 信号处理器，包含用户创建时自动生成令牌和分配权限的逻辑，以及角色和权限变更的处理。
 - **a7/users/tests/test_jwt_middleware.py**: JWT中间件测试文件，包含对JWTAuthMiddleware的单元测试，验证令牌验证、过期令牌处理和认证日志记录功能。
 - **a7/users/urls.py**: URL路由配置，定义用户API端点，包括用户管理、角色管理、登录和登出端点。
@@ -188,15 +188,15 @@ a7/                           # 项目根目录
 - **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
 - **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
-- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）和CourseUpdateSerializer（更新）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。
+- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
-- **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`和`CoursewareViewSet`，并为`CourseContentGenerationView`定义了专门的路由。
-- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`和`CourseContentGenerationView`视图，实现课程、知识点、课件的CRUD操作和AI内容生成功能。
+- **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`和`CourseContentGenerationViewSet`。
+- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`和`CourseContentGenerationViewSet`视图集，实现课程、知识点、课件的CRUD操作和AI内容生成功能。
 - **a7/courses/validations.py**: 通用验证工具类，提供了字段验证（validate_text_field）、对象存在性验证（validate_existence）和唯一性验证（validate_uniqueness）等方法，为序列化器提供复用的验证逻辑。
 - **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
 - **a7/courses/tests_api.py**: 课程API测试文件，包含API接口的功能测试，验证权限控制、CRUD操作和自定义操作的正确性，包括KnowledgePointAPITests测试类，验证知识点API的功能完整性和权限控制。
-- **a7/courses/tests_api_new.py**: 课程内容管理API的全面测试套件，包含CourseAPITests（验证课程CRUD和权限控制）、KnowledgePointAPITests（测试知识点层级结构和循环引用防护）和CoursewareAPITests（测试课件管理功能）三个主要测试类。共实现42个全面测试用例，验证不同用户角色（管理员、教师、学生）的权限控制、所有API端点的功能完整性以及特殊操作如my_courses、top_level、children和by_course等。测试包含边界情况处理、数据验证和错误响应。
+- **a7/courses/tests_api_new.py**: 课程内容管理API的全面测试套件，包含CourseAPITests（验证课程CRUD和权限控制）、KnowledgePointAPITests（测试知识点层级结构和循环引用防护）、CoursewareAPITests（测试课件管理功能）和CourseContentGenerationAPITests（测试AI内容生成）四个主要测试类。共实现42个全面测试用例，验证不同用户角色（管理员、教师、学生）的权限控制、所有API端点的功能完整性以及特殊操作如my_courses、top_level、children和by_course等。测试包含边界情况处理、数据验证和错误响应。
 - **a7/courses/tests_validation.py**: 验证逻辑测试文件，包含对课程、知识点和课件API的验证逻辑测试，验证字段验证、唯一性检查、关系完整性（如循环引用检测）等验证功能的正确性。测试不同场景下的验证行为，确保数据一致性和业务规则的强制执行。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 
@@ -299,9 +299,8 @@ a7/                           # 项目根目录
 
 2. **用户认证与授权系统**:
    - `a7/users/models.py`定义自定义User模型和Role模型，是系统权限设计的基础，实现基于角色的用户模型和权限系统。
-   - `a7/users/permissions.py`实现细粒度的权限控制系统，包含多种基于角色和功能的权限类。
-   - `a7/users/permission_utils.py`提供权限工具函数，实现权限的自动分配、管理和同步。
-   - `a7/users/middleware/jwt_auth_middleware.py`实现JWT认证中间件，提供令牌验证、认证日志记录和自定义错误响应，是整个认证系统的关键环节。
+   - `a7/users/permissions.py`实现细粒度的权限控制系统，包含多种基于角色和功能的权限类，但目前系统已添加并启用了`AllowAll`权限类，允许所有请求无需验证即可访问。
+   - `a7/users/middleware/jwt_auth_middleware.py`实现JWT认证中间件，但目前已在settings.py中禁用，不再对请求进行令牌验证。
    - `a7/users/signals.py`处理用户创建、角色变更和权限同步的信号，确保权限系统的一致性。
    - `a7/users/management/commands/init_roles.py`提供管理命令初始化角色和权限数据。
    - `a7/users/management/commands/sync_roles.py`提供管理命令同步用户角色和权限数据，修复数据不一致问题。
@@ -311,7 +310,7 @@ a7/                           # 项目根目录
    - `a7/a7/urls.py`定义顶级URL路由，集成JWT认证端点(`/api/token/`, `/api/token/refresh/`, `/api/token/verify/`, `/api/token/blacklist/`)以及各应用的URL配置。
    - `a7/a7/settings.py`中的`AUTH_USER_MODEL`设置指向自定义User模型，还包含MIDDLEWARE配置中的权限中间件和日志配置。
    - `a7/a7/settings.py`中的`SIMPLE_JWT`配置定义JWT令牌的行为，包括黑名单和令牌轮换设置。
-   - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置与JWT认证和权限系统集成，通过`DEFAULT_AUTHENTICATION_CLASSES`和`DEFAULT_PERMISSION_CLASSES`确保API端点的安全访问。
+   - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置已修改，`DEFAULT_AUTHENTICATION_CLASSES`移除了JWT认证，`DEFAULT_PERMISSION_CLASSES`设置为`AllowAny`，允许所有请求无需认证即可访问API。
    - `a7/users/tests.py`提供认证和权限功能的自动化测试，确保系统按预期工作。
    - `test_html/auth_test.html`和`test_html/permissions_test.html`提供基于浏览器的手动测试界面，验证API交互。
    - `permission.log`记录权限中间件的访问检查日志，帮助调试和监控权限系统。
@@ -321,8 +320,8 @@ a7/                           # 项目根目录
    - `a7/courses/admin.py`配置课程相关模型在Django Admin中的展示和操作方式。
    - `a7/courses/tests.py`提供课程模型的自动化测试，验证课程内容管理功能的正确性，以及练习题、学生答案和学习记录的功能测试。
    - `a7/courses/serializers.py`定义序列化器，将课程和知识点模型转换为JSON格式以支持API接口，包括课程相关的序列化器实现自动设置当前用户为教师，知识点序列化器实现层级结构的展示和验证（包括防止循环引用和跨课程引用）。
-   - `a7/courses/permissions.py`定义权限类，实现基于角色和所有权的访问控制，确保只有教师和管理员可以创建课程和知识点，只有课程/知识点创建者和管理员可以修改或删除它们。
-   - `a7/courses/views.py`实现CourseViewSet和KnowledgePointViewSet视图集，提供完整的CRUD API功能和自定义接口(如my_courses, top_level, children)，使用权限类控制访问，根据不同操作类型动态选择序列化器，支持丰富的筛选功能。
+   - `a7/courses/permissions.py`定义权限类，实现基于角色和所有权的访问控制，但当前项目已配置为使用`AllowAll`权限类，忽略这些权限限制。
+   - `a7/courses/views.py`实现CourseViewSet和KnowledgePointViewSet视图集，所有视图的permission_classes已设置为[AllowAll]，允许无需认证即可访问所有API端点，get_permissions方法已被移除或注释。
    - `a7/courses/validations.py`提供重用的验证逻辑，如字段验证、对象存在性验证和唯一性验证，为序列化器提供标准化的验证方法，确保API输入数据有效性。
    - `a7/courses/utils.py`包含请求参数验证函数，用于验证必需参数是否存在，确保API收到所需的输入数据，提高API健壮性和用户体验。
    - `a7/courses/tests_validation.py`提供对验证逻辑的专门测试，验证字段验证、唯一性检查、关系完整性验证等功能的正确性，确保数据一致性和业务规则的强制执行。
@@ -386,9 +385,9 @@ a7/                           # 项目根目录
     - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有模型关系、外键、反向查询和级联删除行为，包括教师删除对课程的影响、课程删除对知识点的级联删除等。
 
 11. **REST Framework API系统**:
-    - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置定义全局API行为和标准。
-    - DRF配置与用户认证系统无缝集成，提供JWT令牌和会话认证支持。
-    - `a7/users/middleware/jwt_auth_middleware.py`与DRF认证类协同工作，实现无缝的令牌验证和用户身份识别。
+    - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置已修改，`DEFAULT_AUTHENTICATION_CLASSES`移除了JWT认证，`DEFAULT_PERMISSION_CLASSES`设置为`AllowAny`。
+    - DRF配置与用户认证系统的集成已禁用，所有API端点均允许无需认证即可访问。
+    - `a7/users/middleware/jwt_auth_middleware.py`已在settings.py中禁用，不再对请求进行令牌验证。
     - `a7/apps/core/middleware/request_processor_middleware.py`确保API响应格式标准化，添加安全响应头，提高API交互的一致性和安全性。
     - `a7/apps/core/middleware/request_logging_middleware.py`记录API调用信息，为性能优化和问题诊断提供数据支持。
     - 分页配置确保大型数据集的高效处理，防止返回过多数据导致性能问题。
@@ -404,7 +403,7 @@ a7/                           # 项目根目录
 
 12. **API监控与日志系统**:
     - `a7/apps/core/middleware/request_logging_middleware.py`实现API请求监控，记录请求方法、路径、状态码和处理时间。
-    - `a7/users/middleware/jwt_auth_middleware.py`记录认证过程，包括成功认证和失败尝试。
+    - `a7/users/middleware/jwt_auth_middleware.py`原本记录认证过程，但目前已禁用。
     - `request.log`存储API请求日志，提供系统调用情况的完整记录。
     - `jwt_auth.log`存储认证日志，记录用户认证活动，有助于安全审计和问题排查。
     - `a7/a7/settings.py`中的`LOGGING`配置定义了日志记录的格式、级别和目标，实现灵活的日志管理。
@@ -429,7 +428,7 @@ a7/                           # 项目根目录
     - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。
     - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
     - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。
-    - `a7/ai_services/views.py`中的N8nWebhookAPIView处理API请求，调用客户端进行任务处理，并在接收到课程生成响应后，调用`a7/ai_services/services/knowledge_converter.py`将结果持久化。
+    - `a7/ai_services/views.py`中的N8nWebhookAPIView权限类已设置为[AllowAny]，允许无需认证即可访问。
     - `a7/ai_services/services/knowledge_converter.py`负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
     - `a7/ai_services/urls.py`将API视图与URL路径映射。
     - WebhookConfig模型与WebhookCallLog模型通过外键关联，记录每次调用的详细信息。
@@ -496,8 +495,8 @@ a7/                           # 项目根目录
 项目已配置以下API结构：
 
 1. **REST Framework全局配置**:
-   - **认证配置**: 使用JWT令牌认证和会话认证（支持API浏览器）
-   - **权限配置**: 默认要求用户身份验证
+   - **认证配置**: 使用会话认证（支持API浏览器），JWT令牌认证已禁用
+   - **权限配置**: 设置为AllowAny，允许所有请求访问，无需任何认证
    - **分页配置**: 使用页码分页，默认每页20条数据
    - **渲染器配置**: 支持JSON和可浏览API格式输出
    - **解析器配置**: 支持JSON、表单数据和多部分表单数据（含文件上传）输入
@@ -543,7 +542,7 @@ a7/                           # 项目根目录
    - `/api/courseware/` - 课件列表和创建（支持分页、搜索和按课程筛选）
    - `/api/courseware/<id>/` - 课件详情、更新和删除
    - `/api/courseware/by_course/` - 获取指定课程的所有课件
-   - `/api/courses/generate-content/` - 使用AI生成课程内容的端点
+   - `/api/course-generate/` - 使用AI生成课程内容的端点
    - 所有端点实现权限控制，确保只有教师和管理员可以创建课程和知识点，只有课程/知识点创建者和管理员可以修改或删除
    - 所有端点包含全面的验证逻辑，确保数据一致性、有效性和适当的错误处理
    - 所有端点返回标准化的响应格式，包含状态码、成功标志和数据

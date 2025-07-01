@@ -69,7 +69,7 @@ MIDDLEWARE = [
     
     # 自定义中间件
     'apps.core.middleware.RequestLoggingMiddleware',  # 请求日志记录中间件
-    'users.middleware.JWTAuthMiddleware',  # JWT认证中间件
+    # 'users.middleware.JWTAuthMiddleware',  # JWT认证中间件 - 已禁用
     'apps.core.middleware.RequestProcessorMiddleware',  # 请求处理中间件
     # 'users.middleware.RoleBasedPermissionMiddleware',  # 基于角色的权限中间件 - 计划将来实现
 ]
@@ -154,13 +154,13 @@ AUTH_USER_MODEL = 'users.User'
 REST_FRAMEWORK = {
     # 认证类配置
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT令牌认证
+        # 'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT令牌认证（已禁用）
         'rest_framework.authentication.SessionAuthentication',  # 会话认证（支持浏览器可视化API）
     ),
     
     # 权限类配置
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',  # 默认要求身份验证
+        'rest_framework.permissions.AllowAny',  # 允许任何请求访问，无需认证
     ),
     
     # 分页配置

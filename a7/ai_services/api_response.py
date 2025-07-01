@@ -14,6 +14,7 @@ def create_api_response(
     error_code: Optional[str] = None,
     message: Optional[str] = None,
     status_code: int = 200,
+    errors: Any = None,
     **kwargs: Any
 ) -> Response:
     """
@@ -25,6 +26,7 @@ def create_api_response(
         error_code: 错误码（失败时）
         message: 响应消息
         status_code: HTTP状态码
+        errors: 详细错误信息（失败时）
         **kwargs: 其他要包含在响应中的任意数据
         
     Returns:
@@ -44,6 +46,11 @@ def create_api_response(
             "code": error_code,
             "message": message,
         }
+        # 添加详细错误信息
+        if errors:
+            response_body["error"]["details"] = errors
+        # 直接添加error_code到顶层，以便与测试兼容
+        response_body["error_code"] = error_code
     
     # 添加其他任意数据
     response_body.update(kwargs)

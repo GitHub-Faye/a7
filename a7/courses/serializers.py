@@ -4,6 +4,15 @@ from users.models import User
 from .validations import ValidationUtils
 from django.utils.translation import gettext_lazy as _
 
+class CourseGenerationSerializer(serializers.Serializer):
+    """课程内容生成请求的序列化器"""
+    course_name = serializers.CharField(max_length=100)
+    chapter_count = serializers.IntegerField(min_value=1, max_value=20)
+    course_description = serializers.CharField()
+    subject = serializers.CharField(max_length=50)
+    grade_level = serializers.CharField(max_length=20)
+    additional_requirements = serializers.CharField(required=False, allow_blank=True)
+
 class CourseSerializer(serializers.ModelSerializer):
     """课程序列化器，用于读取课程信息"""
     

@@ -5,6 +5,9 @@ from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 from .models import Course, KnowledgePoint, Courseware
 import json
+from unittest.mock import patch
+from users.models import User, Role
+from ai_services.services.n8n_webhook.exceptions import N8nWebhookError
 
 def print_debug(response_data, title="Debug Response"):
     """打印调试信息"""
@@ -885,4 +888,135 @@ class CoursewareAPITests(CourseAPIBaseTestCase):
         response = self.client.post(url, data, format='json')
         
         # 实际情况断言
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN) 
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class CourseContentGenerationAPITests(APITestCase):
+    """测试课程内容生成API"""
+    
+    def setUp(self):
+        # 创建教师角色和用户
+        self.teacher_role = Role.objects.create(name='teacher')
+        self.teacher = User.objects.create_user(
+            username='teacher1', 
+            password='password123',
+            email='teacher1@example.com',
+            role='teacher'  # 直接设置role字段
+        )
+        self.teacher.role_obj = self.teacher_role
+        self.teacher.save()
+        
+        # 创建学生角色和用户
+        self.student_role = Role.objects.create(name='student')
+        self.student = User.objects.create_user(
+            username='student1', 
+            password='password123',
+            email='student1@example.com',
+            role='student'  # 直接设置role字段
+        )
+        self.student.role_obj = self.student_role
+        self.student.save()
+        
+        # API端点 - 修正为正确的URL名称
+        self.url = reverse('course-generate-list')
+        
+        # 有效的请求数据
+        self.valid_data = {
+            'course_name': 'Python编程基础',
+            'chapter_count': 5,
+            'course_description': '入门级Python编程课程，涵盖基础语法和简单应用',
+            'subject': '计算机科学',
+            'grade_level': '大学一年级',
+            'additional_requirements': '包含实践练习'
+        }
+    
+    @patch('ai_services.services.n8n_webhook.client.N8nWebhookClient.process_ai_task_sync')
+    def test_generate_course_content_success(self, mock_process):
+        """测试成功生成课程内容"""
+        # 模拟AI服务响应
+        mock_response = {
+            'course': {
+                'title': 'Python编程基础',
+                'description': '入门级Python编程课程，涵盖基础语法和简单应用',
+                'subject': '计算机科学',
+                'grade_level': '大学一年级'
+            },
+            'knowledge_points': [
+                {
+                    'title': '第一章：Python简介',
+                    'content': 'Python的历史和特点',
+                    'importance': 8,
+                    'children': [
+                        {
+                            'title': 'Python的历史',
+                            'content': 'Python的发展历程',
+                            'importance': 5
+                        }
+                    ]
+                }
+            ]
+        }
+        mock_process.return_value = mock_response
+        
+        # 登录教师用户
+        self.client.login(username='teacher1', password='password123')
+        
+        # 发送请求
+        response = self.client.post(self.url, self.valid_data, format='json')
+        
+        # 打印响应内容，用于调试
+        print("\n=== Response Content ===")
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Data: {response.data}")
+        print("=" * 50)
+        
+        # 验证响应
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['message'], '课程内容生成成功')
+        
+        # 验证调用参数
+        mock_process.assert_called_once_with('courseGeneration', self.valid_data)
+        
+        # 验证数据库记录
+        self.assertEqual(Course.objects.count(), 1)
+        course = Course.objects.first()
+        self.assertEqual(course.title, 'Python编程基础')
+        self.assertEqual(course.teacher, self.teacher)
+        
+        # 验证知识点创建
+        self.assertEqual(KnowledgePoint.objects.count(), 2)  # 1个父知识点和1个子知识点
+    
+    def test_generate_course_content_invalid_data(self):
+        """测试无效数据的处理"""
+        # 登录教师用户
+        self.client.login(username='teacher1', password='password123')
+        
+        # 发送缺少必要字段的请求
+        invalid_data = {
+            'course_name': 'Python编程基础',
+            # 缺少chapter_count和其他必要字段
+        }
+        response = self.client.post(self.url, invalid_data, format='json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response.data['success'])
+        self.assertEqual(response.data['error_code'], 'VALIDATION_ERROR')
+        
+    @patch('ai_services.services.n8n_webhook.client.N8nWebhookClient.process_ai_task_sync')
+    def test_generate_course_content_ai_service_error(self, mock_process):
+        """测试AI服务错误的处理"""
+        # 模拟AI服务错误
+        mock_process.side_effect = N8nWebhookError("AI服务暂时不可用")
+        
+        # 登录教师用户
+        self.client.login(username='teacher1', password='password123')
+        
+        # 发送请求
+        response = self.client.post(self.url, self.valid_data, format='json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertFalse(response.data['success'])
+        self.assertEqual(response.data['error_code'], 'AI_SERVICE_ERROR') 

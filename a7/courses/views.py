@@ -291,9 +291,9 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         return Response({"success": True, "data": serializer.data})
 
 
-class CourseContentGenerationView(APIView):
+class CourseContentGenerationViewSet(viewsets.ViewSet):
     """
-    通过AI生成课程内容的API视图
+    通过AI生成课程内容的API视图集
     """
     permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
 
@@ -314,68 +314,95 @@ class CourseContentGenerationView(APIView):
     @swagger_auto_schema(
         operation_summary="使用AI生成课程内容",
         operation_description="提供课程主题和要求，调用AI服务生成完整的课程大纲和知识点结构",
-        request_body=CourseCreateSerializer, # 这里可以后面定义一个更精确的序列化器
+        request_body=CourseGenerationSerializer,
         responses={
             201: CourseSerializer,
             400: "错误的请求",
             500: "服务器内部错误"
         }
     )
-    def post(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         """
         处理课程内容生成请求
         """
+        # 添加调试日志
+        print(f"\n=== Debug CourseContentGenerationViewSet ===")
+        print(f"Request data: {request.data}")
+        
         # 1. 验证请求参数
-        required_params = ['course_name', 'chapter_count', 'course_description', 'subject', 'grade_level']
-        missing_params = [param for param in required_params if param not in request.data]
-        if missing_params:
+        serializer = CourseGenerationSerializer(data=request.data)
+        if not serializer.is_valid():
+            print(f"Serializer errors: {serializer.errors}")
             return create_api_response(
                 success=False,
-                error_code="MISSING_PARAMETERS",
-                message=f"缺少必要参数: {', '.join(missing_params)}",
+                error_code="VALIDATION_ERROR",
+                message="请求参数验证失败",
+                errors=serializer.errors,
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         
-        task_data = {
-            "course_name": request.data.get('course_name'),
-            "chapter_count": request.data.get('chapter_count'),
-            "course_description": request.data.get('course_description'),
-            "subject": request.data.get('subject'),
-            "grade_level": request.data.get('grade_level'),
-            "additional_requirements": request.data.get('additional_requirements', '')
-        }
-
+        # 2. 准备请求数据
+        task_data = serializer.validated_data
+        print(f"Validated data: {task_data}")
+        
         try:
-            # 2. 调用AI服务生成内容
-            client = N8nWebhookClient()
-            ai_response = client.process_ai_task_sync('courseGeneration', task_data)
-
-            # 3. 在数据库事务中创建课程和知识点
-            with transaction.atomic():
-                # 创建课程
-                course_info = ai_response['course']
-                new_course = Course.objects.create(
-                    title=course_info['title'],
-                    description=course_info['description'],
-                    subject=course_info['subject'],
-                    grade_level=course_info['grade_level'],
-                    teacher=request.user
-                )
-
-                # 递归创建知识点
-                for kp_data in ai_response['knowledge_points']:
-                    self._create_knowledge_points_recursive(new_course, None, kp_data)
+            # 3. 调用AI服务生成内容 - 使用通用的process_ai_task_sync方法
+            # 在测试环境中使用提供的URL
+            webhook_config = None
+            if 'test' in request.META.get('SERVER_NAME', ''):
+                webhook_config = {
+                    'url': 'http://localhost:5678/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d'
+                }
             
-            # 4. 返回成功创建的课程信息
-            serializer = CourseSerializer(new_course)
+            client = N8nWebhookClient(webhook_config=webhook_config)
+            ai_response = client.process_ai_task_sync('courseGeneration', task_data)
+            print(f"AI response received: {type(ai_response)}")
+            
+            # 4. 使用转换器创建课程和知识点
+            from ai_services.services.knowledge_converter import create_course_with_knowledge_points
+            new_course = create_course_with_knowledge_points(ai_response, request.user)
+            print(f"Course created: {new_course.id}")
+            
+            # 5. 返回成功创建的课程信息
+            course_serializer = CourseSerializer(new_course)
             return create_api_response(
                 success=True,
-                data=serializer.data,
+                data=course_serializer.data,
                 message="课程内容生成成功",
                 status_code=status.HTTP_201_CREATED
             )
-
-        except (N8nWebhookError, N8nInvalidRequestError) as e:
+        
+        except ValueError as e:
+            # 特殊处理N8nWebhookClient初始化时的配置错误
+            if "未提供n8n Webhook URL" in str(e):
+                print(f"N8n配置错误: {str(e)}")
+                return create_api_response(
+                    success=False,
+                    error_code="CONFIG_ERROR",
+                    message="N8n服务配置错误",
+                    errors=[str(e)],
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            # 其他ValueError继续作为数据转换错误处理
+            print(f"ValueError: {str(e)}")
+            return create_api_response(
+                success=False,
+                error_code="DATA_CONVERSION_ERROR",
+                message=f"数据转换失败: {str(e)}",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+            
+        except N8nInvalidRequestError as e:
+            print(f"N8nInvalidRequestError: {str(e)}")
+            return create_api_response(
+                success=False,
+                error_code="INVALID_REQUEST",
+                message=f"请求格式无效: {str(e)}",
+                errors=getattr(e, 'validation_errors', None),
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except N8nWebhookError as e:
+            print(f"N8nWebhookError: {str(e)}")
             return create_api_response(
                 success=False,
                 error_code="AI_SERVICE_ERROR",
@@ -383,6 +410,9 @@ class CourseContentGenerationView(APIView):
                 status_code=getattr(e, 'status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
             )
         except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return create_api_response(
                 success=False,
                 error_code="INTERNAL_SERVER_ERROR",

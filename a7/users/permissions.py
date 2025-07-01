@@ -1,6 +1,18 @@
 from rest_framework import permissions
 
 
+class AllowAll(permissions.BasePermission):
+    """
+    允许所有请求访问，无需验证权限
+    """
+    
+    def has_permission(self, request, view):
+        return True
+        
+    def has_object_permission(self, request, view, obj):
+        return True
+
+
 class IsAdminOrReadOnly(permissions.BasePermission):
     """
     只允许管理员执行写操作，其他用户只能读

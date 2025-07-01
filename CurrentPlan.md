@@ -1,106 +1,182 @@
-# 任务7.3 - 知识点数据转换模块开发计划
 
-## 任务概述
-任务7.3的目标是开发一个知识点数据转换模块，将AI服务生成的内容转换为应用程序内部的知识点模型数据结构。这是课程内容生成流程的关键组成部分，位于获取AI响应和将结果持久化到数据库之间。
+from ai_services.services.n8n_webhook.client import N8nWebhookClient
+from ai_services.services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
+from ai_services.services.knowledge_converter import create_course_with_knowledge_points
+from ai_services.api_response import create_api_response
+```
 
-## 当前状态分析
-通过代码审查，发现现有实现已经包含了以下组件：
+### 4. 编写单元测试
 
-1. `knowledge_converter.py` - 包含将AI响应转换为知识点模型的函数
-2. 相应的测试文件 `test_knowledge_converter.py`
-3. 在 `formats.py` 中定义的数据模型
-4. 在 `CourseContentGenerationView` 视图中使用的转换逻辑
+在`a7/courses/tests_api_new.py`中添加对`CourseContentGenerationView`的测试：
 
-当前代码实现了基本的转换功能，但存在以下问题：
+```python
+# a7/courses/tests_api_new.py
+from unittest.mock import patch
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+from users.models import User, Role
+from .models import Course, KnowledgePoint
 
-- 缺少对复杂知识点层级结构的全面处理
-- 缺少数据验证和错误处理机制
-- 没有支持批量操作
-- 没有完整集成到API流程中
+class CourseContentGenerationAPITests(APITestCase):
+    """测试课程内容生成API"""
+    
+    def setUp(self):
+        # 创建教师角色和用户
+        self.teacher_role = Role.objects.create(name='teacher')
+        self.teacher = User.objects.create_user(
+            username='teacher1', 
+            password='password123',
+            email='teacher1@example.com'
+        )
+        self.teacher.roles.add(self.teacher_role)
+        
+        # 创建学生角色和用户
+        self.student_role = Role.objects.create(name='student')
+        self.student = User.objects.create_user(
+            username='student1', 
+            password='password123',
+            email='student1@example.com'
+        )
+        self.student.roles.add(self.student_role)
+        
+        # API端点
+        self.url = reverse('course-generate-content')
+        
+        # 有效的请求数据
+        self.valid_data = {
+            'course_name': 'Python编程基础',
+            'chapter_count': 5,
+            'course_description': '入门级Python编程课程，涵盖基础语法和简单应用',
+            'subject': '计算机科学',
+            'grade_level': '大学一年级',
+            'additional_requirements': '包含实践练习'
+        }
+    
+    @patch('ai_services.services.n8n_webhook.client.N8nWebhookClient.process_ai_task_sync')
+    def test_generate_course_content_success(self, mock_process):
+        """测试成功生成课程内容"""
+        # 模拟AI服务响应
+        mock_response = {
+            'course': {
+                'title': 'Python编程基础',
+                'description': '入门级Python编程课程，涵盖基础语法和简单应用',
+                'subject': '计算机科学',
+                'grade_level': '大学一年级'
+            },
+            'knowledge_points': [
+                {
+                    'title': '第一章：Python简介',
+                    'content': 'Python的历史和特点',
+                    'importance': 8,
+                    'children': [
+                        {
+                            'title': 'Python的历史',
+                            'content': 'Python的发展历程',
+                            'importance': 5
+                        }
+                    ]
+                }
+            ]
+        }
+        mock_process.return_value = mock_response
+        
+        # 登录教师用户
+        self.client.login(username='teacher1', password='password123')
+        
+        # 发送请求
+        response = self.client.post(self.url, self.valid_data, format='json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['message'], '课程内容生成成功')
+        
+        # 验证调用参数
+        mock_process.assert_called_once_with('courseGeneration', self.valid_data)
+        
+        # 验证数据库记录
+        self.assertEqual(Course.objects.count(), 1)
+        course = Course.objects.first()
+        self.assertEqual(course.title, 'Python编程基础')
+        self.assertEqual(course.teacher, self.teacher)
+        
+        # 验证知识点创建
+        self.assertEqual(KnowledgePoint.objects.count(), 2)  # 1个父知识点和1个子知识点
+        
+    def test_generate_course_content_unauthorized(self):
+        """测试未授权用户无法生成课程内容"""
+        # 使用学生用户登录
+        self.client.login(username='student1', password='password123')
+        
+        # 发送请求
+        response = self.client.post(self.url, self.valid_data, format='json')
+        
+        # 验证响应（应该被拒绝）
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+    def test_generate_course_content_invalid_data(self):
+        """测试无效数据的处理"""
+        # 登录教师用户
+        self.client.login(username='teacher1', password='password123')
+        
+        # 发送缺少必要字段的请求
+        invalid_data = {
+            'course_name': 'Python编程基础',
+            # 缺少chapter_count和其他必要字段
+        }
+        response = self.client.post(self.url, invalid_data, format='json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response.data['success'])
+        self.assertEqual(response.data['error_code'], 'VALIDATION_ERROR')
+        
+    @patch('ai_services.services.n8n_webhook.client.N8nWebhookClient.process_ai_task_sync')
+    def test_generate_course_content_ai_service_error(self, mock_process):
+        """测试AI服务错误的处理"""
+        # 模拟AI服务错误
+        mock_process.side_effect = N8nWebhookError("AI服务暂时不可用")
+        
+        # 登录教师用户
+        self.client.login(username='teacher1', password='password123')
+        
+        # 发送请求
+        response = self.client.post(self.url, self.valid_data, format='json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertFalse(response.data['success'])
+        self.assertEqual(response.data['error_code'], 'AI_SERVICE_ERROR')
+```
 
-## 开发计划
+## 测试计划
 
-### 1. 增强 knowledge_converter.py
+1. **单元测试**：
+   - 实现上述`CourseContentGenerationAPITests`测试类
+   - 测试成功场景、未授权访问、无效数据和AI服务错误情况
 
-#### 功能扩展：
-- 优化递归算法，支持更深层级的知识点结构
-- 添加数据清理和标准化函数
-- 实现批量处理功能，提高性能
-- 增加错误处理和日志记录
+2. **集成测试**：
+   - 测试与真实n8n服务的集成（可选，依赖于n8n服务的可用性）
+   - 测试完整的课程生成流程，从API请求到数据库存储
 
-#### 具体代码修改：
-- 重构 `_create_knowledge_point` 函数，添加深度限制和更好的错误处理
-- 添加数据验证函数，确保知识点结构完整性
-- 实现批量知识点创建功能，提高大型课程结构的处理效率
-- 增加事务回滚机制，确保数据一致性
+3. **手动测试**：
+   - 使用Swagger UI或Postman发送请求到`/api/courses/generate-content/`端点
+   - 验证生成的课程和知识点在数据库中正确创建
+   - 测试各种错误情况的响应
 
-### 2. 改进数据验证
+## 实施步骤
 
-- 增强 `convert_ai_response_to_knowledge_points` 函数，添加参数验证
-- 在处理前验证AI响应数据的结构和内容
-- 实现对知识点字段的清理和规范化
+1. 在`a7/courses/serializers.py`中添加`CourseGenerationSerializer`
+2. 更新`a7/courses/views.py`中的导入语句
+3. 重构`CourseContentGenerationView`视图
+4. 添加单元测试
+5. 运行测试验证功能
+6. 手动测试API端点
 
-### 3. 优化事务处理
+## 注意事项
 
-- 完善 `create_course_with_knowledge_points` 函数的事务管理
-- 添加回滚策略，处理部分失败场景
-- 实现中间状态记录，支持恢复操作
-
-### 4. 测试扩展
-
-- 增加边界条件测试：空数据、极大数据、错误格式数据
-- 添加性能测试，确保大量知识点场景下的稳定性
-- 模拟数据库错误场景，测试事务回滚机制
-
-### 5. 文档完善
-
-- 添加详细代码注释
-- 更新类和函数的文档字符串
-- 补充README或开发文档，说明模块用途和用法
-
-## 实现时间表
-
-1. 代码分析和设计：1天
-2. 基本功能实现：2天
-3. 测试和调试：1天
-4. 文档完善：0.5天
-5. 代码审查和修改：0.5天
-
-总计：约5天工作时间
-
-## 技术考量
-
-- 使用递归算法处理层级结构时需注意堆栈溢出风险，应考虑设置最大深度限制
-- 大型知识点树的处理可能影响性能，应考虑批量操作和缓存策略
-- 事务管理需特别注意，确保在错误情况下能完整回滚，避免数据不一致
-
-## 测试策略
-
-1. 单元测试：
-   - 测试各项核心函数的正确性
-   - 验证边界条件和异常处理
-
-2. 集成测试：
-   - 测试与AI服务和数据库的完整交互流程
-   - 验证事务管理和错误恢复机制
-
-3. 性能测试：
-   - 使用大型课程结构进行负载测试
-   - 验证批量操作的效率
-
-## 依赖项
-
-- Django ORM
-- `formats.py` 中定义的Pydantic数据模型
-- N8nWebhookClient 用于获取AI服务数据
-
-## 风险和缓解策略
-
-1. **风险**：处理大型复杂课程结构可能导致性能问题
-   **缓解**：实现批量操作和适当的查询优化
-
-2. **风险**：AI服务可能返回格式不符合预期的数据
-   **缓解**：增强输入验证和错误处理机制
-
-3. **风险**：复杂事务可能导致死锁或超时
-   **缓解**：优化事务范围，添加超时处理和重试逻辑
+1. 确保事务管理正确，避免部分成功导致数据不一致
+2. 提供详细的错误信息，便于调试和用户理解
+3. 限制章节数量，避免过大的请求导致性能问题
+4. 考虑添加异步处理选项，处理可能的长时间运行任务
