@@ -12,6 +12,8 @@ class CourseGenerationSerializer(serializers.Serializer):
     subject = serializers.CharField(max_length=50)
     grade_level = serializers.CharField(max_length=20)
     additional_requirements = serializers.CharField(required=False, allow_blank=True)
+    chatInput = serializers.CharField(required=False, help_text="用于生成课程内容的提示文本，如果不提供，系统将自动构建")
+    sessionId = serializers.CharField(required=False, help_text="会话ID，用于跟踪多轮对话，如果不提供，系统将自动生成")
 
 class CourseSerializer(serializers.ModelSerializer):
     """课程序列化器，用于读取课程信息"""

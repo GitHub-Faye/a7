@@ -181,7 +181,7 @@ REST_FRAMEWORK = {
     ],
     
     # 异常处理配置
-    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',  # 默认异常处理器
+    'EXCEPTION_HANDLER': 'ai_services.api_response.custom_exception_handler',  # 使用自定义异常处理器
     
     # 过滤配置
     'DEFAULT_FILTER_BACKENDS': [

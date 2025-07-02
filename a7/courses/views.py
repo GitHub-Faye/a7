@@ -14,7 +14,8 @@ from .serializers import (
     KnowledgePointUpdateSerializer,
     CoursewareSerializer,
     CoursewareCreateSerializer,
-    CoursewareUpdateSerializer
+    CoursewareUpdateSerializer,
+    CourseGenerationSerializer
 )
 from .permissions import (
     IsTeacherOrAdmin, 
@@ -342,11 +343,94 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
             )
         
         # 2. 准备请求数据
-        task_data = serializer.validated_data
+        task_data = serializer.validated_data.copy()
         print(f"Validated data: {task_data}")
         
+        # 3. 自动构建标准格式的chatInput，确保提示的正确性
+        # 无论用户是否提供了chatInput，都使用系统构建的标准格式
+        course_name = task_data.get('course_name')
+        chapter_count = task_data.get('chapter_count')
+        course_description = task_data.get('course_description')
+        subject = task_data.get('subject')
+        grade_level = task_data.get('grade_level')
+        additional_requirements = task_data.get('additional_requirements', '')
+        
+        # 构建标准格式的chatInput
+        standard_chat_input = f"""
+请根据以下信息生成一门课程的知识点结构，并以严格的JSON格式返回结果。
+
+输入信息：
+- 课程名称：{course_name}
+- 章节数量：{chapter_count}
+- 课程描述：{course_description}
+- 学科：{subject}
+- 年级水平：{grade_level}
+- 额外要求：{additional_requirements}
+
+你必须严格按照以下JSON格式返回结果，不要添加任何额外文本、说明或Markdown标记：
+
+```json
+{{
+  "course": {{
+    "title": "课程标题",
+    "description": "课程描述",
+    "subject": "学科名称",
+    "grade_level": "年级水平"
+  }},
+  "knowledge_points": [
+    {{
+      "title": "顶级知识点1标题",
+      "content": "详细内容描述",
+      "importance": 数字(1-10),
+      "children": [
+        {{
+          "title": "子知识点1.1标题",
+          "content": "详细内容描述",
+          "importance": 数字(1-10),
+          "children": []
+        }},
+        {{
+          "title": "子知识点1.2标题",
+          "content": "详细内容描述",
+          "importance": 数字(1-10),
+          "children": []
+        }}
+      ]
+    }},
+    {{
+      "title": "顶级知识点2标题",
+      "content": "详细内容描述",
+      "importance": 数字(1-10),
+      "children": []
+    }}
+  ]
+}}
+```
+
+请注意：
+1. 顶级知识点数量应与章节数量相匹配（{chapter_count}个）
+2. 每个知识点必须包含title、content和importance字段
+3. importance必须是1到10之间的整数
+4. children是一个数组，可以为空，也可以包含子知识点
+5. 子知识点必须遵循相同的结构（title, content, importance, children）
+6. 不要在JSON外添加任何解释或说明文字
+7. 确保你的JSON格式正确且有效，系统将直接解析此JSON
+
+此课程内容将直接用于教育系统，格式错误将导致系统无法处理。
+        """
+        
+        # 用系统构建的标准格式替换用户提供的chatInput
+        task_data['chatInput'] = standard_chat_input
+        
+        # 如果用户没有提供sessionId，生成一个
+        if 'sessionId' not in task_data:
+            import uuid
+            task_data['sessionId'] = str(uuid.uuid4())
+            
+        print(f"Using standardized chatInput format")
+        
         try:
-            # 3. 调用AI服务生成内容 - 使用通用的process_ai_task_sync方法
+            # 4. 调用AI服务生成内容 - 使用通用的process_ai_task_sync方法
             # 在测试环境中使用提供的URL
             webhook_config = None
             if 'test' in request.META.get('SERVER_NAME', ''):
@@ -358,12 +442,12 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
             ai_response = client.process_ai_task_sync('courseGeneration', task_data)
             print(f"AI response received: {type(ai_response)}")
             
-            # 4. 使用转换器创建课程和知识点
+            # 5. 使用转换器创建课程和知识点
             from ai_services.services.knowledge_converter import create_course_with_knowledge_points
             new_course = create_course_with_knowledge_points(ai_response, request.user)
             print(f"Course created: {new_course.id}")
             
-            # 5. 返回成功创建的课程信息
+            # 6. 返回成功创建的课程信息
             course_serializer = CourseSerializer(new_course)
             return create_api_response(
                 success=True,

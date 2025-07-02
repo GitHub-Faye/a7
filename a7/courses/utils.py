@@ -1,5 +1,6 @@
 from django.http import JsonResponse
 from django.utils.translation import gettext_lazy as _
+from ai_services.api_response import create_api_response
 
 def validate_required_params(request, param_names, error_status=400):
     """验证请求参数是否存在"""
@@ -30,10 +31,12 @@ def validate_required_params(request, param_names, error_status=400):
                     missing_params.append(param)
     
     if missing_params:
-        return JsonResponse({
-            'success': False,
-            'message': _('缺少必要的参数'),
-            'errors': [_('缺少参数: {}').format(', '.join(missing_params))]
-        }, status=error_status)
+        return create_api_response(
+            success=False,
+            error_code="MISSING_PARAMETERS",
+            message=_('缺少必要的参数'),
+            errors={'missing_params': missing_params},
+            status_code=error_status
+        )
     
     return None  # 验证通过，返回None 

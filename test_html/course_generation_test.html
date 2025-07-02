@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程内容生成测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        .container { max-width: 800px; }
+        #result, #error, #raw-response { white-space: pre-wrap; word-wrap: break-word; }
+        .knowledge-point { margin-left: 20px; border-left: 1px solid #eee; padding-left: 15px; }
+        .note { color: #6c757d; font-size: 0.9rem; margin-top: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>课程内容生成测试</h1>
+
+        <!-- 登录模块 -->
+        <div id="login-section" class="mb-4 p-4 border rounded">
+            <h2>1. 登录</h2>
+            <div class="mb-3">
+                <label for="username" class="form-label">用户名</label>
+                <input type="text" class="form-control" id="username" value="teacher1">
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">密码</label>
+                <input type="password" class="form-control" id="password" value="password123">
+            </div>
+            <button id="login-btn" class="btn btn-primary">登录</button>
+            <div id="login-status" class="mt-2"></div>
+        </div>
+
+        <!-- 课程生成模块 -->
+        <div id="generation-section" class="mb-4 p-4 border rounded" style="display: none;">
+            <h2>2. 生成课程</h2>
+            <form id="course-generation-form">
+                <div class="mb-3">
+                    <label for="course_name" class="form-label">课程名称</label>
+                    <input type="text" class="form-control" id="course_name" value="Python入门" required>
+                </div>
+                <div class="mb-3">
+                    <label for="chapter_count" class="form-label">章节数量</label>
+                    <input type="number" class="form-control" id="chapter_count" value="5" required>
+                </div>
+                <div class="mb-3">
+                    <label for="course_description" class="form-label">课程描述</label>
+                    <textarea class="form-control" id="course_description" rows="3" required>一门面向初学者的Python编程入门课程。</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="subject" class="form-label">学科</label>
+                    <input type="text" class="form-control" id="subject" value="计算机科学" required>
+                </div>
+                <div class="mb-3">
+                    <label for="grade_level" class="form-label">年级水平</label>
+                    <input type="text" class="form-control" id="grade_level" value="大学" required>
+                </div>
+                <div class="mb-3">
+                    <label for="additional_requirements" class="form-label">额外要求 (可选)</label>
+                    <textarea class="form-control" id="additional_requirements" rows="2">请包含Python项目实践部分。</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="chatInput" class="form-label">生成提示 (会自动从上述信息生成，可选择修改)</label>
+                    <textarea class="form-control" id="chatInput" rows="6" required></textarea>
+                    <button type="button" id="generate-prompt-btn" class="btn btn-outline-secondary mt-2">从课程信息生成提示</button>
+                </div>
+                <button type="submit" class="btn btn-success">生成课程内容</button>
+            </form>
+        </div>
+
+        <!-- 结果展示模块 -->
+        <div class="mt-4">
+            <h2>3. 结果</h2>
+            <div id="spinner" class="spinner-border text-primary" role="status" style="display: none;">
+                <span class="visually-hidden">加载中...</span>
+                <div class="note mt-2">请耐心等待，生成课程内容可能需要1-3分钟...</div>
+            </div>
+            <div id="error" class="alert alert-danger" style="display: none;"></div>
+            <div id="result" class="alert alert-success" style="display: none;"></div>
+            
+            <div class="mt-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h3>4. 响应格式分析</h3>
+                    <div>
+                        <button id="toggle-raw-btn" class="btn btn-sm btn-outline-secondary">查看原始响应</button>
+                        <button id="check-format-btn" class="btn btn-sm btn-outline-primary">检查格式</button>
+                    </div>
+                </div>
+                <div id="raw-response" class="alert alert-secondary mt-2" style="display: none;"></div>
+                <div id="format-check" class="alert alert-info mt-2" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = '/api';
+        let accessToken = null;
+        let lastResponseData = null;
+
+        const loginBtn = document.getElementById('login-btn');
+        const loginStatus = document.getElementById('login-status');
+        const generationSection = document.getElementById('generation-section');
+        const courseGenerationForm = document.getElementById('course-generation-form');
+        const generatePromptBtn = document.getElementById('generate-prompt-btn');
+        const spinner = document.getElementById('spinner');
+        const errorDiv = document.getElementById('error');
+        const resultDiv = document.getElementById('result');
+        const rawResponseDiv = document.getElementById('raw-response');
+        const formatCheckDiv = document.getElementById('format-check');
+        const toggleRawBtn = document.getElementById('toggle-raw-btn');
+        const checkFormatBtn = document.getElementById('check-format-btn');
+        
+        // 根据课程信息生成chatInput提示文本
+        function generateChatInput() {
+            const courseName = document.getElementById('course_name').value;
+            const chapterCount = document.getElementById('chapter_count').value;
+            const courseDescription = document.getElementById('course_description').value;
+            const subject = document.getElementById('subject').value;
+            const gradeLevel = document.getElementById('grade_level').value;
+            const additionalRequirements = document.getElementById('additional_requirements').value;
+            
+            return `请根据以下信息生成一门课程的知识点结构，并以严格的JSON格式返回结果。
+
+输入信息：
+- 课程名称：${courseName}
+- 章节数量：${chapterCount}
+- 课程描述：${courseDescription}
+- 学科：${subject}
+- 年级水平：${gradeLevel}
+- 额外要求：${additionalRequirements}
+
+你必须严格按照以下JSON格式返回结果，不要添加任何额外文本、说明或Markdown标记：
+
+\`\`\`json
+{
+  "course": {
+    "title": "课程标题",
+    "description": "课程描述",
+    "subject": "学科名称",
+    "grade_level": "年级水平"
+  },
+  "knowledge_points": [
+    {
+      "title": "顶级知识点1标题",
+      "content": "详细内容描述",
+      "importance": 数字(1-10),
+      "children": [
+        {
+          "title": "子知识点1.1标题",
+          "content": "详细内容描述",
+          "importance": 数字(1-10),
+          "children": []
+        },
+        {
+          "title": "子知识点1.2标题",
+          "content": "详细内容描述",
+          "importance": 数字(1-10),
+          "children": []
+        }
+      ]
+    },
+    {
+      "title": "顶级知识点2标题",
+      "content": "详细内容描述",
+      "importance": 数字(1-10),
+      "children": []
+    }
+  ]
+}
+\`\`\`
+
+请注意：
+1. 顶级知识点数量应与章节数量相匹配（${chapterCount}个）
+2. 每个知识点必须包含title、content和importance字段
+3. importance必须是1到10之间的整数
+4. children是一个数组，可以为空，也可以包含子知识点
+5. 子知识点必须遵循相同的结构（title, content, importance, children）
+6. 不要在JSON外添加任何解释或说明文字
+7. 确保你的JSON格式正确且有效，系统将直接解析此JSON
+
+此课程内容将直接用于教育系统，格式错误将导致系统无法处理。
+请在3分钟内完成生成。`;
+        }
+
+        // 生成UUID函数，用于sessionId
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        
+        // 尝试从文本中提取JSON
+        function extractJsonFromText(text) {
+            // 尝试直接解析
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.log("直接解析JSON失败:", e);
+            }
+            
+            // 尝试查找JSON代码块
+            const jsonPattern = /```(?:json)?\s*({[\s\S]*?})```/;
+            const matches = text.match(jsonPattern);
+            
+            if (matches && matches[1]) {
+                try {
+                    return JSON.parse(matches[1]);
+                } catch (e) {
+                    console.log("代码块解析JSON失败:", e);
+                }
+            }
+            
+            // 尝试查找大括号
+            const startIdx = text.indexOf('{');
+            const endIdx = text.lastIndexOf('}');
+            
+            if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+                const jsonStr = text.substring(startIdx, endIdx + 1);
+                try {
+                    return JSON.parse(jsonStr);
+                } catch (e) {
+                    console.log("大括号解析JSON失败:", e);
+                }
+            }
+            
+            return null;
+        }
+        
+        // 检查数据格式是否符合预期
+        function checkDataFormat(data) {
+            let issues = [];
+            let isValid = true;
+            
+            // 提取JSON，如果是文本响应
+            let jsonData = data;
+            if (typeof data === 'string') {
+                jsonData = extractJsonFromText(data);
+                if (!jsonData) {
+                    return {
+                        isValid: false,
+                        issues: ["无法从响应中提取有效的JSON格式"]
+                    };
+                }
+            }
+            
+            // 如果是包含output字段的对象（n8n常见响应格式）
+            if (jsonData.output && typeof jsonData.output === 'string') {
+                const extracted = extractJsonFromText(jsonData.output);
+                if (extracted) {
+                    jsonData = extracted;
+                } else {
+                    issues.push("警告: 响应包含output字段，但无法从中提取JSON");
+                }
+            }
+            
+            // 检查必需的顶级字段
+            if (!jsonData.course) {
+                issues.push("错误: 缺少必需的'course'字段");
+                isValid = false;
+            } else {
+                // 检查course字段
+                const requiredCourseFields = ['title', 'description', 'subject', 'grade_level'];
+                const missingCourseFields = requiredCourseFields.filter(field => !jsonData.course[field]);
+                if (missingCourseFields.length > 0) {
+                    issues.push(`错误: course对象缺少字段: ${missingCourseFields.join(', ')}`);
+                    isValid = false;
+                }
+            }
+            
+            // 检查knowledge_points字段
+            if (!jsonData.knowledge_points || !Array.isArray(jsonData.knowledge_points)) {
+                issues.push("错误: 缺少必需的'knowledge_points'数组");
+                isValid = false;
+            } else {
+                // 检查顶级知识点数量
+                const chapterCount = parseInt(document.getElementById('chapter_count').value);
+                if (jsonData.knowledge_points.length !== chapterCount) {
+                    issues.push(`警告: 顶级知识点数量(${jsonData.knowledge_points.length})与章节数量(${chapterCount})不匹配`);
+                }
+                
+                // 递归检查所有知识点
+                function checkKnowledgePoints(points, level = 0) {
+                    let hasIssues = false;
+                    
+                    points.forEach((point, index) => {
+                        const prefix = level === 0 ? `顶级知识点#${index+1}` : `子知识点#${index+1}`;
+                        
+                        // 检查必需字段
+                        const requiredFields = ['title', 'content', 'importance'];
+                        const missingFields = requiredFields.filter(field => !point[field]);
+                        if (missingFields.length > 0) {
+                            issues.push(`错误: ${prefix}缺少字段: ${missingFields.join(', ')}`);
+                            hasIssues = true;
+                        }
+                        
+                        // 检查importance
+                        if (point.importance !== undefined) {
+                            if (typeof point.importance !== 'number' || point.importance < 1 || point.importance > 10) {
+                                issues.push(`错误: ${prefix}的importance必须是1-10之间的整数`);
+                                hasIssues = true;
+                            }
+                        }
+                        
+                        // 检查children
+                        if (!Array.isArray(point.children)) {
+                            issues.push(`错误: ${prefix}缺少children数组`);
+                            hasIssues = true;
+                        } else if (point.children.length > 0) {
+                            const childIssues = checkKnowledgePoints(point.children, level + 1);
+                            hasIssues = hasIssues || childIssues;
+                        }
+                    });
+                    
+                    return hasIssues;
+                }
+                
+                const kpIssues = checkKnowledgePoints(jsonData.knowledge_points);
+                isValid = isValid && !kpIssues;
+            }
+            
+            return {
+                isValid,
+                issues,
+                formattedData: jsonData
+            };
+        }
+        
+        // 页面加载时自动生成初始提示
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('chatInput').value = generateChatInput();
+        });
+        
+        // 添加生成提示按钮点击事件
+        generatePromptBtn.addEventListener('click', function() {
+            document.getElementById('chatInput').value = generateChatInput();
+        });
+        
+        // 切换显示原始响应
+        toggleRawBtn.addEventListener('click', function() {
+            if (rawResponseDiv.style.display === 'none') {
+                rawResponseDiv.style.display = 'block';
+                toggleRawBtn.textContent = '隐藏原始响应';
+            } else {
+                rawResponseDiv.style.display = 'none';
+                toggleRawBtn.textContent = '查看原始响应';
+            }
+        });
+        
+        // 检查格式按钮点击事件
+        checkFormatBtn.addEventListener('click', function() {
+            if (!lastResponseData) {
+                formatCheckDiv.style.display = 'block';
+                formatCheckDiv.innerHTML = '尚未有响应数据可供检查';
+                return;
+            }
+            
+            const checkResult = checkDataFormat(lastResponseData);
+            
+            formatCheckDiv.style.display = 'block';
+            let formatHtml = `<h4>格式检查结果: ${checkResult.isValid ? '通过 ✅' : '不通过 ❌'}</h4>`;
+            
+            if (checkResult.issues.length > 0) {
+                formatHtml += '<ul>';
+                checkResult.issues.forEach(issue => {
+                    formatHtml += `<li>${issue}</li>`;
+                });
+                formatHtml += '</ul>';
+            }
+            
+            if (checkResult.formattedData) {
+                formatHtml += '<h5>格式化后的数据:</h5>';
+                formatHtml += `<pre>${JSON.stringify(checkResult.formattedData, null, 2)}</pre>`;
+            }
+            
+            formatCheckDiv.innerHTML = formatHtml;
+        });
+
+        // 登录功能
+        loginBtn.addEventListener('click', async () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/token/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    accessToken = data.access;
+                    loginStatus.innerHTML = '<span class="text-success">登录成功!</span>';
+                    generationSection.style.display = 'block';
+                } else {
+                    loginStatus.innerHTML = `<span class="text-danger">登录失败: ${JSON.stringify(data)}</span>`;
+                }
+            } catch (err) {
+                loginStatus.innerHTML = `<span class="text-danger">登录请求失败: ${err}</span>`;
+            }
+        });
+
+        // 课程生成功能
+        courseGenerationForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!accessToken) {
+                alert('请先登录!');
+                return;
+            }
+
+            spinner.style.display = 'block';
+            errorDiv.style.display = 'none';
+            resultDiv.style.display = 'none';
+            rawResponseDiv.style.display = 'none';
+            formatCheckDiv.style.display = 'none';
+            lastResponseData = null;
+
+            // 确保chatInput是最新的
+            if (!document.getElementById('chatInput').value) {
+                document.getElementById('chatInput').value = generateChatInput();
+            }
+
+            const formData = {
+                course_name: document.getElementById('course_name').value,
+                chapter_count: parseInt(document.getElementById('chapter_count').value),
+                course_description: document.getElementById('course_description').value,
+                subject: document.getElementById('subject').value,
+                grade_level: document.getElementById('grade_level').value,
+                additional_requirements: document.getElementById('additional_requirements').value,
+                // 添加新的必需字段
+                chatInput: document.getElementById('chatInput').value,
+                sessionId: generateUUID()
+            };
+
+            try {
+                // 注意：这里的端点是 /api/course-generate/
+                const response = await fetch(`${API_BASE_URL}/course-generate/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const responseData = await response.json();
+                lastResponseData = responseData; // 保存最后的响应数据
+                spinner.style.display = 'none';
+
+                // 设置原始响应
+                rawResponseDiv.innerHTML = `<h4>原始响应数据:</h4><pre>${JSON.stringify(responseData, null, 2)}</pre>`;
+
+                if (response.ok) {
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `<h4>课程生成成功!</h4><pre>${JSON.stringify(responseData.data, null, 2)}</pre>`;
+                } else {
+                    errorDiv.style.display = 'block';
+                    errorDiv.innerHTML = `<h4>错误</h4><p>状态码: ${response.status}</p><pre>${JSON.stringify(responseData, null, 2)}</pre>`;
+                }
+
+            } catch (err) {
+                spinner.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = `<h4>请求失败</h4><pre>${err}</pre>`;
+            }
+        });
+    </script>
+</body>
+</html> 

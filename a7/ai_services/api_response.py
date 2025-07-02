@@ -5,6 +5,8 @@ API响应格式化工具模块
 """
 
 from rest_framework.response import Response
+from rest_framework.views import exception_handler
+from rest_framework import exceptions
 from typing import Any, Dict, Optional
 
 
@@ -55,4 +57,59 @@ def create_api_response(
     # 添加其他任意数据
     response_body.update(kwargs)
     
-    return Response(response_body, status=status_code) 
+    return Response(response_body, status=status_code)
+
+
+def custom_exception_handler(exc, context):
+    """
+    自定义异常处理器，确保所有API错误都使用统一的响应格式。
+    
+    Args:
+        exc: 捕获的异常
+        context: 异常上下文
+        
+    Returns:
+        一个标准化的错误响应
+    """
+    # 首先调用DRF的默认异常处理器
+    response = exception_handler(exc, context)
+    
+    # 如果没有处理，返回None让Django处理
+    if response is None:
+        return None
+    
+    # 获取错误详情
+    error_details = None
+    if hasattr(exc, 'detail'):
+        error_details = exc.detail
+    
+    # 确定错误代码
+    error_code = "API_ERROR"
+    if isinstance(exc, exceptions.ValidationError):
+        error_code = "VALIDATION_ERROR"
+    elif isinstance(exc, exceptions.AuthenticationFailed):
+        error_code = "AUTHENTICATION_FAILED"
+    elif isinstance(exc, exceptions.NotAuthenticated):
+        error_code = "NOT_AUTHENTICATED"
+    elif isinstance(exc, exceptions.PermissionDenied):
+        error_code = "PERMISSION_DENIED"
+    elif isinstance(exc, exceptions.NotFound):
+        error_code = "NOT_FOUND"
+    elif isinstance(exc, exceptions.MethodNotAllowed):
+        error_code = "METHOD_NOT_ALLOWED"
+    elif isinstance(exc, exceptions.Throttled):
+        error_code = "THROTTLED"
+    
+    # 获取错误消息
+    error_message = str(exc)
+    if not error_message and hasattr(exc, '__class__'):
+        error_message = f"{exc.__class__.__name__}"
+    
+    # 创建统一的错误响应
+    return create_api_response(
+        success=False,
+        error_code=error_code,
+        message=error_message,
+        errors=error_details,
+        status_code=response.status_code
+    ) 
