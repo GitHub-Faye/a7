@@ -512,8 +512,8 @@
             "dependencies": [
               2
             ],
-            "details": "1. Define JSON structure for AI requests. 2. Integrate with AI model API. 3. Handle AI response parsing.",
-            "status": "pending",
+            "details": "1. Define JSON structure for AI requests. 2. Integrate with AI model API. 3. Handle AI response parsing.\n<info added on 2025-07-02T03:04:06.147Z>\n任务13.3已完成，具体实现如下：\n1. 在formats.py中定义了问题生成相关数据模型（QuestionGenerationRequestData, QuestionData, QuestionGenerationResponseData）\n2. 在client.py中实现了问题生成的便捷方法（generate_questions, generate_questions_sync）\n3. 在views.py中实现了QuestionGenerationViewSet视图集处理问题生成请求\n4. 在serializers.py中实现了QuestionGenerationSerializer序列化器用于验证请求参数\n5. 在urls.py中注册了/api/questions-generate/路由\n\n功能实现包括：\n- JSON结构定义：使用Pydantic模型定义了请求和响应的JSON结构\n- AI模型API集成：实现了与AI模型的完整集成\n- 响应解析处理：实现了format_question_generation_response方法处理AI响应\n</info added on 2025-07-02T03:04:06.147Z>",
+            "status": "done",
             "testStrategy": "Test AI request and response handling."
           },
           {
@@ -542,7 +542,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-02T02:09:14.737Z",
+      "updated": "2025-07-02T03:03:21.667Z",
       "description": "Tasks for master context"
     }
   }
