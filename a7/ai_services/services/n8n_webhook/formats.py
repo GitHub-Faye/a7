@@ -336,7 +336,7 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         extracted_json = extract_json_from_text(answer_text)
         if extracted_json:
             logger.info("成功从answer字段中提取JSON结构")
-            return extracted_json
+            data = extracted_json
     
     # 情况2: 如果收到的是包含output字段的响应
     if isinstance(data, dict) and 'output' in data and isinstance(data['output'], str):
@@ -347,11 +347,27 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         extracted_json = extract_json_from_text(text_output)
         if extracted_json:
             logger.info("成功从output字段中提取JSON结构")
-            return extracted_json
+            data = extracted_json
     
     # 情况3: 检查数据是否已经符合期望的结构
     if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
         logger.info("数据结构已符合期望格式")
+        
+        # 应用格式化规则 - 导入需要在这里添加
+        try:
+            # 导入问题格式化工具
+            from ai_services.services.question_format import QuestionFormatter
+            
+            # 格式化问题
+            logger.info("应用问题格式化规则")
+            formatter = QuestionFormatter()
+            data['questions'] = formatter.format_questions(data['questions'])
+            
+            logger.info(f"成功格式化 {len(data['questions'])} 道问题")
+        except Exception as e:
+            logger.warning(f"应用问题格式化规则时出错: {str(e)}")
+            # 错误不应阻止返回，继续使用原始数据
+        
         return data
     
     # 尝试创建一个基本的兼容结构
@@ -370,6 +386,21 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         
         # 最后检查结构是否完整
         if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
+            # 应用格式化规则 - 导入需要在这里添加
+            try:
+                # 导入问题格式化工具
+                from ai_services.services.question_format import QuestionFormatter
+                
+                # 格式化问题
+                logger.info("应用问题格式化规则")
+                formatter = QuestionFormatter()
+                data['questions'] = formatter.format_questions(data['questions'])
+                
+                logger.info(f"成功格式化 {len(data['questions'])} 道问题")
+            except Exception as e:
+                logger.warning(f"应用问题格式化规则时出错: {str(e)}")
+                # 错误不应阻止返回，继续使用原始数据
+            
             return data
         
         # 如果仍然不符合结构，抛出错误

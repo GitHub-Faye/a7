@@ -551,14 +551,96 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
         # 获取知识点详情，用于提示
         knowledge_points = []
         for kp_id in knowledge_point_ids:
-            kp = KnowledgePoint.objects.get(id=kp_id)
-            knowledge_points.append({
-                'id': kp.id,
-                'title': kp.title,
-                'content': kp.content
-            })
+            try:
+                kp = KnowledgePoint.objects.get(id=kp_id)
+                knowledge_points.append({
+                    'id': kp.id,
+                    'title': kp.title,
+                    'content': kp.content
+                })
+            except KnowledgePoint.DoesNotExist:
+                return create_api_response(
+                    success=False,
+                    error_code="NOT_FOUND",
+                    message=f"知识点ID为{kp_id}的知识点不存在",
+                    status_code=status.HTTP_404_NOT_FOUND
+                )
         
-        # 构建标准格式的chatInput
+        # 根据题型构建格式指南部分
+        format_guidelines = ""
+
+        if 'single_choice' in question_types:
+            format_guidelines += """
+单选题格式示例：
+{
+  "title": "简短问题标题",
+  "content": "完整的问题描述，包含必要背景",
+  "type": "single_choice",
+  "difficulty": 3,
+  "answer_template": ["正确选项", "干扰选项1", "干扰选项2", "干扰选项3"],
+  "knowledge_point_id": 相关知识点ID
+}
+
+选项应该足够干扰性但又合理，至少包含2个选项。
+"""
+
+        if 'multiple_choice' in question_types:
+            format_guidelines += """
+多选题格式示例：
+{
+  "title": "简短问题标题",
+  "content": "完整的问题描述，包含必要背景",
+  "type": "multiple_choice",
+  "difficulty": 3,
+  "answer_template": ["正确选项1", "正确选项2", "干扰选项1", "干扰选项2"],
+  "knowledge_point_id": 相关知识点ID
+}
+
+选项应该足够干扰性但又合理，至少包含3个选项。
+"""
+
+        if 'fill_blank' in question_types:
+            format_guidelines += """
+填空题格式示例：
+{
+  "title": "简短问题标题",
+  "content": "句子中包含___或[BLANK]作为填空位置，用于学生填写答案。",
+  "type": "fill_blank",
+  "difficulty": 3,
+  "answer_template": ["正确答案1", "其他可接受答案"],
+  "knowledge_point_id": 相关知识点ID
+}
+
+填空题必须在content中使用___或[BLANK]标记填空位置。
+"""
+
+        if 'short_answer' in question_types:
+            format_guidelines += """
+简答题格式示例：
+{
+  "title": "简短问题标题",
+  "content": "需要学生以简短段落回答的问题",
+  "type": "short_answer",
+  "difficulty": 3,
+  "answer_template": "参考答案或评分要点描述",
+  "knowledge_point_id": 相关知识点ID
+}
+"""
+
+        if 'coding' in question_types:
+            format_guidelines += """
+编程题格式示例：
+{
+  "title": "简短问题标题",
+  "content": "详细的编程要求，包括输入输出格式、约束条件等",
+  "type": "coding",
+  "difficulty": 3,
+  "answer_template": "示例代码解答或解题思路",
+  "knowledge_point_id": 相关知识点ID
+}
+"""
+
+        # 将格式指南添加到chatInput中
         standard_chat_input = f"""
 请根据以下知识点信息生成教学练习题，并以严格的JSON格式返回结果。
 
@@ -570,41 +652,26 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
 - 题目类型：{', '.join(question_types)}
 - 难度等级：{difficulty if difficulty else '1-5之间'}
 
+格式要求：
+{format_guidelines}
+
+重要提示：
+1. 每个问题必须关联到提供的知识点ID之一
+2. 必须严格遵循上面提供的题型格式规范
+3. 请确保你的响应是一个有效的JSON，带有questions数组
+4. 不要在JSON外添加任何解释或说明文字
+
 你必须严格按照以下JSON格式返回结果，不要添加任何额外文本、说明或Markdown标记：
 
 ```json
 {{
   "questions": [
-    {{
-      "title": "问题标题",
-      "content": "详细问题内容",
-      "type": "问题类型",
-      "difficulty": 难度等级(1-5),
-      "answer_template": "答案模板或选项",
-      "knowledge_point_id": 关联知识点ID
-    }},
-    {{
-      "title": "问题标题2",
-      "content": "详细问题内容2",
-      "type": "问题类型",
-      "difficulty": 难度等级(1-5),
-      "answer_template": "答案模板或选项",
-      "knowledge_point_id": 关联知识点ID
-    }}
+    // 第一个问题...符合上述格式要求
+    // 第二个问题...符合上述格式要求
+    // 更多问题...
   ]
 }}
 ```
-
-请注意：
-1. 问题内容应该基于提供的知识点信息
-2. 问题类型必须是以下之一：{', '.join(question_types)}
-3. 难度等级必须是1到5之间的整数
-4. 每个问题必须关联到提供的知识点ID之一
-5. 答案模板应该包含正确答案或选项列表
-6. 不要在JSON外添加任何解释或说明文字
-7. 确保你的JSON格式正确且有效，系统将直接解析此JSON
-
-这些问题将直接用于教育系统，格式错误将导致系统无法处理。
         """
         
         # 用系统构建的标准格式替换用户提供的chatInput
@@ -622,7 +689,44 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
             # 5. 处理生成的问题
             questions = ai_response.get('questions', [])
             
-            # 6. 返回生成的问题
+            # 6. 验证生成的问题格式
+            if not questions:
+                return create_api_response(
+                    success=False,
+                    error_code="EMPTY_RESPONSE",
+                    message="AI未能生成任何问题",
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # 导入验证器
+            try:
+                from ai_services.services.question_format import QuestionFormatValidator
+                
+                # 验证问题格式
+                validator = QuestionFormatValidator()
+                validated_questions, format_errors = validator.validate_questions(questions)
+                
+                # 如果存在格式错误
+                if format_errors:
+                    return create_api_response(
+                        success=False,
+                        error_code="FORMAT_ERROR",
+                        message="AI生成的问题格式不符合要求",
+                        errors=format_errors,
+                        status_code=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # 使用验证后的问题
+                questions = validated_questions
+                
+            except ImportError:
+                # 如果无法导入验证器，记录警告但不阻止继续
+                logger.warning("无法导入问题格式验证器，跳过验证步骤")
+            except Exception as e:
+                # 其他验证错误，记录但不阻止继续
+                logger.warning(f"验证问题格式时出错: {str(e)}")
+            
+            # 7. 返回生成的问题
             return create_api_response(
                 success=True,
                 data={'questions': questions},
