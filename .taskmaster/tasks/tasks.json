@@ -396,14 +396,12 @@
           },
           {
             "id": 5,
-            "title": "Develop API Testing and Validation",
-            "description": "Create test cases and validation logic to ensure API functionality and proper error handling",
+            "title": "和n8n真实连接测试",
+            "description": "使用真实的n8n环境进行API连接和功能测试，验证课程内容生成系统的实际效果",
+            "details": "",
             "status": "pending",
-            "dependencies": [
-              4
-            ],
-            "details": "Implement unit tests, integration tests, and validation checks for all possible scenarios including edge cases and error conditions",
-            "testStrategy": ""
+            "dependencies": [],
+            "parentTaskId": 7
           }
         ]
       },
