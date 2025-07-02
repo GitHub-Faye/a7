@@ -98,6 +98,7 @@ a7/                           # 项目根目录
 │   │   ├── tests_api.py      # 课程API的测试用例
 │   │   ├── tests_api_new.py  # 课程API的全面测试用例，包含CourseAPITests、KnowledgePointAPITests和CoursewareAPITests测试类
 │   │   ├── tests_validation.py # 验证逻辑的测试用例
+│   │   ├── tests_api_questions.py # 问题生成API的测试用例，包含QuestionGenerationAPITests测试类
 │   │   └── migrations/       # 课程模型数据库迁移文件
 │   ├── Dockerfile            # Docker容器构建配置文件
 │   ├── compose.yaml          # Docker Compose服务配置文件
@@ -116,6 +117,7 @@ a7/                           # 项目根目录
 │   ├── auth_test.html        # 登录/登出/密码更改功能测试页面
 │   └── permissions_test.html # 角色权限测试页面
 ├── test_api.py               # API测试脚本，用于测试中间件功能
+├── test_api_question.py      # API测试脚本，用于测试问题生成API
 ├── .env.example              # 环境变量示例文件
 ├── .gitignore                # Git忽略配置文件
 ├── .roomodes                 # Roo模式配置文件
@@ -188,10 +190,10 @@ a7/                           # 项目根目录
 - **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
 - **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
-- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。
+- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。还包含QuestionGenerationSerializer，用于问题生成API的请求参数验证。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
-- **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`和`CourseContentGenerationViewSet`。
-- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`和`CourseContentGenerationViewSet`视图集，实现课程、知识点、课件的CRUD操作和AI内容生成功能。
+- **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`和`CourseContentGenerationViewSet`。还注册了`QuestionGenerationViewSet`，提供问题生成API端点。
+- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`和`CourseContentGenerationViewSet`视图集，实现课程、知识点、课件的CRUD操作和AI内容生成功能。还包含`QuestionGenerationViewSet`视图集，实现基于知识点的问题生成功能。
 - **a7/courses/validations.py**: 通用验证工具类，提供了字段验证（validate_text_field）、对象存在性验证（validate_existence）和唯一性验证（validate_uniqueness）等方法，为序列化器提供复用的验证逻辑。
 - **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
@@ -213,9 +215,9 @@ a7/                           # 项目根目录
 
 ### n8n Webhook服务文件
 
-- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。
+- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。还实现了问题生成的便捷方法（generate_questions和generate_questions_sync）。
 - **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，包括N8nWebhookError基类、N8nConnectionError（连接错误）、N8nTimeoutError（超时错误）、N8nResponseError（响应错误）以及请求/响应验证相关的异常。
-- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。
+- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）。
 
 ### AI服务测试文件
 
@@ -425,16 +427,32 @@ a7/                           # 项目根目录
 
 14. **AI服务系统**:
     - `a7/ai_services/models.py`定义了webhook配置和调用日志的核心数据模型。
-    - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。
+    - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。还提供问题生成的便捷方法（generate_questions和generate_questions_sync）。
     - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
-    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。
+    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）。
     - `a7/ai_services/views.py`中的N8nWebhookAPIView权限类已设置为[AllowAny]，允许无需认证即可访问。
     - `a7/ai_services/services/knowledge_converter.py`负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
     - `a7/ai_services/urls.py`将API视图与URL路径映射。
+    - `a7/courses/views.py`中的QuestionGenerationViewSet实现问题生成API端点，接收知识点ID、问题类型和数量等参数，调用n8n服务生成问题并返回标准化响应。
+    - `a7/courses/serializers.py`中的QuestionGenerationSerializer负责问题生成API的请求参数验证。
+    - `a7/courses/urls.py`注册QuestionGenerationViewSet，提供'/api/questions-generate/'端点。
     - WebhookConfig模型与WebhookCallLog模型通过外键关联，记录每次调用的详细信息。
     - `a7/ai_services/tests/` 目录下的多个测试文件(`test_client.py`, `test_formats.py`, `test_knowledge_converter.py`, `test_views_integration.py`)确保了整个AI服务（从数据格式、客户端通信、数据转换到API视图）的健壮性和正确性。
+    - `a7/courses/tests_api_questions.py`提供问题生成API的全面测试，验证功能完整性、参数验证和权限控制。
     - `a7/ai_services/tests/conftest.py`配置异步测试环境，提供共享事件循环和测试固件。
     - `a7/ai_services/api_response.py`提供标准化API响应的辅助函数。
+
+15. **问题生成系统**:
+    - `a7/ai_services/services/n8n_webhook/formats.py`中的QuestionData模型定义问题数据结构，支持多种题型（如简答题、选择题）和不同格式的答案模板（字符串或列表）。
+    - `a7/ai_services/services/n8n_webhook/client.py`中的generate_questions和generate_questions_sync方法提供异步和同步的问题生成功能。
+    - `a7/courses/serializers.py`中的QuestionGenerationSerializer验证问题生成请求参数，确保知识点ID、问题类型和数量等参数有效。
+    - `a7/courses/views.py`中的QuestionGenerationViewSet处理问题生成API请求，调用n8n服务生成问题并返回标准化响应。
+    - `a7/courses/urls.py`注册'/api/questions-generate/'端点，提供RESTful API接口。
+    - `a7/courses/tests_api_questions.py`包含全面的测试用例，验证问题生成API的功能完整性、参数验证和权限控制。
+    - 问题生成系统与知识点模型集成，基于知识点内容生成相关的教学练习题。
+    - 支持多种问题类型（如简答题、选择题）和不同难度级别的问题生成。
+    - 提供标准化的问题数据结构，包括标题、内容、类型、难度、答案模板和关联知识点ID。
+    - 系统设计足够灵活，能够处理不同格式的答案模板（如简答题的文本答案和选择题的选项列表）。
 
 ## 目录组织逻辑
 
@@ -549,9 +567,10 @@ a7/                           # 项目根目录
 
 7. **AI服务API**:
    - `/api/ai/webhook/` - n8n Webhook API端点，接收并处理AI任务请求
+   - `/api/questions-generate/` - 问题生成API端点，接收知识点ID、问题类型和数量等参数，返回AI生成的格式化问题
    - 支持POST方法，接收任务类型、任务数据和webhook配置ID
    - 需要认证（JWT令牌）访问
-   - 支持不同任务类型，如"ragAI"（检索增强生成式AI）
+   - 支持不同任务类型，如"ragAI"（检索增强生成式AI）和"questionGeneration"（问题生成）
    - 处理请求数据验证、webhook配置查找和任务处理
    - 返回标准化的API响应（成功或错误信息）
    - 提供丰富的错误处理（请求错误、连接错误、超时错误）

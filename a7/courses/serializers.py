@@ -1,8 +1,57 @@
 from rest_framework import serializers
-from .models import Course, KnowledgePoint, Courseware
+from .models import Course, KnowledgePoint, Courseware, Exercise
 from users.models import User
 from .validations import ValidationUtils
 from django.utils.translation import gettext_lazy as _
+
+class QuestionGenerationSerializer(serializers.Serializer):
+    """问题生成请求的序列化器"""
+    knowledge_point_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        help_text="知识点ID列表"
+    )
+    question_types = serializers.ListField(
+        child=serializers.ChoiceField(choices=Exercise.EXERCISE_TYPES),
+        help_text="问题类型列表"
+    )
+    quantity = serializers.IntegerField(
+        min_value=1, 
+        max_value=50,
+        help_text="生成问题的数量"
+    )
+    difficulty = serializers.IntegerField(
+        min_value=1,
+        max_value=5,
+        required=False,
+        help_text="问题难度(1-5)"
+    )
+    chatInput = serializers.CharField(
+        required=False, 
+        help_text="用于生成问题的提示文本，如果不提供，系统将自动构建"
+    )
+    sessionId = serializers.CharField(
+        required=False, 
+        help_text="会话ID，用于跟踪多轮对话，如果不提供，系统将自动生成"
+    )
+    
+    def validate_knowledge_point_ids(self, value):
+        """验证知识点ID是否存在"""
+        for kp_id in value:
+            try:
+                KnowledgePoint.objects.get(id=kp_id)
+            except KnowledgePoint.DoesNotExist:
+                raise serializers.ValidationError(f"ID为{kp_id}的知识点不存在")
+        return value
+    
+    def validate_question_types(self, value):
+        """验证问题类型是否有效"""
+        valid_types = dict(Exercise.EXERCISE_TYPES).keys()
+        for qtype in value:
+            if qtype not in valid_types:
+                raise serializers.ValidationError(
+                    f"无效的问题类型: {qtype}，可选值: {', '.join(valid_types)}"
+                )
+        return value
 
 class CourseGenerationSerializer(serializers.Serializer):
     """课程内容生成请求的序列化器"""

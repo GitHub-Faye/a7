@@ -8,7 +8,7 @@ import json
 import re
 import logging
 from pydantic import BaseModel, Field, ValidationError
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 
 from .exceptions import N8nInvalidRequestError, N8nResponseError
 
@@ -86,6 +86,33 @@ class CourseGenerationResponseData(BaseResponse):
     """课程内容生成任务的响应数据模型"""
     course: CourseData = Field(..., description="生成的课程核心信息")
     knowledge_points: List[KnowledgePointData] = Field(..., description="生成的知识点层级结构")
+
+
+# ==============================================================================
+# 问题生成任务格式 (Question Generation Task Formats)
+# ==============================================================================
+
+class QuestionGenerationRequestData(BaseRequest):
+    """问题生成任务的请求数据模型"""
+    knowledge_point_ids: List[int] = Field(..., description="知识点ID列表")
+    question_types: List[str] = Field(..., description="问题类型列表")
+    quantity: int = Field(..., gt=0, le=50, description="生成问题的数量")
+    difficulty: Optional[int] = Field(None, ge=1, le=5, description="问题难度(1-5)")
+    chatInput: str = Field(..., description="生成问题的提示文本")
+    sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
+
+class QuestionData(BaseResponse):
+    """问题数据模型"""
+    title: str = Field(..., description="问题标题")
+    content: str = Field(..., description="问题内容")
+    type: str = Field(..., description="问题类型")
+    difficulty: int = Field(..., ge=1, le=5, description="难度等级(1-5)")
+    answer_template: Optional[Union[str, List[str]]] = Field(None, description="答案模板或选项列表")
+    knowledge_point_id: int = Field(..., description="关联知识点ID")
+
+class QuestionGenerationResponseData(BaseResponse):
+    """问题生成任务的响应数据模型"""
+    questions: List[QuestionData] = Field(..., description="生成的问题列表")
 
 
 # ==============================================================================
@@ -285,6 +312,82 @@ def format_course_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         )
 
 
+def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    尝试将n8n返回的数据格式化为符合QuestionGenerationResponseData要求的结构
+    
+    Args:
+        data: n8n返回的原始数据
+        
+    Returns:
+        格式化后的数据，符合QuestionGenerationResponseData结构
+    
+    Raises:
+        N8nResponseError: 如果无法格式化数据
+    """
+    logger.info("正在格式化问题生成响应数据")
+    
+    # 情况1: 如果n8n返回的是带有answer字段的对象
+    if isinstance(data, dict) and 'answer' in data and isinstance(data['answer'], str):
+        answer_text = data['answer']
+        logger.info(f"检测到带有answer字段的响应，尝试从中提取JSON。文本长度: {len(answer_text)}")
+        
+        # 尝试从answer中提取JSON
+        extracted_json = extract_json_from_text(answer_text)
+        if extracted_json:
+            logger.info("成功从answer字段中提取JSON结构")
+            return extracted_json
+    
+    # 情况2: 如果收到的是包含output字段的响应
+    if isinstance(data, dict) and 'output' in data and isinstance(data['output'], str):
+        text_output = data['output']
+        logger.info(f"收到包含output字段的响应，尝试提取JSON。文本长度: {len(text_output)}")
+        
+        # 尝试从文本中提取JSON
+        extracted_json = extract_json_from_text(text_output)
+        if extracted_json:
+            logger.info("成功从output字段中提取JSON结构")
+            return extracted_json
+    
+    # 情况3: 检查数据是否已经符合期望的结构
+    if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
+        logger.info("数据结构已符合期望格式")
+        return data
+    
+    # 尝试创建一个基本的兼容结构
+    try:
+        # 如果数据本身是带有code blocks的字符串
+        if isinstance(data, str):
+            extracted_json = extract_json_from_text(data)
+            if extracted_json:
+                logger.info("成功从字符串响应中提取JSON结构")
+                data = extracted_json
+        
+        # 如果缺少questions字段，但有其他可能的字段
+        if 'questions' not in data and 'items' in data and isinstance(data['items'], list):
+            logger.info("从items字段构建questions列表")
+            data['questions'] = data['items']
+        
+        # 最后检查结构是否完整
+        if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
+            return data
+        
+        # 如果仍然不符合结构，抛出错误
+        logger.error(f"无法格式化问题生成响应: {str(data)[:200]}...")
+        raise N8nResponseError(
+            message="问题生成响应格式无效",
+            status_code=400,
+            error_data={"error": "无法解析AI响应为有效的问题列表"}
+        )
+        
+    except Exception as e:
+        logger.exception("格式化问题生成响应时出错")
+        raise N8nResponseError(
+            message=f"格式化问题生成响应时出错: {str(e)}",
+            status_code=500
+        )
+
+
 # ==============================================================================
 # 任务格式注册与管理 (Task Format Registry)
 # ==============================================================================
@@ -298,6 +401,10 @@ TASK_FORMATS: Dict[str, Dict[str, Any]] = {
     "courseGeneration": {
         "request": CourseGenerationRequestData,
         "response": CourseGenerationResponseData,
+    },
+    "questionGeneration": {
+        "request": QuestionGenerationRequestData,
+        "response": QuestionGenerationResponseData,
     },
     # 在这里可以添加其他任务类型的格式定义
     # "another_task": {
@@ -376,9 +483,11 @@ def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
     if not response_model:
         raise N8nResponseError(f"任务类型 '{task_type}' 未定义响应模型")
 
-    # 对于课程生成任务，先尝试格式化响应
+    # 根据任务类型进行特殊处理
     if task_type == "courseGeneration":
         data = format_course_generation_response(data)
+    elif task_type == "questionGeneration":
+        data = format_question_generation_response(data)
 
     try:
         validated_model = response_model.model_validate(data)

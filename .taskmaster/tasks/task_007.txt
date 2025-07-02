@@ -1,6 +1,6 @@
 # Task ID: 7
 # Title: Develop APIs for generating course content
-# Status: pending
+# Status: done
 # Dependencies: 5, 6
 # Priority: high
 # Description: Develop API for automatically generating structured course content based on course name, number of chapters, and general description.
@@ -52,7 +52,7 @@ Build the main controller that orchestrates the API interface, AI service call, 
 Implemented CourseContentGenerationViewSet in a7/courses/views.py to handle AI-generated course content requests. Created CourseGenerationSerializer for input validation. Integrated N8nWebhookClient with process_ai_task_sync for 'courseGeneration' tasks. Used knowledge_converter.create_course_with_knowledge_points to transform AI responses into Course and KnowledgePoint objects. Added comprehensive error handling for N8nWebhookError, N8nInvalidRequestError and ValueError. Registered viewset at /api/course-generate/ in urls.py. Developed unit tests in tests_api_new.py with mocked AI responses to verify success flows, error handling and DB record creation. Fixed environment issues related to N8N_WEBHOOK_URL configuration during testing.
 </info added on 2025-07-01T05:24:42.522Z>
 
-## 5. 和n8n真实连接测试 [pending]
+## 5. 和n8n真实连接测试 [done]
 ### Dependencies: None
 ### Description: 使用真实的n8n环境进行API连接和功能测试，验证课程内容生成系统的实际效果
 ### Details:

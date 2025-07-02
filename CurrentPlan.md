@@ -1,1 +1,638 @@
+# 任务13.2: 开发API端点接收参数并生成问题的实施计划
 
+## 需求分析
+
+任务13.2要求我们构建一个API端点，用于接收用户输入参数并将其转发给AI模型生成问题。根据父任务13的描述，该API需要：
+
+1. 接收用户输入的参数（知识点、问题类型、数量）
+2. 将这些参数转发给AI模型
+3. 返回AI生成的格式化问题
+
+## 系统架构分析
+
+通过分析现有代码，我们发现系统已经有了完善的AI服务集成框架：
+
+1. `ai_services`应用负责与n8n Webhook通信
+2. `N8nWebhookClient`类提供了与n8n服务通信的方法
+3. `formats.py`中定义了各种任务的请求和响应数据结构
+4. 已有的课程内容生成API(`CourseContentGenerationViewSet`)提供了良好的参考模板
+
+## 实施步骤
+
+### 1. 定义问题生成数据模型（Pydantic模型）
+
+在`a7/ai_services/services/n8n_webhook/formats.py`中添加：
+
+```python
+# ==============================================================================
+# 问题生成任务格式 (Question Generation Task Formats)
+# ==============================================================================
+
+class QuestionGenerationRequestData(BaseRequest):
+    """问题生成任务的请求数据模型"""
+    knowledge_point_ids: List[int] = Field(..., description="知识点ID列表")
+    question_types: List[str] = Field(..., description="问题类型列表")
+    quantity: int = Field(..., gt=0, le=50, description="生成问题的数量")
+    difficulty: Optional[int] = Field(None, ge=1, le=5, description="问题难度(1-5)")
+    chatInput: str = Field(..., description="生成问题的提示文本")
+    sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
+
+class QuestionData(BaseResponse):
+    """问题数据模型"""
+    title: str = Field(..., description="问题标题")
+    content: str = Field(..., description="问题内容")
+    type: str = Field(..., description="问题类型")
+    difficulty: int = Field(..., ge=1, le=5, description="难度等级(1-5)")
+    answer_template: Optional[str] = Field(None, description="答案模板")
+    knowledge_point_id: int = Field(..., description="关联知识点ID")
+
+class QuestionGenerationResponseData(BaseResponse):
+    """问题生成任务的响应数据模型"""
+    questions: List[QuestionData] = Field(..., description="生成的问题列表")
+```
+
+### 2. 更新格式处理函数
+
+在`a7/ai_services/services/n8n_webhook/formats.py`中添加格式处理函数：
+
+```python
+def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    尝试将n8n返回的数据格式化为符合QuestionGenerationResponseData要求的结构
+    
+    Args:
+        data: n8n返回的原始数据
+        
+    Returns:
+        格式化后的数据，符合QuestionGenerationResponseData结构
+    
+    Raises:
+        N8nResponseError: 如果无法格式化数据
+    """
+    logger.info("正在格式化问题生成响应数据")
+    
+    # 情况1: 如果n8n返回的是带有answer字段的对象
+    if isinstance(data, dict) and 'answer' in data and isinstance(data['answer'], str):
+        answer_text = data['answer']
+        logger.info(f"检测到带有answer字段的响应，尝试从中提取JSON。文本长度: {len(answer_text)}")
+        
+        # 尝试从answer中提取JSON
+        extracted_json = extract_json_from_text(answer_text)
+        if extracted_json:
+            logger.info("成功从answer字段中提取JSON结构")
+            return extracted_json
+    
+    # 情况2: 如果收到的是包含output字段的响应
+    if isinstance(data, dict) and 'output' in data and isinstance(data['output'], str):
+        text_output = data['output']
+        logger.info(f"收到包含output字段的响应，尝试提取JSON。文本长度: {len(text_output)}")
+        
+        # 尝试从文本中提取JSON
+        extracted_json = extract_json_from_text(text_output)
+        if extracted_json:
+            logger.info("成功从output字段中提取JSON结构")
+            return extracted_json
+    
+    # 情况3: 检查数据是否已经符合期望的结构
+    if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
+        logger.info("数据结构已符合期望格式")
+        return data
+    
+    # 尝试创建一个基本的兼容结构
+    try:
+        # 如果数据本身是带有code blocks的字符串
+        if isinstance(data, str):
+            extracted_json = extract_json_from_text(data)
+            if extracted_json:
+                logger.info("成功从字符串响应中提取JSON结构")
+                data = extracted_json
+        
+        # 如果缺少questions字段，但有其他可能的字段
+        if 'questions' not in data and 'items' in data and isinstance(data['items'], list):
+            logger.info("从items字段构建questions列表")
+            data['questions'] = data['items']
+        
+        # 最后检查结构是否完整
+        if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
+            return data
+        
+        # 如果仍然不符合结构，抛出错误
+        logger.error(f"无法格式化问题生成响应: {str(data)[:200]}...")
+        raise N8nResponseError(
+            message="问题生成响应格式无效",
+            status_code=400,
+            error_data={"error": "无法解析AI响应为有效的问题列表"}
+        )
+        
+    except Exception as e:
+        logger.exception("格式化问题生成响应时出错")
+        raise N8nResponseError(
+            message=f"格式化问题生成响应时出错: {str(e)}",
+            status_code=500
+        )
+```
+
+### 3. 更新任务格式处理函数
+
+在`a7/ai_services/services/n8n_webhook/formats.py`中更新以下函数：
+
+```python
+def get_task_format(task_type: str) -> Optional[Dict[str, Any]]:
+    """
+    获取任务类型对应的请求和响应格式
+    
+    Args:
+        task_type: 任务类型
+        
+    Returns:
+        包含请求和响应模型类的字典，如果任务类型不支持则返回None
+    """
+    task_formats = {
+        'ragAI': {
+            'request': RagAIRequestData,
+            'response': RagAIResponseData
+        },
+        'courseGeneration': {
+            'request': CourseGenerationRequestData,
+            'response': CourseGenerationResponseData
+        },
+        'questionGeneration': {  # 添加新的任务类型
+            'request': QuestionGenerationRequestData,
+            'response': QuestionGenerationResponseData
+        }
+    }
+    return task_formats.get(task_type)
+
+def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
+    """
+    解析和验证响应数据
+    
+    Args:
+        task_type: 任务类型
+        data: 原始响应数据
+        
+    Returns:
+        验证后的响应数据模型
+        
+    Raises:
+        N8nResponseError: 如果响应数据无效或不符合预期格式
+    """
+    task_format = get_task_format(task_type)
+    if not task_format:
+        raise N8nResponseError(
+            message=f"不支持的任务类型: {task_type}",
+            status_code=400
+        )
+    
+    response_model = task_format['response']
+    
+    # 根据任务类型进行特殊处理
+    if task_type == 'courseGeneration':
+        data = format_course_generation_response(data)
+    elif task_type == 'questionGeneration':  # 添加新的任务类型处理
+        data = format_question_generation_response(data)
+    
+    try:
+        return response_model(**data)
+    except ValidationError as e:
+        logger.error(f"响应数据验证失败: {str(e)}")
+        raise N8nResponseError(
+            message="响应数据验证失败",
+            status_code=400,
+            error_data={"validation_errors": e.errors()}
+        )
+```
+
+### 4. 添加N8nWebhookClient便捷方法
+
+在`a7/ai_services/services/n8n_webhook/client.py`中添加：
+
+```python
+async def generate_questions(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    生成问题的便捷方法
+    
+    Args:
+        request_data: 包含知识点ID、问题类型和数量等的请求数据
+        
+    Returns:
+        生成的问题列表
+    """
+    return await self.process_ai_task('questionGeneration', request_data)
+
+def generate_questions_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    生成问题的同步便捷方法
+    
+    Args:
+        request_data: 包含知识点ID、问题类型和数量等的请求数据
+        
+    Returns:
+        生成的问题列表
+    """
+    return asyncio.run(self.generate_questions(request_data))
+```
+
+### 5. 创建问题生成序列化器
+
+在`a7/courses/serializers.py`中添加：
+
+```python
+class QuestionGenerationSerializer(serializers.Serializer):
+    """问题生成请求的序列化器"""
+    knowledge_point_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        help_text="知识点ID列表"
+    )
+    question_types = serializers.ListField(
+        child=serializers.ChoiceField(choices=Exercise.EXERCISE_TYPES),
+        help_text="问题类型列表"
+    )
+    quantity = serializers.IntegerField(
+        min_value=1, 
+        max_value=50,
+        help_text="生成问题的数量"
+    )
+    difficulty = serializers.IntegerField(
+        min_value=1,
+        max_value=5,
+        required=False,
+        help_text="问题难度(1-5)"
+    )
+    chatInput = serializers.CharField(
+        required=False, 
+        help_text="用于生成问题的提示文本，如果不提供，系统将自动构建"
+    )
+    sessionId = serializers.CharField(
+        required=False, 
+        help_text="会话ID，用于跟踪多轮对话，如果不提供，系统将自动生成"
+    )
+    
+    def validate_knowledge_point_ids(self, value):
+        """验证知识点ID是否存在"""
+        for kp_id in value:
+            try:
+                KnowledgePoint.objects.get(id=kp_id)
+            except KnowledgePoint.DoesNotExist:
+                raise serializers.ValidationError(f"ID为{kp_id}的知识点不存在")
+        return value
+    
+    def validate_question_types(self, value):
+        """验证问题类型是否有效"""
+        valid_types = dict(Exercise.EXERCISE_TYPES).keys()
+        for qtype in value:
+            if qtype not in valid_types:
+                raise serializers.ValidationError(
+                    f"无效的问题类型: {qtype}，可选值: {', '.join(valid_types)}"
+                )
+        return value
+```
+
+### 6. 创建问题生成视图集
+
+在`a7/courses/views.py`中添加：
+
+```python
+class QuestionGenerationViewSet(viewsets.ViewSet):
+    """
+    通过AI生成问题的API视图集
+    """
+    permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+    
+    @swagger_auto_schema(
+        operation_summary="使用AI生成问题",
+        operation_description="提供知识点ID、问题类型和数量，调用AI服务生成格式化的问题",
+        request_body=QuestionGenerationSerializer,
+        responses={
+            201: "成功生成问题",
+            400: "错误的请求",
+            500: "服务器内部错误"
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        """
+        处理问题生成请求
+        """
+        # 1. 验证请求参数
+        serializer = QuestionGenerationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return create_api_response(
+                success=False,
+                error_code="VALIDATION_ERROR",
+                message="请求参数验证失败",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 2. 准备请求数据
+        task_data = serializer.validated_data.copy()
+        
+        # 3. 自动构建标准格式的chatInput，确保提示的正确性
+        knowledge_point_ids = task_data.get('knowledge_point_ids')
+        question_types = task_data.get('question_types')
+        quantity = task_data.get('quantity')
+        difficulty = task_data.get('difficulty')
+        
+        # 获取知识点详情，用于提示
+        knowledge_points = []
+        for kp_id in knowledge_point_ids:
+            kp = KnowledgePoint.objects.get(id=kp_id)
+            knowledge_points.append({
+                'id': kp.id,
+                'title': kp.title,
+                'content': kp.content
+            })
+        
+        # 构建标准格式的chatInput
+        standard_chat_input = f"""
+请根据以下知识点信息生成教学练习题，并以严格的JSON格式返回结果。
+
+知识点信息：
+{json.dumps(knowledge_points, ensure_ascii=False, indent=2)}
+
+要求：
+- 生成{quantity}道练习题
+- 题目类型：{', '.join(question_types)}
+- 难度等级：{difficulty if difficulty else '1-5之间'}
+
+你必须严格按照以下JSON格式返回结果，不要添加任何额外文本、说明或Markdown标记：
+
+```json
+{{
+  "questions": [
+    {{
+      "title": "问题标题",
+      "content": "详细问题内容",
+      "type": "问题类型",
+      "difficulty": 难度等级(1-5),
+      "answer_template": "答案模板或选项",
+      "knowledge_point_id": 关联知识点ID
+    }},
+    {{
+      "title": "问题标题2",
+      "content": "详细问题内容2",
+      "type": "问题类型",
+      "difficulty": 难度等级(1-5),
+      "answer_template": "答案模板或选项",
+      "knowledge_point_id": 关联知识点ID
+    }}
+  ]
+}}
+```
+
+请注意：
+1. 问题内容应该基于提供的知识点信息
+2. 问题类型必须是以下之一：{', '.join(question_types)}
+3. 难度等级必须是1到5之间的整数
+4. 每个问题必须关联到提供的知识点ID之一
+5. 答案模板应该包含正确答案或选项列表
+6. 不要在JSON外添加任何解释或说明文字
+7. 确保你的JSON格式正确且有效，系统将直接解析此JSON
+
+这些问题将直接用于教育系统，格式错误将导致系统无法处理。
+        """
+        
+        # 用系统构建的标准格式替换用户提供的chatInput
+        task_data['chatInput'] = standard_chat_input
+        
+        # 如果用户没有提供sessionId，生成一个
+        if 'sessionId' not in task_data:
+            import uuid
+            task_data['sessionId'] = str(uuid.uuid4())
+        
+        try:
+            # 4. 调用AI服务生成问题
+            client = N8nWebhookClient()
+            ai_response = client.process_ai_task_sync('questionGeneration', task_data)
+            
+            # 5. 处理生成的问题
+            questions = ai_response.get('questions', [])
+            
+            # 6. 返回生成的问题
+            return create_api_response(
+                success=True,
+                data={'questions': questions},
+                message=f"成功生成{len(questions)}道问题",
+                status_code=status.HTTP_201_CREATED
+            )
+            
+        except N8nInvalidRequestError as e:
+            return create_api_response(
+                success=False,
+                error_code="INVALID_REQUEST",
+                message=f"请求格式无效: {str(e)}",
+                errors=getattr(e, 'validation_errors', None),
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except N8nWebhookError as e:
+            return create_api_response(
+                success=False,
+                error_code="AI_SERVICE_ERROR",
+                message=f"AI服务处理失败: {str(e)}",
+                status_code=getattr(e, 'status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return create_api_response(
+                success=False,
+                error_code="INTERNAL_SERVER_ERROR",
+                message=f"处理请求时发生未知错误: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+```
+
+### 7. 更新URL配置
+
+在`a7/courses/urls.py`中添加：
+
+```python
+# 更新导入
+from .views import (
+    CourseViewSet, 
+    KnowledgePointViewSet, 
+    CoursewareViewSet, 
+    CourseContentGenerationViewSet,
+    QuestionGenerationViewSet  # 添加新的视图集
+)
+
+# 注册新的路由
+router.register(r'questions-generate', QuestionGenerationViewSet, basename='questions-generate')
+```
+
+### 8. 编写测试用例
+
+在`a7/courses/tests_api_new.py`中添加：
+
+```python
+class QuestionGenerationAPITests(TestCase):
+    """问题生成API测试"""
+    
+    def setUp(self):
+        # 创建用户
+        self.admin_user = User.objects.create_user(username='admin', password='admin123', is_staff=True)
+        self.teacher_user = User.objects.create_user(username='teacher', password='teacher123')
+        self.student_user = User.objects.create_user(username='student', password='student123')
+        
+        # 设置角色
+        admin_role = Role.objects.get(name='admin')
+        teacher_role = Role.objects.get(name='teacher')
+        student_role = Role.objects.get(name='student')
+        
+        self.admin_user.role = admin_role
+        self.teacher_user.role = teacher_role
+        self.student_user.role = student_role
+        
+        self.admin_user.save()
+        self.teacher_user.save()
+        self.student_user.save()
+        
+        # 创建课程
+        self.course = Course.objects.create(
+            title='测试课程',
+            description='测试课程描述',
+            subject='计算机科学',
+            grade_level='大学',
+            teacher=self.teacher_user
+        )
+        
+        # 创建知识点
+        self.kp1 = KnowledgePoint.objects.create(
+            course=self.course,
+            title='Python基础',
+            content='Python是一种高级编程语言，以其简洁、易读的语法著称。',
+            importance=8
+        )
+        
+        self.kp2 = KnowledgePoint.objects.create(
+            course=self.course,
+            title='数据结构',
+            content='数据结构是计算机存储、组织数据的方式。',
+            importance=9
+        )
+        
+        # 创建客户端
+        self.client = APIClient()
+    
+    def test_generate_questions_as_teacher(self):
+        """测试教师生成问题"""
+        self.client.force_authenticate(user=self.teacher_user)
+        
+        # 模拟AI服务响应
+        with patch('a7.ai_services.services.n8n_webhook.client.N8nWebhookClient.process_ai_task_sync') as mock_ai:
+            mock_ai.return_value = {
+                'questions': [
+                    {
+                        'title': '测试问题1',
+                        'content': '什么是Python?',
+                        'type': 'short_answer',
+                        'difficulty': 2,
+                        'answer_template': 'Python是一种高级编程语言...',
+                        'knowledge_point_id': self.kp1.id
+                    },
+                    {
+                        'title': '测试问题2',
+                        'content': '列出三种常见的数据结构',
+                        'type': 'short_answer',
+                        'difficulty': 3,
+                        'answer_template': '数组、链表、树...',
+                        'knowledge_point_id': self.kp2.id
+                    }
+                ]
+            }
+            
+            response = self.client.post(
+                '/api/questions-generate/',
+                {
+                    'knowledge_point_ids': [self.kp1.id, self.kp2.id],
+                    'question_types': ['short_answer', 'multiple_choice'],
+                    'quantity': 2,
+                    'difficulty': 3
+                },
+                format='json'
+            )
+            
+            self.assertEqual(response.status_code, 201)
+            self.assertTrue(response.data['success'])
+            self.assertEqual(len(response.data['data']['questions']), 2)
+    
+    def test_generate_questions_as_student(self):
+        """测试学生生成问题（应该被拒绝）"""
+        self.client.force_authenticate(user=self.student_user)
+        
+        response = self.client.post(
+            '/api/questions-generate/',
+            {
+                'knowledge_point_ids': [self.kp1.id],
+                'question_types': ['short_answer'],
+                'quantity': 1
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, 403)
+    
+    def test_generate_questions_validation(self):
+        """测试参数验证"""
+        self.client.force_authenticate(user=self.teacher_user)
+        
+        # 测试无效的知识点ID
+        response = self.client.post(
+            '/api/questions-generate/',
+            {
+                'knowledge_point_ids': [9999],  # 不存在的ID
+                'question_types': ['short_answer'],
+                'quantity': 1
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.data['success'])
+        
+        # 测试无效的问题类型
+        response = self.client.post(
+            '/api/questions-generate/',
+            {
+                'knowledge_point_ids': [self.kp1.id],
+                'question_types': ['invalid_type'],  # 无效的类型
+                'quantity': 1
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.data['success'])
+```
+
+## 测试计划
+
+1. **单元测试**:
+   - 测试`QuestionGenerationSerializer`的验证逻辑
+   - 测试`format_question_generation_response`函数的各种情况
+   - 测试`QuestionGenerationViewSet`的权限和参数验证
+
+2. **集成测试**:
+   - 测试与n8n服务的集成
+   - 测试完整的API请求-响应流程
+
+3. **手动测试**:
+   - 使用Swagger UI测试API端点
+   - 验证生成的问题格式和内容
+
+## 部署计划
+
+1. 实施代码更改
+2. 运行测试确保功能正常
+3. 更新API文档
+4. 部署到开发环境进行测试
+5. 部署到生产环境
+
+## 时间估计
+
+- 数据模型和格式定义: 1小时
+- 视图和序列化器实现: 2小时
+- 测试编写和执行: 2小时
+- 文档和部署: 1小时
+
+总计: 约6小时

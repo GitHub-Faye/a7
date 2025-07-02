@@ -15,7 +15,8 @@ from .serializers import (
     CoursewareSerializer,
     CoursewareCreateSerializer,
     CoursewareUpdateSerializer,
-    CourseGenerationSerializer
+    CourseGenerationSerializer,
+    QuestionGenerationSerializer
 )
 from .permissions import (
     IsTeacherOrAdmin, 
@@ -31,6 +32,8 @@ from ai_services.services.n8n_webhook.exceptions import N8nWebhookError, N8nInva
 from ai_services.api_response import create_api_response
 from django.db import transaction
 from rest_framework.views import APIView
+import json
+import uuid
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -495,6 +498,154 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
             )
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return create_api_response(
+                success=False,
+                error_code="INTERNAL_SERVER_ERROR",
+                message=f"处理请求时发生未知错误: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class QuestionGenerationViewSet(viewsets.ViewSet):
+    """
+    通过AI生成问题的API视图集
+    """
+    permission_classes = [permissions.AllowAny]  # 关闭权限检查，允许所有用户访问
+    
+    @swagger_auto_schema(
+        operation_summary="使用AI生成问题",
+        operation_description="提供知识点ID、问题类型和数量，调用AI服务生成格式化的问题",
+        request_body=QuestionGenerationSerializer,
+        responses={
+            201: "成功生成问题",
+            400: "错误的请求",
+            500: "服务器内部错误"
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        """
+        处理问题生成请求
+        """
+        # 1. 验证请求参数
+        serializer = QuestionGenerationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return create_api_response(
+                success=False,
+                error_code="VALIDATION_ERROR",
+                message="请求参数验证失败",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 2. 准备请求数据
+        task_data = serializer.validated_data.copy()
+        
+        # 3. 自动构建标准格式的chatInput，确保提示的正确性
+        knowledge_point_ids = task_data.get('knowledge_point_ids')
+        question_types = task_data.get('question_types')
+        quantity = task_data.get('quantity')
+        difficulty = task_data.get('difficulty')
+        
+        # 获取知识点详情，用于提示
+        knowledge_points = []
+        for kp_id in knowledge_point_ids:
+            kp = KnowledgePoint.objects.get(id=kp_id)
+            knowledge_points.append({
+                'id': kp.id,
+                'title': kp.title,
+                'content': kp.content
+            })
+        
+        # 构建标准格式的chatInput
+        standard_chat_input = f"""
+请根据以下知识点信息生成教学练习题，并以严格的JSON格式返回结果。
+
+知识点信息：
+{json.dumps(knowledge_points, ensure_ascii=False, indent=2)}
+
+要求：
+- 生成{quantity}道练习题
+- 题目类型：{', '.join(question_types)}
+- 难度等级：{difficulty if difficulty else '1-5之间'}
+
+你必须严格按照以下JSON格式返回结果，不要添加任何额外文本、说明或Markdown标记：
+
+```json
+{{
+  "questions": [
+    {{
+      "title": "问题标题",
+      "content": "详细问题内容",
+      "type": "问题类型",
+      "difficulty": 难度等级(1-5),
+      "answer_template": "答案模板或选项",
+      "knowledge_point_id": 关联知识点ID
+    }},
+    {{
+      "title": "问题标题2",
+      "content": "详细问题内容2",
+      "type": "问题类型",
+      "difficulty": 难度等级(1-5),
+      "answer_template": "答案模板或选项",
+      "knowledge_point_id": 关联知识点ID
+    }}
+  ]
+}}
+```
+
+请注意：
+1. 问题内容应该基于提供的知识点信息
+2. 问题类型必须是以下之一：{', '.join(question_types)}
+3. 难度等级必须是1到5之间的整数
+4. 每个问题必须关联到提供的知识点ID之一
+5. 答案模板应该包含正确答案或选项列表
+6. 不要在JSON外添加任何解释或说明文字
+7. 确保你的JSON格式正确且有效，系统将直接解析此JSON
+
+这些问题将直接用于教育系统，格式错误将导致系统无法处理。
+        """
+        
+        # 用系统构建的标准格式替换用户提供的chatInput
+        task_data['chatInput'] = standard_chat_input
+        
+        # 如果用户没有提供sessionId，生成一个
+        if 'sessionId' not in task_data:
+            task_data['sessionId'] = str(uuid.uuid4())
+        
+        try:
+            # 4. 调用AI服务生成问题
+            client = N8nWebhookClient()
+            ai_response = client.generate_questions_sync(task_data)
+            
+            # 5. 处理生成的问题
+            questions = ai_response.get('questions', [])
+            
+            # 6. 返回生成的问题
+            return create_api_response(
+                success=True,
+                data={'questions': questions},
+                message=f"成功生成{len(questions)}道问题",
+                status_code=status.HTTP_201_CREATED
+            )
+            
+        except N8nInvalidRequestError as e:
+            return create_api_response(
+                success=False,
+                error_code="INVALID_REQUEST",
+                message=f"请求格式无效: {str(e)}",
+                errors=getattr(e, 'validation_errors', None),
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except N8nWebhookError as e:
+            return create_api_response(
+                success=False,
+                error_code="AI_SERVICE_ERROR",
+                message=f"AI服务处理失败: {str(e)}",
+                status_code=getattr(e, 'status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
+            )
+        except Exception as e:
             import traceback
             traceback.print_exc()
             return create_api_response(

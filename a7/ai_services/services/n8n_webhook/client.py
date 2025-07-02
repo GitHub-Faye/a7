@@ -271,4 +271,28 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 生成的课程内容，包含课程信息和知识点层级结构
         """
-        return asyncio.run(self.generate_course_content(request_data)) 
+        return asyncio.run(self.generate_course_content(request_data))
+        
+    async def generate_questions(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        生成问题的便捷方法
+        
+        Args:
+            request_data: 包含知识点ID、问题类型和数量等的请求数据
+            
+        Returns:
+            生成的问题列表
+        """
+        return await self.process_ai_task('questionGeneration', request_data)
+
+    def generate_questions_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        生成问题的同步便捷方法
+        
+        Args:
+            request_data: 包含知识点ID、问题类型和数量等的请求数据
+            
+        Returns:
+            生成的问题列表
+        """
+        return asyncio.run(self.generate_questions(request_data)) 
