@@ -101,6 +101,7 @@ a7/                           # 项目根目录
 │   │   ├── validations.py    # 通用验证工具类
 │   │   ├── utils.py          # 工具函数，包含请求参数验证
 │   │   ├── tests.py          # 课程模型的测试用例
+│   │   ├── tests_serializers.py # Exercise和StudentAnswer序列化器的测试用例
 │   │   ├── tests_api.py      # 课程API的测试用例
 │   │   ├── tests_api_new.py  # 课程API的全面测试用例，包含CourseAPITests、KnowledgePointAPITests和CoursewareAPITests测试类
 │   │   ├── tests_validation.py # 验证逻辑的测试用例
@@ -199,13 +200,14 @@ a7/                           # 项目根目录
 - **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
 - **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
-- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。还包含QuestionGenerationSerializer，用于问题生成API的请求参数验证。
+- **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。还包含QuestionGenerationSerializer，用于问题生成API的请求参数验证。新增Exercise和StudentAnswer相关序列化器（读取、创建、更新、反馈），支持练习题和学生答案管理。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
 - **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`和`CourseContentGenerationViewSet`。还注册了`QuestionGenerationViewSet`，提供问题生成API端点。
 - **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`和`CourseContentGenerationViewSet`视图集，实现课程、知识点、课件的CRUD操作和AI内容生成功能。还包含`QuestionGenerationViewSet`视图集，实现基于知识点的问题生成功能。
 - **a7/courses/validations.py**: 通用验证工具类，提供了字段验证（validate_text_field）、对象存在性验证（validate_existence）和唯一性验证（validate_uniqueness）等方法，为序列化器提供复用的验证逻辑。
 - **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
+- **a7/courses/tests_serializers.py**: 序列化器测试文件，包含对ExerciseSerializer和StudentAnswerSerializer相关类的单元测试，验证数据序列化、反序列化和验证逻辑的正确性。
 - **a7/courses/tests_api.py**: 课程API测试文件，包含API接口的功能测试，验证权限控制、CRUD操作和自定义操作的正确性，包括KnowledgePointAPITests测试类，验证知识点API的功能完整性和权限控制。
 - **a7/courses/tests_api_new.py**: 课程内容管理API的全面测试套件，包含CourseAPITests（验证课程CRUD和权限控制）、KnowledgePointAPITests（测试知识点层级结构和循环引用防护）、CoursewareAPITests（测试课件管理功能）和CourseContentGenerationAPITests（测试AI内容生成）四个主要测试类。共实现42个全面测试用例，验证不同用户角色（管理员、教师、学生）的权限控制、所有API端点的功能完整性以及特殊操作如my_courses、top_level、children和by_course等。测试包含边界情况处理、数据验证和错误响应。
 - **a7/courses/tests_validation.py**: 验证逻辑测试文件，包含对课程、知识点和课件API的验证逻辑测试，验证字段验证、唯一性检查、关系完整性（如循环引用检测）等验证功能的正确性。测试不同场景下的验证行为，确保数据一致性和业务规则的强制执行。
