@@ -156,7 +156,7 @@ a7/                           # 项目根目录
 
 - **a7/a7/__init__.py**: Python包标识文件，表明该目录是一个Python包。
 - **a7/a7/asgi.py**: ASGI（异步服务器网关接口）应用配置，用于异步服务器部署。
-- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（会话认证，JWT令牌认证已禁用）、权限控制（已设置为AllowAny允许所有访问）、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤、版本控制、JSON格式和时间格式等全局设置。
+- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（会话认证，JWT令牌认证已禁用）、权限控制（已设置为AllowAny允许所有访问）、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤（已配置DjangoFilterBackend作为默认过滤后端）、版本控制、JSON格式和时间格式等全局设置。
 - **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。
 - **a7/a7/wsgi.py**: WSGI（Web服务器网关接口）应用配置，用于传统Web服务器部署。
 - **a7/manage.py**: Django命令行工具，用于执行各种管理任务，如运行开发服务器、数据库迁移等。
@@ -204,7 +204,7 @@ a7/                           # 项目根目录
 - **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。还包含QuestionGenerationSerializer，用于问题生成API的请求参数验证。新增Exercise和StudentAnswer相关序列化器（读取、创建、更新、反馈），支持练习题和学生答案管理。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
 - **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`、`CourseContentGenerationViewSet`、`QuestionGenerationViewSet`、`ExerciseViewSet`和`StudentAnswerViewSet`，提供课程内容、练习和答案的API端点。
-- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`, `CourseContentGenerationViewSet`, `QuestionGenerationViewSet`, `ExerciseViewSet` 和 `StudentAnswerViewSet` 视图集，实现课程、知识点、课件、练习题和学生答案的CRUD操作和AI内容生成功能。
+- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`, `CourseContentGenerationViewSet`, `QuestionGenerationViewSet`, `ExerciseViewSet` 和 `StudentAnswerViewSet` 视图集，实现课程、知识点、课件、练习题和学生答案的CRUD操作和AI内容生成功能。`ExerciseViewSet`和`StudentAnswerViewSet`配置了过滤、排序和搜索功能，支持按知识点、题型、难度等字段过滤，按创建时间、难度等字段排序，以及按标题、内容等字段搜索。
 - **a7/courses/validations.py**: 通用验证工具类，提供了字段验证（validate_text_field）、对象存在性验证（validate_existence）和唯一性验证（validate_uniqueness）等方法，为序列化器提供复用的验证逻辑。
 - **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
@@ -215,7 +215,7 @@ a7/                           # 项目根目录
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
 - **a7/courses/tests/test_question_export.py**: 问题导出工具的单元测试，验证JSON和CSV格式导出功能、文件名生成、内容类型设置和错误处理。包含QuestionExportToolTests和QuestionExportAPITests两个测试类，共9个测试用例。
 - **a7/courses/tests/test_question_export_integration.py**: 问题导出功能的集成测试，验证从问题生成到导出的完整流程。使用模拟技术测试API响应、会话存储和多种格式导出。
-- **a7/courses/tests/test_api_exercises.py**: 练习题和学生答案API的CRUD功能测试。
+- **a7/courses/tests/test_api_exercises.py**: 练习题和学生答案API的CRUD功能测试，包括对过滤、排序和搜索功能的全面测试用例，验证按知识点过滤、按创建时间排序、按内容搜索等功能的正确性。
 
 ### AI服务应用文件
 
@@ -308,7 +308,7 @@ a7/                           # 项目根目录
 
 1. **Django项目结构**:
    - `a7/a7/settings.py`定义Django项目的核心配置，如数据库连接、安装的应用等。
-   - `a7/a7/settings.py`中的`REST_FRAMEWORK`字典配置REST API框架的全局行为，包括认证、权限、分页、渲染器、解析器、过滤和版本控制等，为所有API端点提供一致的基础设置。
+   - `a7/a7/settings.py`中的`REST_FRAMEWORK`字典配置REST API框架的全局行为，包括认证、权限、分页、渲染器、解析器、异常处理、过滤（配置了DjangoFilterBackend作为默认过滤后端）、版本控制、JSON格式和时间格式等全局设置。
    - `a7/a7/urls.py`配置URL路由，将请求映射到对应的视图函数。
    - `a7/a7/asgi.py`和`a7/a7/wsgi.py`提供异步和同步Web服务器网关接口。
    - `a7/manage.py`是命令行工具入口，用于执行Django管理命令。
@@ -411,7 +411,7 @@ a7/                           # 项目根目录
     - 分页配置确保大型数据集的高效处理，防止返回过多数据导致性能问题。
     - 渲染器配置支持多种格式输出，既可返回生产环境的JSON数据，也支持开发环境的可视化API界面。
     - 解析器配置支持多种输入格式，包括JSON数据、表单数据和文件上传。
-    - 过滤和搜索配置为API提供强大的数据查询能力，支持高级搜索和结果排序。
+    - 过滤和搜索配置为API提供强大的数据查询能力，支持高级搜索和结果排序。新增django-filter配置，为所有API端点提供统一的过滤功能支持。
     - 异常处理确保API错误以一致的格式返回，便于客户端处理。
     - 版本控制配置支持API演进和向后兼容性管理。
     - 格式配置优化响应大小和时间表示，提高API效率和可用性。
@@ -537,7 +537,7 @@ a7/                           # 项目根目录
    - **渲染器配置**: 支持JSON和可浏览API格式输出
    - **解析器配置**: 支持JSON、表单数据和多部分表单数据（含文件上传）输入
    - **异常处理**: 使用默认异常处理器处理API错误
-   - **过滤配置**: 支持搜索过滤和结果排序
+   - **过滤配置**: 支持搜索过滤和结果排序，配置了DjangoFilterBackend作为默认过滤后端
    - **版本控制**: 使用URL命名空间进行API版本控制
    - **格式配置**: 启用压缩JSON减少响应大小，自定义日期时间格式
    - **测试配置**: 测试客户端默认使用JSON格式
@@ -579,9 +579,9 @@ a7/                           # 项目根目录
    - `/api/courseware/<id>/` - 课件详情、更新和删除
    - `/api/courseware/by_course/` - 获取指定课程的所有课件
    - `/api/course-generate/` - 使用AI生成课程内容的端点
-   - `/api/exercises/` - 练习题列表和创建
+   - `/api/exercises/` - 练习题列表和创建（支持按知识点、题型和难度过滤，按创建时间、难度等排序，按标题和内容搜索）
    - `/api/exercises/<id>/` - 练习题详情、更新和删除
-   - `/api/student-answers/` - 学生答案列表和创建
+   - `/api/student-answers/` - 学生答案列表和创建（支持按学生、练习题和得分过滤，按提交时间和得分排序，按答案文本搜索）
    - `/api/student-answers/<id>/` - 学生答案详情、更新和删除
    - 所有端点实现权限控制（当前大部分已放开），确保数据一致性、有效性和适当的错误处理
    - 所有端点返回标准化的响应格式，包含状态码、成功标志和数据

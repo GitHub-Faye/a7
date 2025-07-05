@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+    'django_filters',  # 添加django-filter应用
     
     # 本地应用
     'apps.core',
@@ -185,6 +186,7 @@ REST_FRAMEWORK = {
     
     # 过滤配置
     'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',  # Django过滤器后端
         'rest_framework.filters.SearchFilter',  # 搜索过滤
         'rest_framework.filters.OrderingFilter',  # 排序过滤
     ],

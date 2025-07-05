@@ -514,8 +514,8 @@
             "dependencies": [
               2
             ],
-            "details": "Use Django REST Framework's built-in tools to enable filtering (e.g., by knowledge point, question type), sorting (e.g., by creation date), and search (e.g., by question text).",
-            "status": "pending",
+            "details": "Use Django REST Framework's built-in tools to enable filtering (e.g., by knowledge point, question type), sorting (e.g., by creation date), and search (e.g., by question text).\n<info added on 2025-07-05T09:08:02.210Z>\n已成功实现并测试通过Exercise和StudentAnswer API端点的过滤、排序和搜索功能。具体实现包括：\n1. 安装配置django-filter==24.2并添加到INSTALLED_APPS\n2. 配置DEFAULT_FILTER_BACKENDS使用DjangoFilterBackend\n3. 为ExerciseViewSet配置：\n   - 支持按知识点、题型和难度过滤\n   - 支持按标题和内容搜索\n   - 支持按创建时间、难度等字段排序\n4. 为StudentAnswerViewSet配置：\n   - 支持按学生、练习题和得分过滤\n   - 支持按答案文本搜索\n   - 支持按提交时间、分数等字段排序\n5. 编写20个测试用例全面验证功能，全部通过\n6. 测试覆盖所有过滤、排序和搜索场景，仅出现两个关于日期时区的无害警告\n</info added on 2025-07-05T09:08:02.210Z>",
+            "status": "done",
             "testStrategy": "Write unit and integration tests to verify filtering, sorting, and search functionality."
           },
           {
@@ -528,7 +528,7 @@
               3,
               4
             ],
-            "details": "Include unit tests for serializers, viewsets, and permissions. Write integration tests to verify API endpoints and permissions under various scenarios.",
+            "details": "Include unit tests for serializers, viewsets, and permissions. Write integration tests to verify API endpoints and permissions under various scenarios.\n<info added on 2025-07-05T09:06:39.070Z>\n已完成测试工作：\n1. ExerciseViewSet单元测试：CRUD操作、按知识点/题目类型/难度级别过滤、按创建时间排序、按标题和内容搜索\n2. StudentAnswerViewSet单元测试：CRUD操作、按学生/练习题/得分过滤、按提交时间排序、按内容搜索\n3. 集成测试验证：API端点状态码、权限控制、数据过滤排序功能、搜索功能\n测试结果：20个测试用例全部通过，覆盖所有关键路径和边缘情况\n</info added on 2025-07-05T09:06:39.070Z>",
             "status": "pending",
             "testStrategy": "Ensure test coverage for all critical paths and edge cases."
           }
@@ -537,7 +537,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-05T06:36:04.485Z",
+      "updated": "2025-07-05T08:45:21.464Z",
       "description": "Tasks for master context"
     }
   }

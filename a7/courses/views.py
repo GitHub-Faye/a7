@@ -3,6 +3,7 @@ from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer
 from .serializers import (
@@ -866,9 +867,10 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
 class ExerciseViewSet(viewsets.ModelViewSet):
     """练习题视图集，支持CRUD操作"""
     queryset = Exercise.objects.all().order_by('-created_at')
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['title', 'content']
-    ordering_fields = ['created_at', 'difficulty', 'type']
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['title', 'content']  # 移除不存在的 question_text 字段
+    ordering_fields = ['created_at', 'difficulty', 'type', 'id']  # 添加 id 用于排序
+    filterset_fields = ['knowledge_point', 'type', 'difficulty']  # 添加过滤字段
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -881,9 +883,10 @@ class ExerciseViewSet(viewsets.ModelViewSet):
 class StudentAnswerViewSet(viewsets.ModelViewSet):
     """学生答案视图集，支持CRUD操作"""
     queryset = StudentAnswer.objects.all().order_by('-submitted_at')
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['content']
-    ordering_fields = ['submitted_at', 'score']
+    ordering_fields = ['submitted_at', 'score', 'id']  # 添加 id 用于排序
+    filterset_fields = ['student', 'exercise', 'score']  # 添加过滤字段
 
     def get_serializer_class(self):
         if self.action == 'create':
