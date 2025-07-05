@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, KnowledgePoint, Courseware, Exercise
+from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer
 from users.models import User
 from .validations import ValidationUtils
 from django.utils.translation import gettext_lazy as _
@@ -449,3 +449,256 @@ class CoursewareUpdateSerializer(serializers.ModelSerializer):
                 )
         
         return data 
+ 
+# Exercise序列化器
+class ExerciseSerializer(serializers.ModelSerializer):
+    """练习题序列化器，用于读取练习题信息"""
+    
+    knowledge_point_title = serializers.SerializerMethodField()
+    type_display = serializers.SerializerMethodField()
+    difficulty_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Exercise
+        fields = ['id', 'title', 'content', 'type', 'type_display', 'difficulty',
+                 'difficulty_display', 'knowledge_point', 'knowledge_point_title',
+                 'answer_template', 'created_at']
+        read_only_fields = ['created_at']
+    
+    def get_knowledge_point_title(self, obj):
+        """获取关联知识点标题"""
+        if obj.knowledge_point:
+            return obj.knowledge_point.title
+        return ""
+    
+    def get_type_display(self, obj):
+        """获取题目类型的中文名称"""
+        return obj.get_type_display()
+    
+    def get_difficulty_display(self, obj):
+        """获取难度等级的中文名称"""
+        return obj.get_difficulty_display()
+
+
+class ExerciseCreateSerializer(serializers.ModelSerializer):
+    """练习题创建序列化器"""
+    
+    class Meta:
+        model = Exercise
+        fields = ['title', 'content', 'type', 'difficulty', 'knowledge_point', 'answer_template']
+    
+    def validate_title(self, value):
+        """验证练习题标题"""
+        return ValidationUtils.validate_text_field(
+            value, "title", min_length=2, max_length=200
+        )
+    
+    def validate_content(self, value):
+        """验证练习题内容"""
+        return ValidationUtils.validate_text_field(
+            value, "content", min_length=5
+        )
+    
+    def validate_type(self, value):
+        """验证题目类型"""
+        valid_types = dict(Exercise.EXERCISE_TYPES).keys()
+        if value not in valid_types:
+            raise serializers.ValidationError(
+                _("无效的题目类型，可选值：{0}").format(", ".join(valid_types))
+            )
+        return value
+    
+    def validate_difficulty(self, value):
+        """验证难度等级"""
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError(
+                _("难度等级必须在1到5之间")
+            )
+        return value
+    
+    def validate_knowledge_point(self, value):
+        """验证知识点存在"""
+        if not value:
+            raise serializers.ValidationError({"knowledge_point": _("知识点不能为空")})
+        return value
+    
+    def validate(self, data):
+        """验证创建数据"""
+        # 验证同一知识点下练习题标题唯一性
+        title = data.get('title')
+        knowledge_point = data.get('knowledge_point')
+        
+        if title and knowledge_point:
+            existing = Exercise.objects.filter(
+                knowledge_point=knowledge_point, 
+                title=title
+            ).exists()
+            
+            if existing:
+                raise serializers.ValidationError(
+                    {"title": _("同一知识点下已存在同名练习题")}
+                )
+        
+        return data
+
+
+class ExerciseUpdateSerializer(serializers.ModelSerializer):
+    """练习题更新序列化器"""
+    
+    class Meta:
+        model = Exercise
+        fields = ['title', 'content', 'type', 'difficulty', 'answer_template']
+    
+    def validate_title(self, value):
+        """验证练习题标题"""
+        return ValidationUtils.validate_text_field(
+            value, "title", min_length=2, max_length=200
+        )
+    
+    def validate_content(self, value):
+        """验证练习题内容"""
+        return ValidationUtils.validate_text_field(
+            value, "content", min_length=5
+        )
+    
+    def validate_type(self, value):
+        """验证题目类型"""
+        valid_types = dict(Exercise.EXERCISE_TYPES).keys()
+        if value not in valid_types:
+            raise serializers.ValidationError(
+                _("无效的题目类型，可选值：{0}").format(", ".join(valid_types))
+            )
+        return value
+    
+    def validate_difficulty(self, value):
+        """验证难度等级"""
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError(
+                _("难度等级必须在1到5之间")
+            )
+        return value
+    
+    def validate(self, data):
+        """验证更新数据"""
+        instance = self.instance
+        
+        # 验证同一知识点下练习题标题唯一性（排除自身）
+        title = data.get('title')
+        if title:
+            existing = Exercise.objects.filter(
+                knowledge_point=instance.knowledge_point, 
+                title=title
+            ).exclude(id=instance.id).exists()
+            
+            if existing:
+                raise serializers.ValidationError(
+                    {"title": _("同一知识点下已存在同名练习题")}
+                )
+        
+        return data
+
+
+# StudentAnswer序列化器
+class StudentAnswerSerializer(serializers.ModelSerializer):
+    """学生答案序列化器，用于读取学生答案信息"""
+    
+    student_name = serializers.SerializerMethodField()
+    exercise_title = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = StudentAnswer
+        fields = ['id', 'student', 'student_name', 'exercise', 'exercise_title',
+                 'content', 'score', 'feedback', 'submitted_at']
+        read_only_fields = ['student', 'submitted_at']
+    
+    def get_student_name(self, obj):
+        """获取学生姓名"""
+        if obj.student:
+            return f"{obj.student.first_name}{obj.student.last_name}".strip() or obj.student.username
+        return ""
+    
+    def get_exercise_title(self, obj):
+        """获取练习题标题"""
+        if obj.exercise:
+            return obj.exercise.title
+        return ""
+
+
+class StudentAnswerCreateSerializer(serializers.ModelSerializer):
+    """学生答案创建序列化器"""
+    
+    class Meta:
+        model = StudentAnswer
+        fields = ['exercise', 'content']
+    
+    def validate_content(self, value):
+        """验证答案内容"""
+        return ValidationUtils.validate_text_field(
+            value, "content", min_length=1
+        )
+    
+    def validate_exercise(self, value):
+        """验证练习题存在"""
+        if not value:
+            raise serializers.ValidationError({"exercise": _("练习题不能为空")})
+        return value
+    
+    def validate(self, data):
+        """验证创建数据"""
+        # 验证用户是否已回答过该练习题
+        exercise = data.get('exercise')
+        user = self.context['request'].user
+        
+        if exercise and user:
+            existing = StudentAnswer.objects.filter(
+                exercise=exercise, 
+                student=user
+            ).exists()
+            
+            if existing:
+                raise serializers.ValidationError(
+                    {"exercise": _("您已经回答过此练习题，请使用更新功能修改答案")}
+                )
+        
+        return data
+    
+    def create(self, validated_data):
+        # 设置当前请求用户为学生
+        validated_data['student'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class StudentAnswerUpdateSerializer(serializers.ModelSerializer):
+    """学生答案更新序列化器，仅允许更新答案内容"""
+    
+    class Meta:
+        model = StudentAnswer
+        fields = ['content']
+    
+    def validate_content(self, value):
+        """验证答案内容"""
+        return ValidationUtils.validate_text_field(
+            value, "content", min_length=1
+        )
+
+
+class StudentAnswerFeedbackSerializer(serializers.ModelSerializer):
+    """学生答案反馈序列化器，用于教师提供评分和反馈"""
+    
+    class Meta:
+        model = StudentAnswer
+        fields = ['score', 'feedback']
+    
+    def validate_score(self, value):
+        """验证分数范围"""
+        if value is not None and (value < 0 or value > 100):
+            raise serializers.ValidationError(_("分数必须在0到100之间"))
+        return value
+    
+    def validate_feedback(self, value):
+        """验证反馈内容"""
+        if value:
+            return ValidationUtils.validate_text_field(
+                value, "feedback", min_length=2
+            )
+        return value 
