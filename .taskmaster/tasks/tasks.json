@@ -406,83 +406,6 @@
         ]
       },
       {
-        "id": 8,
-        "title": "Implement Student Learning Support APIs",
-        "description": "Develop APIs for learning assistance, exercise recommendation, and progress tracking.",
-        "status": "pending",
-        "dependencies": [
-          5,
-          6
-        ],
-        "priority": "high",
-        "details": "Create endpoints for learning assistance and exercise recommendation. Implement progress tracking functionality. Ensure proper permissions and validation.",
-        "testStrategy": "Test learning assistance and exercise recommendation. Verify progress tracking with sample data.",
-        "subtasks": []
-      },
-      {
-        "id": 9,
-        "title": "Implement Admin Management APIs",
-        "description": "Develop CRUD APIs for user, course, and resource management.",
-        "status": "pending",
-        "dependencies": [
-          3,
-          4
-        ],
-        "priority": "medium",
-        "details": "Create CRUD endpoints for User, Course, and Resource models. Implement validation and permissions for these endpoints.",
-        "testStrategy": "Test CRUD operations for user, course, and resource management. Verify permissions and validation rules.",
-        "subtasks": []
-      },
-      {
-        "id": 10,
-        "title": "Develop Data Collection and Analysis Engine",
-        "description": "Implement the data collection and analysis engine for system monitoring.",
-        "status": "pending",
-        "dependencies": [
-          3,
-          4
-        ],
-        "priority": "medium",
-        "details": "Create models and endpoints for collecting usage statistics and performance metrics. Implement basic analysis and reporting functionality.",
-        "testStrategy": "Test data collection and analysis with sample data. Verify reporting functionality.",
-        "subtasks": []
-      },
-      {
-        "id": 11,
-        "title": "Implement Management Dashboard APIs",
-        "description": "Develop APIs for the management dashboard to display usage statistics and performance metrics.",
-        "status": "pending",
-        "dependencies": [
-          9,
-          10
-        ],
-        "priority": "low",
-        "details": "Create endpoints for retrieving usage statistics and performance metrics. Implement data visualization functionality.",
-        "testStrategy": "Test dashboard APIs with sample data. Verify visualization output.",
-        "subtasks": []
-      },
-      {
-        "id": 12,
-        "title": "Optimize System Performance",
-        "description": "Implement performance optimizations including database query optimization and caching.",
-        "status": "pending",
-        "dependencies": [
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10,
-          11
-        ],
-        "priority": "low",
-        "details": "Analyze and optimize database queries. Implement caching strategies using Redis. Optimize API response times.",
-        "testStrategy": "Measure performance improvements with benchmarks. Verify caching and query optimization.",
-        "subtasks": []
-      },
-      {
         "id": 13,
         "title": "Implement AI-Powered Question Generation Module",
         "description": "Develop a module that allows users to input parameters (knowledge points, question types, and quantity) for AI to generate formatted questions, including preview and export functionality.",
@@ -538,11 +461,83 @@
             "testStrategy": "Test export functionality with different formats."
           }
         ]
+      },
+      {
+        "id": 14,
+        "title": "Implement CRUD APIs for Exercise and StudentAnswer Models",
+        "description": "Develop RESTful API endpoints for the Exercise and StudentAnswer models, including serializers, viewsets, and routing, with proper permissions, filtering, sorting, and search functionality.",
+        "details": "1. **Serializers**: Create serializers for the Exercise and StudentAnswer models to handle data validation and transformation. Ensure the Exercise serializer includes fields for question types (single-choice, multiple-choice, fill-in-the-blank) and knowledge point associations. The StudentAnswer serializer should link to both the student and the exercise.\n\n2. **Viewsets**: Implement viewsets for both models, leveraging Django REST Framework's ModelViewSet for CRUD operations. Include custom permission classes to restrict access:\n   - Teachers can create, update, and delete exercises.\n   - Students can only view exercises and submit/modify their own answers.\n\n3. **Routing**: Configure URL routing for the viewsets, ensuring endpoints are RESTful and follow naming conventions (e.g., `/api/exercises/`, `/api/student-answers/`).\n\n4. **Filtering, Sorting, and Search**: Add filtering (e.g., by knowledge point, question type), sorting (e.g., by creation date), and search (e.g., by question text) capabilities using Django REST Framework's built-in tools.\n\n5. **Testing**: Write unit tests for serializers, viewsets, and permissions. Include integration tests to verify API endpoints and permissions under various scenarios.",
+        "testStrategy": "1. **Unit Tests**:\n   - Test serializer validation for both models.\n   - Verify permission classes enforce correct access rules.\n   - Test filtering, sorting, and search functionality.\n\n2. **Integration Tests**:\n   - Simulate API requests to ensure CRUD operations work as expected.\n   - Test edge cases (e.g., invalid inputs, unauthorized access).\n   - Verify filtering, sorting, and search responses.\n\n3. **Manual Testing**:\n   - Use tools like Postman to manually test endpoints.\n   - Verify permissions by logging in as different user roles (teacher, student).",
+        "status": "pending",
+        "dependencies": [
+          3,
+          4,
+          5
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Serializers for Exercise and StudentAnswer Models",
+            "description": "Develop serializers to handle data validation and transformation for Exercise and StudentAnswer models.",
+            "dependencies": [],
+            "details": "Ensure the Exercise serializer includes fields for question types (single-choice, multiple-choice, fill-in-the-blank) and knowledge point associations. The StudentAnswer serializer should link to both the student and the exercise.",
+            "status": "pending",
+            "testStrategy": "Write unit tests to verify serializer validation and transformation logic."
+          },
+          {
+            "id": 2,
+            "title": "Implement Viewsets for Exercise and StudentAnswer Models",
+            "description": "Create viewsets for CRUD operations using Django REST Framework's ModelViewSet.",
+            "dependencies": [
+              1
+            ],
+            "details": "Include custom permission classes to restrict access: Teachers can create, update, and delete exercises. Students can only view exercises and submit/modify their own answers.",
+            "status": "pending",
+            "testStrategy": "Write unit tests to verify permission classes and CRUD operations."
+          },
+          {
+            "id": 3,
+            "title": "Configure URL Routing for API Endpoints",
+            "description": "Set up URL routing for the viewsets to ensure RESTful endpoints.",
+            "dependencies": [
+              2
+            ],
+            "details": "Configure endpoints following naming conventions (e.g., `/api/exercises/`, `/api/student-answers/`).",
+            "status": "pending",
+            "testStrategy": "Write integration tests to verify endpoint accessibility and routing."
+          },
+          {
+            "id": 4,
+            "title": "Add Filtering, Sorting, and Search Functionality",
+            "description": "Implement filtering, sorting, and search capabilities for the API endpoints.",
+            "dependencies": [
+              2
+            ],
+            "details": "Use Django REST Framework's built-in tools to enable filtering (e.g., by knowledge point, question type), sorting (e.g., by creation date), and search (e.g., by question text).",
+            "status": "pending",
+            "testStrategy": "Write unit and integration tests to verify filtering, sorting, and search functionality."
+          },
+          {
+            "id": 5,
+            "title": "Write Unit and Integration Tests",
+            "description": "Develop comprehensive tests for serializers, viewsets, permissions, and API endpoints.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Include unit tests for serializers, viewsets, and permissions. Write integration tests to verify API endpoints and permissions under various scenarios.",
+            "status": "pending",
+            "testStrategy": "Ensure test coverage for all critical paths and edge cases."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-05T01:33:49.219Z",
+      "updated": "2025-07-05T03:10:38.923Z",
       "description": "Tasks for master context"
     }
   }

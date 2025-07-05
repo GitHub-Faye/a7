@@ -45,6 +45,7 @@ a7/                           # 项目根目录
 │   │   ├── services/         # 服务实现目录
 │   │   │   ├── __init__.py              # Python包初始化文件
 │   │   │   ├── knowledge_converter.py   # AI响应到课程模型的转换器
+│   │   │   ├── question_export.py       # 问题导出工具，支持JSON和CSV格式
 │   │   │   └── n8n_webhook/             # n8n Webhook服务目录
 │   │   │       ├── __init__.py          # Python包初始化文件
 │   │   │       ├── client.py            # N8nWebhookClient客户端实现
@@ -57,7 +58,12 @@ a7/                           # 项目根目录
 │   │       ├── test_formats.py              # 数据格式模型测试
 │   │       ├── test_knowledge_converter.py  # 数据转换器测试
 │   │       ├── test_n8n_service.py          # n8n服务异步测试
-│   │       └── test_views_integration.py    # AI服务视图集成测试
+│   │       ├── test_views_integration.py    # AI服务视图集成测试
+│   │       └── services/         # 服务实现目录
+│   │           ├── __init__.py              # Python包初始化文件
+│   │           ├── knowledge_converter.py   # AI响应到课程模型的转换器
+│   │           ├── question_export.py       # 问题导出工具，支持JSON和CSV格式
+│   │           └── n8n_webhook/             # n8n Webhook服务目录
 │   ├── users/                # 用户管理应用
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   ├── admin.py          # Django Admin配置
@@ -99,6 +105,9 @@ a7/                           # 项目根目录
 │   │   ├── tests_api_new.py  # 课程API的全面测试用例，包含CourseAPITests、KnowledgePointAPITests和CoursewareAPITests测试类
 │   │   ├── tests_validation.py # 验证逻辑的测试用例
 │   │   ├── tests_api_questions.py # 问题生成API的测试用例，包含QuestionGenerationAPITests测试类
+│   │   ├── tests/            # 课程应用测试子目录
+│   │   │   ├── test_question_export.py       # 问题导出工具单元测试
+│   │   │   └── test_question_export_integration.py # 问题导出集成测试
 │   │   └── migrations/       # 课程模型数据库迁移文件
 │   ├── Dockerfile            # Docker容器构建配置文件
 │   ├── compose.yaml          # Docker Compose服务配置文件
@@ -201,6 +210,8 @@ a7/                           # 项目根目录
 - **a7/courses/tests_api_new.py**: 课程内容管理API的全面测试套件，包含CourseAPITests（验证课程CRUD和权限控制）、KnowledgePointAPITests（测试知识点层级结构和循环引用防护）、CoursewareAPITests（测试课件管理功能）和CourseContentGenerationAPITests（测试AI内容生成）四个主要测试类。共实现42个全面测试用例，验证不同用户角色（管理员、教师、学生）的权限控制、所有API端点的功能完整性以及特殊操作如my_courses、top_level、children和by_course等。测试包含边界情况处理、数据验证和错误响应。
 - **a7/courses/tests_validation.py**: 验证逻辑测试文件，包含对课程、知识点和课件API的验证逻辑测试，验证字段验证、唯一性检查、关系完整性（如循环引用检测）等验证功能的正确性。测试不同场景下的验证行为，确保数据一致性和业务规则的强制执行。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
+- **a7/courses/tests/test_question_export.py**: 问题导出工具的单元测试，验证JSON和CSV格式导出功能、文件名生成、内容类型设置和错误处理。包含QuestionExportToolTests和QuestionExportAPITests两个测试类，共9个测试用例。
+- **a7/courses/tests/test_question_export_integration.py**: 问题导出功能的集成测试，验证从问题生成到导出的完整流程。使用模拟技术测试API响应、会话存储和多种格式导出。
 
 ### AI服务应用文件
 
@@ -212,6 +223,7 @@ a7/                           # 项目根目录
 - **a7/ai_services/urls.py**: URL路由配置，定义AI服务的API端点路径。
 - **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类，处理webhook请求并转发至n8n服务，使用标准化的响应格式。在接收到课程生成结果后，会调用`a7/ai_services/services/knowledge_converter.py`将结果持久化。
 - **a7/ai_services/services/knowledge_converter.py**: 负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
+- **a7/ai_services/services/question_export.py**: 问题导出工具类，提供将AI生成的问题导出为JSON和CSV格式的功能。实现了优雅的文件名生成、Unicode字符处理和大型数据集优化。包含QuestionExporter类，提供export_as_json、export_as_csv和通用export_questions方法。
 
 ### n8n Webhook服务文件
 
@@ -432,12 +444,11 @@ a7/                           # 项目根目录
     - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）。
     - `a7/ai_services/views.py`中的N8nWebhookAPIView权限类已设置为[AllowAny]，允许无需认证即可访问。
     - `a7/ai_services/services/knowledge_converter.py`负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
+    - `a7/ai_services/services/question_export.py`提供导出工具，将问题数据转换为标准格式（JSON、CSV），支持文件命名和Unicode处理。
     - `a7/ai_services/urls.py`将API视图与URL路径映射。
     - `a7/courses/views.py`中的QuestionGenerationViewSet实现问题生成API端点，接收知识点ID、问题类型和数量等参数，调用n8n服务生成问题并返回标准化响应。
     - `a7/courses/serializers.py`中的QuestionGenerationSerializer负责问题生成API的请求参数验证。
     - `a7/courses/urls.py`注册QuestionGenerationViewSet，提供'/api/questions-generate/'端点。
-    - WebhookConfig模型与WebhookCallLog模型通过外键关联，记录每次调用的详细信息。
-    - `a7/ai_services/tests/` 目录下的多个测试文件(`test_client.py`, `test_formats.py`, `test_knowledge_converter.py`, `test_views_integration.py`)确保了整个AI服务（从数据格式、客户端通信、数据转换到API视图）的健壮性和正确性。
     - `a7/courses/tests_api_questions.py`提供问题生成API的全面测试，验证功能完整性、参数验证和权限控制。
     - `a7/ai_services/tests/conftest.py`配置异步测试环境，提供共享事件循环和测试固件。
     - `a7/ai_services/api_response.py`提供标准化API响应的辅助函数。
@@ -446,13 +457,16 @@ a7/                           # 项目根目录
     - `a7/ai_services/services/n8n_webhook/formats.py`中的QuestionData模型定义问题数据结构，支持多种题型（如简答题、选择题）和不同格式的答案模板（字符串或列表）。
     - `a7/ai_services/services/n8n_webhook/client.py`中的generate_questions和generate_questions_sync方法提供异步和同步的问题生成功能。
     - `a7/courses/serializers.py`中的QuestionGenerationSerializer验证问题生成请求参数，确保知识点ID、问题类型和数量等参数有效。
-    - `a7/courses/views.py`中的QuestionGenerationViewSet处理问题生成API请求，调用n8n服务生成问题并返回标准化响应。
+    - `a7/courses/views.py`中的QuestionGenerationViewSet处理问题生成API请求，调用n8n服务生成问题并返回标准化响应。扩展了export操作方法，支持以不同格式（JSON、CSV）导出生成的问题，实现会话存储机制。
     - `a7/courses/urls.py`注册'/api/questions-generate/'端点，提供RESTful API接口。
     - `a7/courses/tests_api_questions.py`包含全面的测试用例，验证问题生成API的功能完整性、参数验证和权限控制。
+    - `a7/ai_services/services/question_export.py`提供导出工具，将问题数据转换为标准格式（JSON、CSV），支持文件命名和Unicode处理。
+    - `a7/courses/tests/test_question_export.py`和`a7/courses/tests/test_question_export_integration.py`验证导出功能的正确性和稳定性。
     - 问题生成系统与知识点模型集成，基于知识点内容生成相关的教学练习题。
     - 支持多种问题类型（如简答题、选择题）和不同难度级别的问题生成。
     - 提供标准化的问题数据结构，包括标题、内容、类型、难度、答案模板和关联知识点ID。
     - 系统设计足够灵活，能够处理不同格式的答案模板（如简答题的文本答案和选择题的选项列表）。
+    - 实现了完整的问题导出功能，支持JSON和CSV格式，满足不同场景下的数据交换需求。
 
 ## 目录组织逻辑
 
@@ -568,6 +582,7 @@ a7/                           # 项目根目录
 7. **AI服务API**:
    - `/api/ai/webhook/` - n8n Webhook API端点，接收并处理AI任务请求
    - `/api/questions-generate/` - 问题生成API端点，接收知识点ID、问题类型和数量等参数，返回AI生成的格式化问题
+   - `/api/questions-generate/export/` - 问题导出API端点，支持将生成的问题导出为JSON或CSV格式
    - 支持POST方法，接收任务类型、任务数据和webhook配置ID
    - 需要认证（JWT令牌）访问
    - 支持不同任务类型，如"ragAI"（检索增强生成式AI）和"questionGeneration"（问题生成）
