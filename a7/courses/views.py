@@ -34,6 +34,8 @@ from django.db import transaction
 from rest_framework.views import APIView
 import json
 import uuid
+from datetime import datetime
+from drf_yasg import openapi
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -698,63 +700,158 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
                 
-            # 导入验证器
-            try:
-                from ai_services.services.question_format import QuestionFormatValidator
-                
-                # 验证问题格式
-                validator = QuestionFormatValidator()
-                validated_questions, format_errors = validator.validate_questions(questions)
-                
-                # 如果存在格式错误
-                if format_errors:
-                    return create_api_response(
-                        success=False,
-                        error_code="FORMAT_ERROR",
-                        message="AI生成的问题格式不符合要求",
-                        errors=format_errors,
-                        status_code=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # 使用验证后的问题
-                questions = validated_questions
-                
-            except ImportError:
-                # 如果无法导入验证器，记录警告但不阻止继续
-                logger.warning("无法导入问题格式验证器，跳过验证步骤")
-            except Exception as e:
-                # 其他验证错误，记录但不阻止继续
-                logger.warning(f"验证问题格式时出错: {str(e)}")
+            # 7. 将生成的问题存储在会话中，以便后续导出
+            # 创建唯一的会话键
+            session_key = f"generated_questions_{uuid.uuid4()}"
             
-            # 7. 返回生成的问题
+            # 将问题和创建时间存储在会话中
+            request.session[session_key] = {
+                'questions': questions,
+                'created_at': datetime.now().isoformat(),
+                'knowledge_point_ids': knowledge_point_ids,
+                'question_types': question_types
+            }
+            
+            # 在响应中包含会话键，以便前端可以用它来请求导出
             return create_api_response(
                 success=True,
-                data={'questions': questions},
-                message=f"成功生成{len(questions)}道问题",
+                message="问题生成成功",
+                data={
+                    'questions': questions,
+                    'session_key': session_key  # 添加会话键到响应中
+                },
                 status_code=status.HTTP_201_CREATED
             )
             
-        except N8nInvalidRequestError as e:
+        except Exception as e:
+            logger.error(f"生成问题时出错: {str(e)}")
+            
+            # 格式化错误响应
+            error_message = str(e)
+            if hasattr(e, 'message'):
+                error_message = e.message
+                
             return create_api_response(
                 success=False,
-                error_code="INVALID_REQUEST",
-                message=f"请求格式无效: {str(e)}",
-                errors=getattr(e, 'validation_errors', None),
+                error_code="GENERATION_ERROR",
+                message=f"生成问题时出错: {error_message}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @swagger_auto_schema(
+        operation_summary="导出生成的问题",
+        operation_description="导出之前生成的问题为JSON或CSV格式",
+        manual_parameters=[
+            openapi.Parameter(
+                'session_key', 
+                openapi.IN_QUERY, 
+                description="会话键，用于标识要导出的问题集", 
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                'format', 
+                openapi.IN_QUERY, 
+                description="导出格式，支持'json'和'csv'", 
+                type=openapi.TYPE_STRING,
+                enum=['json', 'csv'],
+                default='json',
+                required=False
+            ),
+            openapi.Parameter(
+                'filename', 
+                openapi.IN_QUERY, 
+                description="导出文件名（不含扩展名）", 
+                type=openapi.TYPE_STRING,
+                required=False
+            )
+        ],
+        responses={
+            200: "成功导出问题",
+            400: "错误的请求",
+            404: "找不到指定的问题集"
+        }
+    )
+    @action(detail=False, methods=['get'])
+    def export(self, request):
+        """
+        导出之前生成的问题为指定格式
+        """
+        # 1. 获取请求参数
+        session_key = request.query_params.get('session_key')
+        export_format = request.query_params.get('format', 'json').lower()
+        filename = request.query_params.get('filename')
+        
+        # 2. 验证会话键
+        if not session_key:
+            return create_api_response(
+                success=False,
+                error_code="MISSING_PARAMETER",
+                message="缺少必需参数: session_key",
                 status_code=status.HTTP_400_BAD_REQUEST
             )
-        except N8nWebhookError as e:
+        
+        # 3. 从会话中获取问题数据
+        session_data = request.session.get(session_key)
+        if not session_data or 'questions' not in session_data:
             return create_api_response(
                 success=False,
-                error_code="AI_SERVICE_ERROR",
-                message=f"AI服务处理失败: {str(e)}",
-                status_code=getattr(e, 'status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
+                error_code="NOT_FOUND",
+                message="找不到指定的问题集，可能已过期或不存在",
+                status_code=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
+        
+        questions = session_data['questions']
+        
+        # 4. 验证导出格式
+        if export_format not in ['json', 'csv']:
             return create_api_response(
                 success=False,
-                error_code="INTERNAL_SERVER_ERROR",
-                message=f"处理请求时发生未知错误: {str(e)}",
+                error_code="INVALID_FORMAT",
+                message=f"不支持的导出格式: {export_format}，支持的格式: json, csv",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 5. 生成默认文件名（如果未提供）
+        if not filename:
+            # 基于知识点和题型生成有意义的文件名
+            knowledge_point_ids = session_data.get('knowledge_point_ids', [])
+            question_types = session_data.get('question_types', [])
+            
+            # 使用时间戳确保唯一性
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            
+            # 组合文件名
+            if knowledge_point_ids and len(knowledge_point_ids) <= 3:
+                kp_part = f"kp{'_'.join(str(kp_id) for kp_id in knowledge_point_ids[:3])}"
+            else:
+                kp_part = f"kp_multi"
+                
+            if question_types and len(question_types) <= 2:
+                type_part = f"{'_'.join(t[:3] for t in question_types[:2])}"
+            else:
+                type_part = "multi_types"
+                
+            filename = f"questions_{kp_part}_{type_part}_{timestamp}"
+        
+        # 6. 导出问题
+        try:
+            # 导入导出工具
+            from ai_services.services.question_export import QuestionExporter
+            
+            # 调用导出功能
+            return QuestionExporter.export_questions(
+                questions=questions,
+                format_type=export_format,
+                filename=filename
+            )
+            
+        except Exception as e:
+            logger.error(f"导出问题时出错: {str(e)}")
+            
+            return create_api_response(
+                success=False,
+                error_code="EXPORT_ERROR",
+                message=f"导出问题时出错: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

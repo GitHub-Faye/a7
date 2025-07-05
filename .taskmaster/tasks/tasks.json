@@ -488,7 +488,7 @@
         "description": "Develop a module that allows users to input parameters (knowledge points, question types, and quantity) for AI to generate formatted questions, including preview and export functionality.",
         "details": "2. Develop an API endpoint to receive these parameters and forward them to the AI model. 3. Ensure the AI-generated questions adhere to predefined formatting rules (e.g., structure, style). 4. Implement a preview feature for users to review generated questions before finalizing. 5. Add functionality to export questions in a standard format (e.g., JSON, CSV). 6. Validate all inputs to ensure they meet required criteria before processing.",
         "testStrategy": "1. Test the input interface with various combinations of knowledge points, question types, and quantities. 2. Verify the API endpoint correctly processes and forwards parameters to the AI model. 3. Check that generated questions comply with formatting rules. 4. Test the preview feature for accuracy and usability. 5. Validate the export functionality for correctness and completeness. 6. Perform edge-case testing (e.g., empty inputs, invalid question types).",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           5,
           6,
@@ -533,8 +533,8 @@
               "13.3",
               "13.4"
             ],
-            "details": "1. Implement export options (JSON, CSV). 3. Ensure exported files adhere to format standards.",
-            "status": "pending",
+            "details": "1. Implement export options (JSON, CSV). 3. Ensure exported files adhere to format standards.\n<info added on 2025-07-05T01:33:40.384Z>\nCreated QuestionExporter utility class supporting JSON and CSV export formats. Extended QuestionGenerationViewSet with session storage mechanism for generated questions. Implemented export operation method supporting format selection via session key. Added comprehensive test coverage including unit and integration tests. Ensured proper Unicode character handling in exports. Implemented smart filename generation. Optimized performance for large datasets. Testing includes format validation, error handling, and full workflow integration. Export process: 1) Generate questions via API to get session key 2) Request export with session key and format 3) Optional custom filename.\n</info added on 2025-07-05T01:33:40.384Z>",
+            "status": "done",
             "testStrategy": "Test export functionality with different formats."
           }
         ]
@@ -542,7 +542,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-02T04:06:18.044Z",
+      "updated": "2025-07-05T01:33:49.219Z",
       "description": "Tasks for master context"
     }
   }
