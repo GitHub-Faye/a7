@@ -492,8 +492,8 @@
             "dependencies": [
               1
             ],
-            "details": "Include custom permission classes to restrict access: Teachers can create, update, and delete exercises. Students can only view exercises and submit/modify their own answers.",
-            "status": "pending",
+            "details": "Include custom permission classes to restrict access: Teachers can create, update, and delete exercises. Students can only view exercises and submit/modify their own answers.\n<info added on 2025-07-05T06:36:00.516Z>\n1. 已为Exercise和StudentAnswer模型实现ModelViewSet\n2. 在a7/courses/views.py中新增ExerciseViewSet和StudentAnswerViewSet视图集\n3. 在a7/courses/urls.py中完成视图集的URL路由注册\n4. 调整StudentAnswerCreateSerializer以支持无认证创建流程\n5. 在a7/courses/tests/test_api_exercises.py中完成CRUD测试并通过\n6. 当前视图集暂未设置权限限制，等待后续权限配置开发\n</info added on 2025-07-05T06:36:00.516Z>",
+            "status": "done",
             "testStrategy": "Write unit tests to verify permission classes and CRUD operations."
           },
           {
@@ -537,7 +537,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-05T05:50:06.209Z",
+      "updated": "2025-07-05T06:36:04.485Z",
       "description": "Tasks for master context"
     }
   }

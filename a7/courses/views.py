@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 
-from .models import Course, KnowledgePoint, Courseware
+from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer
 from .serializers import (
     CourseSerializer, 
     CourseCreateSerializer, 
@@ -16,7 +16,13 @@ from .serializers import (
     CoursewareCreateSerializer,
     CoursewareUpdateSerializer,
     CourseGenerationSerializer,
-    QuestionGenerationSerializer
+    QuestionGenerationSerializer,
+    ExerciseSerializer,
+    ExerciseCreateSerializer,
+    ExerciseUpdateSerializer,
+    StudentAnswerSerializer,
+    StudentAnswerCreateSerializer,
+    StudentAnswerUpdateSerializer
 )
 from .permissions import (
     IsTeacherOrAdmin, 
@@ -855,3 +861,33 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
                 message=f"导出问题时出错: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class ExerciseViewSet(viewsets.ModelViewSet):
+    """练习题视图集，支持CRUD操作"""
+    queryset = Exercise.objects.all().order_by('-created_at')
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title', 'content']
+    ordering_fields = ['created_at', 'difficulty', 'type']
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ExerciseCreateSerializer
+        elif self.action == 'update' or self.action == 'partial_update':
+            return ExerciseUpdateSerializer
+        return ExerciseSerializer
+
+
+class StudentAnswerViewSet(viewsets.ModelViewSet):
+    """学生答案视图集，支持CRUD操作"""
+    queryset = StudentAnswer.objects.all().order_by('-submitted_at')
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['content']
+    ordering_fields = ['submitted_at', 'score']
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return StudentAnswerCreateSerializer
+        elif self.action == 'update' or self.action == 'partial_update':
+            return StudentAnswerUpdateSerializer
+        return StudentAnswerSerializer

@@ -629,7 +629,7 @@ class StudentAnswerCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = StudentAnswer
-        fields = ['exercise', 'content']
+        fields = ['exercise', 'content', 'student']
     
     def validate_content(self, value):
         """验证答案内容"""
@@ -645,27 +645,21 @@ class StudentAnswerCreateSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """验证创建数据"""
-        # 验证用户是否已回答过该练习题
+        # 验证学生是否已经为该练习提交过答案
+        student = data.get('student')
         exercise = data.get('exercise')
-        user = self.context['request'].user
         
-        if exercise and user:
-            existing = StudentAnswer.objects.filter(
-                exercise=exercise, 
-                student=user
+        if student and exercise:
+            existing_answer = StudentAnswer.objects.filter(
+                student=student, 
+                exercise=exercise
             ).exists()
             
-            if existing:
+            if existing_answer:
                 raise serializers.ValidationError(
-                    {"exercise": _("您已经回答过此练习题，请使用更新功能修改答案")}
+                    {"detail": _("您已经为这道练习题提交过答案，请不要重复提交")}
                 )
-        
         return data
-    
-    def create(self, validated_data):
-        # 设置当前请求用户为学生
-        validated_data['student'] = self.context['request'].user
-        return super().create(validated_data)
 
 
 class StudentAnswerUpdateSerializer(serializers.ModelSerializer):
