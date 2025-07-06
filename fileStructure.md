@@ -216,6 +216,7 @@ a7/                           # 项目根目录
 - **a7/courses/tests/test_question_export.py**: 问题导出工具的单元测试，验证JSON和CSV格式导出功能、文件名生成、内容类型设置和错误处理。包含QuestionExportToolTests和QuestionExportAPITests两个测试类，共9个测试用例。
 - **a7/courses/tests/test_question_export_integration.py**: 问题导出功能的集成测试，验证从问题生成到导出的完整流程。使用模拟技术测试API响应、会话存储和多种格式导出。
 - **a7/courses/tests/test_api_exercises.py**: 练习题和学生答案API的CRUD功能测试，包括对过滤、排序和搜索功能的全面测试用例，验证按知识点过滤、按创建时间排序、按内容搜索等功能的正确性。
+- **a7/courses/tests/test_api_exercises_additional.py**: 练习题和学生答案API的补充测试文件，包含ExerciseValidationTests（字段验证和边缘情况测试）、StudentAnswerValidationTests（学生答案约束测试）、CombinedFilteringTests（组合过滤和排序测试）、PaginationAndEdgeCaseTests（分页和边缘情况测试）和APIResponseFormatTests（API响应格式测试）五个测试类，共18个测试用例。验证了字段验证、学生答案约束、组合过滤排序、分页功能、特殊字符处理和API响应格式等方面。
 
 ### AI服务应用文件
 
@@ -471,6 +472,18 @@ a7/                           # 项目根目录
     - 提供标准化的问题数据结构，包括标题、内容、类型、难度、答案模板和关联知识点ID。
     - 系统设计足够灵活，能够处理不同格式的答案模板（如简答题的文本答案和选择题的选项列表）。
     - 实现了完整的问题导出功能，支持JSON和CSV格式，满足不同场景下的数据交换需求。
+
+16. **练习题和学生答案测试系统**:
+    - `a7/courses/tests/test_api_exercises.py`提供练习题和学生答案API的基础CRUD功能测试，验证创建、读取、更新、删除操作，以及基本的过滤、排序和搜索功能。
+    - `a7/courses/tests/test_api_exercises_additional.py`提供练习题和学生答案API的高级功能和边缘情况测试，包含5个专门的测试类：
+      - ExerciseValidationTests：验证练习题字段（标题长度、类型有效性、必填字段）和边缘情况
+      - StudentAnswerValidationTests：验证学生答案约束（唯一性约束、分数范围验证）
+      - CombinedFilteringTests：测试组合过滤和复杂排序功能
+      - PaginationAndEdgeCaseTests：测试分页功能、无效页码处理、特殊字符处理和超长内容处理
+      - APIResponseFormatTests：验证API响应格式（列表、详情、错误响应、创建响应）
+    - 这两个测试文件共同确保练习题和学生答案API在各种情况下都能正确处理请求并返回标准格式的响应，提高系统的稳定性和可靠性。
+    - 测试覆盖了正常操作路径和异常情况，验证了API的健壮性和错误处理能力。
+    - 测试还验证了API响应格式的一致性，确保前端应用能够依赖统一的数据结构。
 
 ## 目录组织逻辑
 
