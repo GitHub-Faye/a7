@@ -508,21 +508,22 @@ a7/                           # 项目根目录
 17. **Marp演示文档转换服务**:
     - `a7/marp_service/__init__.py`提供顶层API接口convert_markdown_to_format和convert_file_to_format，作为与外部系统交互的主要入口点。包含对Windows环境的特殊处理，特别是PNG输出格式的处理。
     - `a7/marp_service/apps.py`: 应用配置文件，包含应用元数据和启动逻辑。
-    - `a7/marp_service/cli.py`: Marp命令行接口构建与执行。MarpCLIBuilder类实现链式API设计，便于构建复杂的命令行参数。MarpCLIExecutor类负责执行构建好的命令行，包含对Windows环境的特殊处理，确保命令在不同操作系统上正确执行。
+    - `a7/marp_service/cli.py`: Marp命令行接口构建与执行。MarpCLIBuilder类实现链式API设计，便于构建复杂的命令行参数。MarpCLIExecutor类负责执行构建好的命令行，包含对Windows环境的特殊处理，确保命令在不同操作系统上正确执行。使用简化的命令路径处理，直接使用"marp"命令或完整路径（如"npx @marp-team/marp-cli"），并在Windows环境下使用shell=True执行命令，解决了命令执行问题。
     - `a7/marp_service/exceptions.py`: 异常类定义，定义异常层次结构，通过继承关系组织不同类型的错误，使错误处理更加精确。
     - `a7/marp_service/temp.py`: 临时文件管理，MarpTempFileManager类提供上下文管理器接口，确保临时文件的生命周期管理，避免资源泄露。
     - `a7/marp_service/utils.py`: 工具函数，提供实用函数，支持格式验证和MIME类型映射，与`cli.py`和顶层API密切协作，确保输入输出的一致性。
     - `a7/marp_service/tests/test_cli.py`: CLI相关单元测试，验证命令行参数构建和执行功能。
     - `a7/marp_service/tests/test_exceptions.py`: 异常相关单元测试，验证异常类的行为和继承关系。
-    - `a7/marp_service/tests/test_integration.py`: 集成测试，使用真实的marp-cli工具验证完整的转换流程。包含对不同输出格式（PDF、PPTX、HTML、PNG）的测试，以及对Windows和Linux/Mac环境的特殊处理，确保跨平台兼容性。使用@unittest.skipIf装饰器在不同环境下智能跳过特定测试。
+    - `a7/marp_service/tests/test_integration.py`: 集成测试，使用真实的marp-cli工具验证完整的转换流程。包含对不同输出格式（PDF、PPTX、HTML、PNG）的测试，以及对Windows和Linux/Mac环境的特殊处理，确保跨平台兼容性。使用@unittest.skipIf装饰器在不同环境下智能跳过特定测试。新增了check_marp_cli_available函数，简化了marp命令检测逻辑，适配Windows环境下的命令执行方式。
     - `a7/marp_service/tests/test_temp.py`: 临时文件管理单元测试，验证临时文件的创建、使用和清理。
     - `a7/marp_service/tests/test_utils.py`: 工具函数单元测试，验证格式验证和MIME类型映射功能。
-    - `a7/a7/settings.py`中添加了MARP_CLI_PATH配置项，用于指定marp-cli的安装路径，支持系统级别的灵活配置。
+    - `a7/marp_service/tests/test_simple.py`: 简单测试脚本，用于在Django测试环境之外直接测试marp命令的执行，验证不同调用方式（直接命令、完整路径、npx调用）在不同环境下的可行性。
+    - `a7/a7/settings.py`中添加了MARP_CLI_PATH配置项，用于指定marp-cli的安装路径，支持系统级别的灵活配置。已更新为使用"marp"或"npx @marp-team/marp-cli"作为默认值，提高跨平台兼容性。
     - 测试文件(`test_cli.py`, `test_exceptions.py`, `test_integration.py`, `test_temp.py`, `test_utils.py`)分别验证各模块的功能和边界情况，确保服务的稳定性和可靠性。
     - `test_integration.py`实现了使用真实marp-cli工具的集成测试，验证不同输出格式（PDF、PPTX、HTML、PNG）的转换功能，并通过平台检测和条件测试跳过确保在Windows和Linux/Mac环境下都能正确运行。
     - 该服务设计为可独立使用的Django应用，通过INSTALLED_APPS注册，可以方便地集成到a7项目或其他Django项目中。
     - 服务实现了Markdown转换为PDF、PPTX、HTML和PNG等常见演示文档格式，支持自定义主题、背景色、页面比例等参数。
-    - 服务具有跨平台兼容性，通过特殊处理确保在Windows和Linux/Mac环境下都能正确工作，特别是处理了Windows环境下的命令执行和PNG输出格式的特殊需求。
+    - 服务具有跨平台兼容性，通过特殊处理确保在Windows和Linux/Mac环境下都能正确工作，特别是处理了Windows环境下的命令执行和PNG输出格式的特殊需求。Windows环境下使用shell=True执行命令，解决了命令路径解析问题。
 
 ## 目录组织逻辑
 

@@ -401,7 +401,7 @@ N8N_WEBHOOK_HEADERS = {
 AIOHTTP_CLIENT_TIMEOUT = int(os.environ.get('AIOHTTP_CLIENT_TIMEOUT', 30))  # 30秒默认超时
 
 # Marp CLI配置
-MARP_CLI_PATH = "npx @marp-team/marp-cli"
+MARP_CLI_PATH = "marp"
 
 # Marp临时文件配置
 MARP_TEMP_DIR = os.path.join(BASE_DIR, 'tmp', 'marp')

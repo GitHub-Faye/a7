@@ -17,24 +17,26 @@ from ..exceptions import MarpCLIError, MarpConversionError
 def check_marp_cli_available():
     """检查marp-cli是否可用"""
     try:
-        # 根据操作系统选择正确的命令
-        if sys.platform == 'win32':
-            # Windows环境下使用cmd /c执行npx命令
-            cmd = "cmd /c npx @marp-team/marp-cli --version"
-        else:
-            # Linux/Mac环境
-            cmd = "npx @marp-team/marp-cli --version"
-            
-        # 尝试执行marp-cli --version命令
+        # 使用marp命令的完整路径
+        marp_cmd = "C:\\Users\\WYW\\AppData\\Roaming\\npm\\marp.cmd"
+        
         result = subprocess.run(
-            cmd,
-            shell=True,
+            f"{marp_cmd} --version",
+            shell=True,  # 在Windows环境下必须使用shell=True
             capture_output=True,
             text=True,
             timeout=10
         )
-        return result.returncode == 0
-    except (subprocess.SubprocessError, FileNotFoundError):
+        
+        # 如果命令执行成功，返回True
+        if result.returncode == 0:
+            print(f"marp命令可用，版本信息: {result.stdout.strip()}")
+            return True
+        else:
+            print(f"marp命令不可用，错误: {result.stderr.strip()}")
+            return False
+    except Exception as e:
+        print(f"检查marp可用性时出错: {str(e)}")
         return False
 
 

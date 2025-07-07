@@ -4,6 +4,8 @@ import unittest
 from unittest import mock
 
 from django.test import TestCase
+from django.conf import settings
+import subprocess
 
 from ..cli import MarpCLIBuilder, MarpCLIExecutor
 from ..exceptions import MarpCLIError
@@ -145,6 +147,8 @@ class MarpCLIBuilderTests(TestCase):
 
 class MarpCLIExecutorTests(TestCase):
     """测试MarpCLIExecutor类"""
+    
+    # 移除setUp和tearDown方法，使用真实环境
     
     @mock.patch('subprocess.Popen')
     def test_execute_success(self, mock_popen):
