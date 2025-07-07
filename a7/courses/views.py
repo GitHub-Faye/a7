@@ -719,18 +719,25 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
                 'question_types': question_types
             }
             
-            # 在响应中包含会话键，以便前端可以用它来请求导出
+            # 8. 将生成的问题保存到数据库
+            save_result = self.save_to_database(questions, request.user if request.user.is_authenticated else None)
+            
+            # 在响应中包含会话键和已保存的题目ID，以便前端可以用它来请求导出
             return create_api_response(
                 success=True,
-                message="问题生成成功",
+                message="问题生成成功并已保存到数据库",
                 data={
                     'questions': questions,
-                    'session_key': session_key  # 添加会话键到响应中
+                    'session_key': session_key,  # 添加会话键到响应中
+                    'saved_exercises': save_result['saved_ids'],  # 添加已保存的题目ID
+                    'failed_exercises': save_result['failed_count']  # 添加保存失败的题目数量
                 },
                 status_code=status.HTTP_201_CREATED
             )
             
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
             logger.error(f"生成问题时出错: {str(e)}")
             
             # 格式化错误响应
@@ -744,6 +751,60 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
                 message=f"生成问题时出错: {error_message}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    def save_to_database(self, questions, user=None):
+        """
+        将生成的问题保存到数据库中
+        
+        参数:
+        - questions: 问题列表，包含题目详情
+        - user: 创建用户（可选），当前Exercise模型不支持记录创建者，暂不使用
+        
+        返回:
+        - dict: 包含保存成功的题目ID列表和失败数量
+        """
+        saved_ids = []
+        failed_count = 0
+        
+        with transaction.atomic():
+            for question in questions:
+                try:
+                    # 获取知识点
+                    kp_id = question.get('knowledge_point_id')
+                    try:
+                        knowledge_point = KnowledgePoint.objects.get(id=kp_id)
+                    except KnowledgePoint.DoesNotExist:
+                        # 如果知识点不存在，跳过该题目
+                        failed_count += 1
+                        continue
+                    
+                    # 准备答案模板 - 可能是列表或字符串
+                    answer_template = question.get('answer_template')
+                    if isinstance(answer_template, list):
+                        answer_template = json.dumps(answer_template, ensure_ascii=False)
+                    
+                    # 创建习题对象 - 移除created_by参数，因为Exercise模型中没有该字段
+                    exercise = Exercise(
+                        title=question.get('title', '未命名题目'),
+                        content=question.get('content', ''),
+                        type=question.get('type', 'other'),
+                        difficulty=question.get('difficulty', 3),
+                        answer_template=answer_template,
+                        knowledge_point=knowledge_point
+                    )
+                    exercise.save()
+                    saved_ids.append(exercise.id)
+                    
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"保存题目到数据库时出错: {str(e)}")
+                    failed_count += 1
+        
+        return {
+            'saved_ids': saved_ids,
+            'failed_count': failed_count
+        }
     
     @swagger_auto_schema(
         operation_summary="导出生成的问题",
@@ -854,6 +915,8 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
             )
             
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
             logger.error(f"导出问题时出错: {str(e)}")
             
             return create_api_response(
