@@ -28,8 +28,15 @@ SECRET_KEY = 'django-insecure-+2*)0s+_b-$d*e)!+q0rozaaybq8nhbx!vmcg!#f^&el_g&ebu
 DEBUG = True
 
 # 添加允许的主机
-# ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0','*']
+ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0','*']
 
+# 添加CSRF信任源，允许所有域名（存在安全风险）
+CSRF_TRUSTED_ORIGINS = ['https://*', 'http://*']
+
+# 可选：如果仍有CSRF问题，可以考虑这些设置（不推荐用于生产环境）
+# CSRF_COOKIE_SECURE = False
+# CSRF_USE_SESSIONS = False
+# CSRF_COOKIE_HTTPONLY = False
 
 
 # Application definition
@@ -230,6 +237,19 @@ SIMPLE_JWT = {
 #     "https://glowing-sunburst-d86f36.netlify.app"
 # ]
 CORS_ALLOW_ALL_ORIGINS = True
+
+# 修复CORS问题的额外设置
+CORS_ALLOW_CREDENTIALS = True  # 允许跨域请求携带凭证
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken', 'Authorization']  # 允许前端访问的响应头
+
+# 确保包含指定域名
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://\w+\.ngrok-free\.app$",
+    r"^https://glowing-sunburst-d86f36\.netlify\.app$",
+    r"^http://localhost:\d+$",
+    r"^http://127\.0\.0\.1:\d+$",
+]
+
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
