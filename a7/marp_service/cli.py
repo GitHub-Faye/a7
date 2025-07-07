@@ -1,6 +1,7 @@
 import logging
 import os
 import subprocess
+import sys
 from typing import Dict, List, Optional, Tuple, Union
 
 from django.conf import settings
@@ -129,6 +130,10 @@ class MarpCLIExecutor:
         self.timeout = timeout
         # 获取marp-cli路径，如果在Django设置中定义则使用，否则使用默认路径
         self.marp_command = getattr(settings, "MARP_CLI_PATH", "npx @marp-team/marp-cli")
+        
+        # 处理Windows环境下的命令
+        if sys.platform == 'win32' and not self.marp_command.startswith("cmd /c"):
+            self.marp_command = f"cmd /c {self.marp_command}"
     
     def execute(self, args: List[str]) -> Tuple[int, str, str]:
         """
@@ -143,15 +148,26 @@ class MarpCLIExecutor:
         Raises:
             MarpCLIError: 如果命令执行失败
         """
-        command = self.marp_command.split() + args
+        # 构建完整命令
+        if sys.platform == 'win32':
+            # Windows环境下，确保命令是字符串形式
+            if isinstance(self.marp_command, str):
+                command_parts = self.marp_command.split()
+                command = command_parts + args
+            else:
+                command = self.marp_command + args
+        else:
+            # Linux/Mac环境
+            command = self.marp_command.split() + args
         
         try:
-            logger.info(f"执行命令: {' '.join(command)}")
+            logger.info(f"执行命令: {' '.join(command if isinstance(command, list) else [command])}")
             process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                shell=isinstance(command, str)  # Windows下使用shell=True
             )
             
             stdout, stderr = process.communicate(timeout=self.timeout)

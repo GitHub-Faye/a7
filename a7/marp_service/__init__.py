@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Optional
 
 from .cli import MarpCLIBuilder, MarpCLIExecutor
@@ -39,9 +40,14 @@ def convert_markdown_to_format(
         with temp_manager.create_temp_markdown_file(content) as input_file:
             # 确定输出路径
             if output_path:
-                # 确保输出目录存在
-                os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-                file_path = output_path
+                # 特殊处理Windows环境下的PNG输出
+                if output_format.lower() == 'png' and sys.platform == 'win32' and os.path.isdir(output_path):
+                    # 如果是目录，在Windows上需要指定具体文件名
+                    file_path = os.path.join(output_path, "output.png")
+                else:
+                    # 确保输出目录存在
+                    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+                    file_path = output_path
             else:
                 # 使用临时输出路径
                 extension = get_file_extension(output_format)
@@ -114,9 +120,14 @@ def convert_file_to_format(
     try:
         # 确定输出路径
         if output_path:
-            # 确保输出目录存在
-            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-            output_file_path = output_path
+            # 特殊处理Windows环境下的PNG输出
+            if output_format.lower() == 'png' and sys.platform == 'win32' and os.path.isdir(output_path):
+                # 如果是目录，在Windows上需要指定具体文件名
+                output_file_path = os.path.join(output_path, "output.png")
+            else:
+                # 确保输出目录存在
+                os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+                output_file_path = output_path
         else:
             # 使用临时输出路径
             extension = get_file_extension(output_format)
