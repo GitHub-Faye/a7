@@ -533,11 +533,80 @@
             "testStrategy": "Ensure test coverage for all critical paths and edge cases."
           }
         ]
+      },
+      {
+        "id": 15,
+        "title": "Create Web API for marp-cli Markdown to Presentation Conversion",
+        "description": "Develop a RESTful API that wraps marp-cli to convert Markdown content into various presentation formats (PDF, PPTX, HTML, PNG) with optional themes and proper error handling.",
+        "details": "1. **Dependency Installation**: Install marp-cli as a project dependency using npm or yarn.\n2. **Service Layer**: Implement a Python service layer to interact with marp-cli via subprocess calls. This layer should handle:\n   - Command-line argument construction for marp-cli (e.g., output format, theme).\n   - Temporary file management (create input Markdown files and clean up after conversion).\n3. **API Design**: Design REST API endpoints with the following specifications:\n   - POST `/convert`: Accepts Markdown content, output format (PDF, PPTX, HTML, PNG), and optional theme.\n   - Validates input parameters and returns appropriate HTTP status codes for errors.\n4. **File Handling**: Implement logic to:\n   - Create temporary Markdown files from input content.\n   - Execute marp-cli to generate the output file.\n   - Clean up temporary files post-conversion.\n5. **Response Handling**: Return the converted file as a downloadable response with the correct MIME type.\n\n**Considerations**:\n- Ensure thread safety for concurrent API requests.\n- Handle large file uploads efficiently.\n- Implement rate limiting if necessary.",
+        "testStrategy": "1. **Unit Tests**:\n   - Test the Python service layer for correct command-line argument generation and file handling.\n   - Verify temporary file creation and cleanup.\n2. **Integration Tests**:\n   - Simulate API requests with various Markdown inputs, formats, and themes.\n   - Validate response headers and file correctness.\n3. **Error Handling**:\n   - Test invalid inputs (e.g., unsupported formats, malformed Markdown) and verify appropriate HTTP status codes.\n4. **Performance Tests**:\n   - Measure conversion time for large Markdown files.\n   - Check resource usage during concurrent requests.",
+        "status": "pending",
+        "dependencies": [
+          5,
+          6,
+          13
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Install and Configure marp-cli Dependency",
+            "description": "Set up marp-cli as a project dependency and verify its installation.",
+            "dependencies": [],
+            "details": "Use npm or yarn to install marp-cli globally or as a project dependency. Verify the installation by running a basic conversion command to ensure marp-cli is functional.\n<info added on 2025-07-07T07:07:55.131Z>\n- Successfully installed marp-cli using `npm install @marp-team/marp-cli --save`\n- Verified installation with version @marp-team/marp-cli v4.2.0 (w/ @marp-team/marp-core v4.1.0)\n- Dependency added to package.json, can be executed via `npx marp` command\n</info added on 2025-07-07T07:07:55.131Z>",
+            "status": "done",
+            "testStrategy": "Test the installation by executing a simple markdown to PDF conversion via command line and checking for successful output."
+          },
+          {
+            "id": 2,
+            "title": "Implement Python Service Layer for marp-cli Interaction",
+            "description": "Create a Python service layer to handle marp-cli subprocess calls, command-line argument construction, and temporary file management.",
+            "dependencies": [
+              1
+            ],
+            "details": "Develop Python functions to construct marp-cli commands based on input parameters (output format, theme). Implement temporary file creation for input markdown and cleanup post-conversion. Ensure thread safety for concurrent operations.\n<info added on 2025-07-07T07:56:51.629Z>\nImplemented Django application module marp_service with complete functionality:\n1. Module structure created via Django startapp with proper settings configuration\n2. Core components:\n   - exceptions.py: Custom error hierarchy (MarpServiceError, MarpCLIError, MarpFileError, MarpConversionError)\n   - utils.py: Format validation, MIME type mapping and extension conversion\n   - temp.py: MarpTempFileManager for temporary file handling\n   - cli.py: MarpCLIBuilder (fluent parameter builder) and MarpCLIExecutor (command execution)\n3. Public API methods:\n   - convert_markdown_to_format: Content conversion to PDF/PPTX/HTML/PNG\n   - convert_file_to_format: File-based conversion\n4. Comprehensive unit tests covering:\n   - CLI parameter building and validation\n   - Command execution and error handling\n   - Temporary file management\nAll tests passing with full functionality accessible through Django application.\n</info added on 2025-07-07T07:56:51.629Z>",
+            "status": "done",
+            "testStrategy": "Unit test individual functions for command construction, file handling, and subprocess execution. Verify thread safety with concurrent API calls."
+          },
+          {
+            "id": 3,
+            "title": "Design and Implement REST API Endpoints",
+            "description": "Create RESTful API endpoints to accept conversion requests and return appropriate responses.",
+            "dependencies": [
+              2
+            ],
+            "details": "Design a POST `/convert` endpoint that accepts markdown content, output format, and optional theme. Implement input validation and return proper HTTP status codes for errors. Ensure the API can handle large file uploads efficiently.",
+            "status": "pending",
+            "testStrategy": "Test API endpoints with various input scenarios (valid/invalid markdown, formats, themes) and verify correct HTTP responses and error handling."
+          },
+          {
+            "id": 4,
+            "title": "Implement File Conversion and Download Logic",
+            "description": "Add logic to convert markdown to the requested format and return the file as a downloadable response.",
+            "dependencies": [
+              3
+            ],
+            "details": "Use the Python service layer to execute marp-cli conversions. Implement logic to return the converted file with correct MIME types (e.g., application/pdf for PDF). Ensure temporary files are cleaned up after conversion.",
+            "status": "pending",
+            "testStrategy": "Test file conversion for all supported formats and verify the downloaded files are correct and have proper MIME types. Check for residual temporary files post-conversion."
+          },
+          {
+            "id": 5,
+            "title": "Add Rate Limiting and Final Error Handling",
+            "description": "Implement rate limiting to prevent abuse and finalize comprehensive error handling.",
+            "dependencies": [
+              4
+            ],
+            "details": "Add rate limiting middleware to the API to restrict the number of requests per user. Enhance error handling to cover all possible failure scenarios (e.g., marp-cli failures, file system errors) with meaningful error messages.",
+            "status": "pending",
+            "testStrategy": "Test rate limiting by sending multiple requests in quick succession and verifying throttling. Simulate various error conditions to ensure proper error messages and status codes are returned."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-06T09:30:21.744Z",
+      "updated": "2025-07-07T07:57:10.659Z",
       "description": "Tasks for master context"
     }
   }

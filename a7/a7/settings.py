@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-+2*)0s+_b-$d*e)!+q0rozaaybq8nhbx!vmcg!#f^&el_g&ebu
 DEBUG = True
 
 # 添加允许的主机
-ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0','*']
+# ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0','*']
 
 
 
@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'users',
     'courses',
     'ai_services',  # 添加AI服务应用
+    'marp_service',  # 添加Marp演示服务应用
 
 ]
 
@@ -222,14 +223,13 @@ SIMPLE_JWT = {
 }
 
 # CORS 配置
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "null",
-
-    "https://glowing-sunburst-d86f36.netlify.app"
-]
-
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:8000",
+#     "http://127.0.0.1:8000",
+#     "null",
+#     "https://glowing-sunburst-d86f36.netlify.app"
+# ]
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -379,3 +379,9 @@ N8N_WEBHOOK_HEADERS = {
 
 # Aiohttp配置
 AIOHTTP_CLIENT_TIMEOUT = int(os.environ.get('AIOHTTP_CLIENT_TIMEOUT', 30))  # 30秒默认超时
+
+# Marp CLI配置
+MARP_CLI_PATH = "npx @marp-team/marp-cli"
+
+# Marp临时文件配置
+MARP_TEMP_DIR = os.path.join(BASE_DIR, 'tmp', 'marp')

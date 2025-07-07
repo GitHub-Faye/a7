@@ -111,6 +111,26 @@ a7/                           # 项目根目录
 │   │   │   ├── test_question_export_integration.py # 问题导出集成测试
 │   │   │   └── test_api_exercises.py         # 练习题和学生答案API测试
 │   │   └── migrations/       # 课程模型数据库迁移文件
+│   ├── marp_service/         # Marp演示文档转换服务应用
+│   │   ├── __init__.py       # Python包初始化文件，提供主要API接口
+│   │   ├── apps.py           # 应用配置
+│   │   ├── cli.py            # Marp命令行接口构建与执行
+│   │   ├── exceptions.py     # Marp服务异常类定义
+│   │   ├── temp.py           # 临时文件管理
+│   │   ├── utils.py          # 工具函数
+│   │   ├── management/       # Django管理命令目录
+│   │   │   ├── __init__.py   # Python包初始化文件
+│   │   │   └── commands/     # 具体命令目录
+│   │   │       └── __init__.py # Python包初始化文件
+│   │   ├── migrations/       # 数据库迁移文件目录
+│   │   │   └── __init__.py   # Python包初始化文件
+│   │   └── tests/            # 测试目录
+│   │       ├── __init__.py   # Python包初始化文件
+│   │       ├── test_cli.py   # CLI相关单元测试
+│   │       ├── test_exceptions.py # 异常相关单元测试
+│   │       ├── test_integration.py # 集成测试
+│   │       ├── test_temp.py  # 临时文件管理单元测试
+│   │       └── test_utils.py # 工具函数单元测试
 │   ├── Dockerfile            # Docker容器构建配置文件
 │   ├── compose.yaml          # Docker Compose服务配置文件
 │   ├── README.Docker.md      # Docker部署和使用说明文档
@@ -485,6 +505,17 @@ a7/                           # 项目根目录
     - 测试覆盖了正常操作路径和异常情况，验证了API的健壮性和错误处理能力。
     - 测试还验证了API响应格式的一致性，确保前端应用能够依赖统一的数据结构。
 
+17. **Marp演示文档转换服务**:
+    - `a7/marp_service/__init__.py`提供顶层API接口convert_markdown_to_format和convert_file_to_format，作为与外部系统交互的主要入口点。
+    - `a7/marp_service/cli.py`中的MarpCLIBuilder类实现链式API设计，便于构建复杂的命令行参数。MarpCLIExecutor类负责执行构建好的命令行。
+    - `a7/marp_service/exceptions.py`定义异常层次结构，通过继承关系组织不同类型的错误，使错误处理更加精确。
+    - `a7/marp_service/temp.py`中的MarpTempFileManager类提供上下文管理器接口，确保临时文件的生命周期管理，避免资源泄露。
+    - `a7/marp_service/utils.py`提供实用函数，支持格式验证和MIME类型映射，与`cli.py`和顶层API密切协作，确保输入输出的一致性。
+    - `a7/a7/settings.py`中添加了MARP_CLI_PATH配置项，用于指定marp-cli的安装路径，支持系统级别的灵活配置。
+    - 测试文件(`test_cli.py`, `test_exceptions.py`, `test_integration.py`, `test_temp.py`, `test_utils.py`)分别验证各模块的功能和边界情况，确保服务的稳定性和可靠性。
+    - 该服务设计为可独立使用的Django应用，通过INSTALLED_APPS注册，可以方便地集成到a7项目或其他Django项目中。
+    - 服务实现了Markdown转换为PDF、PPTX、HTML和PNG等常见演示文档格式，支持自定义主题、背景色、页面比例等参数。
+
 ## 目录组织逻辑
 
 项目采用了以下组织逻辑：
@@ -494,6 +525,7 @@ a7/                           # 项目根目录
    - Django应用存放在apps目录下，如core应用。
    - 用户管理系统作为独立应用(users)实现，便于模块化管理。
    - 课程管理系统作为独立应用(courses)实现，集中管理课程相关功能。
+   - Marp服务作为独立应用(marp_service)实现，专注于Markdown到演示文档的转换功能。
    - 每个应用都有自己的URLs和视图模块。
 
 2. **按工具分类**: 
