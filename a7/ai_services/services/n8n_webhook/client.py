@@ -29,13 +29,13 @@ logger = logging.getLogger(__name__)
 class N8nWebhookClient:
     """n8n Webhook客户端类，提供与n8n工作流程平台交互的方法"""
 
-    def __init__(self, webhook_config: Optional[Union[WebhookConfig, Dict]] = None, timeout: int = 180):
+    def __init__(self, webhook_config: Optional[Union[WebhookConfig, Dict]] = None, timeout: int = 300):
         """
         初始化n8n Webhook客户端
         
         Args:
             webhook_config: Webhook配置对象或配置字典。如果为None，将使用默认配置
-            timeout: 请求超时时间（秒），默认为180秒（3分钟）
+            timeout: 请求超时时间（秒），默认为300秒（5分钟）
         """
         self.timeout = timeout
         self.webhook_config = None

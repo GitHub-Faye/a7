@@ -61,7 +61,7 @@ class TestRealN8nIntegration:
         # 配置模拟的客户端实例以使用真实URL和扩大超时
         real_client = N8nWebhookClient(
             webhook_config={'url': "http://localhost:5678/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d"},
-            timeout=180  # 设置3分钟超时
+            timeout=300  # 设置5分钟超时
         )
         MockN8nClient.return_value = real_client
         
