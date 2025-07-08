@@ -124,6 +124,7 @@ a7/                           # 项目根目录
 │   │   ├── exceptions.py     # Marp服务异常类定义
 │   │   ├── temp.py           # 临时文件管理
 │   │   ├── utils.py          # 工具函数
+│   │   ├── validation.py     # Markdown验证模块，提供MarkdownValidator类实现验证和修复功能
 │   │   ├── serializers.py    # REST API序列化器，处理输入验证
 │   │   ├── views.py          # REST API视图，处理HTTP请求和响应
 │   │   ├── urls.py           # URL路由配置
@@ -159,8 +160,10 @@ a7/                           # 项目根目录
 │   ├── auth_test.html        # 登录/登出/密码更改功能测试页面
 │   └── permissions_test.html # 角色权限测试页面
 ├── pptx_output/              # 知识点到PPT转换输出目录，存储生成的PPTX文件
+├── marp_test_output/         # Marp集成测试输出目录，存储测试生成的文件
 ├── test_api.py               # API测试脚本，用于测试中间件功能
 ├── test_api_question.py      # API测试脚本，用于测试问题生成API
+├── marp_integration_test.py  # 手动集成测试脚本，测试知识点到PPT的完整流程
 ├── .env.example              # 环境变量示例文件
 ├── .gitignore                # Git忽略配置文件
 ├── .roomodes                 # Roo模式配置文件
@@ -295,6 +298,7 @@ a7/                           # 项目根目录
 - **a7/apps/core/tests.py**: 包含核心模型的自动化测试，验证用户活动跟踪和系统性能监控功能，测试JSON字段处理方法和真实应用场景模拟。
 - **a7/apps/core/tests/test_middleware.py**: 核心中间件测试文件，包含对RequestLoggingMiddleware和RequestProcessorMiddleware的单元测试，验证路径排除、日志记录、请求验证、响应处理和请求大小限制功能。
 - **test_api.py**: API测试脚本，用于集成测试中间件功能，包括JWT认证、请求日志和请求处理。提供实际HTTP请求测试，验证中间件在真实环境中的表现。
+- **marp_integration_test.py**: 手动集成测试脚本，用于测试知识点到PPT的完整流程，包括知识点数据准备、Markdown生成（支持本地和AI两种模式）、Markdown验证和修复、以及转换为演示文稿（支持pptx/pdf/html格式）。脚本设计为可通过命令行参数配置，提供详细的日志记录，并保存所有中间文件用于分析和调试。
 
 ### 配置文件
 
@@ -334,6 +338,10 @@ a7/                           # 项目根目录
 - **tasks/**: 由Task Master生成和管理的任务文件目录，包含项目任务的结构化描述。
 
 - **test_html/**: 包含测试文件，用于前端测试特定功能，如认证和权限控制。
+
+- **marp_test_output/**: 存储Marp集成测试生成的文件，包括知识点数据JSON、生成的Markdown、验证结果、修复后的Markdown以及最终的演示文稿文件。用于分析和调试知识点到PPT转换的完整流程。
+
+- **pptx_output/**: 知识点到PPT转换输出目录，存储生成的PPTX文件，用于正式环境下的演示文稿保存和分享。
 
 ### 文档文件
 
@@ -407,6 +415,7 @@ a7/                           # 项目根目录
    - `a7/apps/core/tests.py`: 包含核心模型的自动化测试，验证用户活动跟踪和系统性能监控功能，测试JSON字段处理方法和真实应用场景模拟。
    - `a7/apps/core/tests/test_middleware.py`: 核心中间件测试文件，包含对RequestLoggingMiddleware和RequestProcessorMiddleware的单元测试，验证路径排除、日志记录、请求验证、响应处理和请求大小限制功能。
    - `test_api.py`: API测试脚本，用于集成测试中间件功能，包括JWT认证、请求日志和请求处理。提供实际HTTP请求测试，验证中间件在真实环境中的表现。
+   - `marp_integration_test.py`: 手动集成测试脚本，用于测试知识点到PPT的完整流程，包括知识点数据准备、Markdown生成（支持本地和AI两种模式）、Markdown验证和修复、以及转换为演示文稿（支持pptx/pdf/html格式）。脚本设计为可通过命令行参数配置，提供详细的日志记录，并保存所有中间文件用于分析和调试。
 
 6. **Roo助手规则**:
    - `.roomodes`定义Roo助手的行为模式。
@@ -528,6 +537,7 @@ a7/                           # 项目根目录
     - `a7/marp_service/exceptions.py`: 异常类定义，定义异常层次结构，通过继承关系组织不同类型的错误，使错误处理更加精确。
     - `a7/marp_service/temp.py`: 临时文件管理，MarpTempFileManager类提供上下文管理器接口，确保临时文件的生命周期管理，避免资源泄露。
     - `a7/marp_service/utils.py`: 工具函数，提供实用函数，支持格式验证和MIME类型映射，与`cli.py`和顶层API密切协作，确保输入输出的一致性。
+    - `a7/marp_service/validation.py`: Markdown验证模块，实现MarkdownValidator类，提供五个核心功能：validate_frontmatter（验证前置元数据）、validate_slides_structure（验证幻灯片结构）、validate_hierarchy（验证标题层级）、validate_syntax（验证语法如代码块闭合）和fix（自动修复问题）。能够识别和修复常见问题如缺失的主题设置、标题层级跳跃和未闭合代码块等。
     - `a7/marp_service/serializers.py`: REST API序列化器，定义MarpConversionSerializer类处理输入验证，验证markdown内容、输出格式(pdf/pptx/html/png)和可选的主题，确保API请求数据的有效性。
     - `a7/marp_service/views.py`: REST API视图，实现MarpConversionView类处理HTTP请求，接收POST请求到/api/marp/convert端点，调用marp服务执行转换，并返回转换后的文件作为HTTP响应，带有适当的MIME类型。
     - `a7/marp_service/urls.py`: URL路由配置，定义API端点路径，将/api/marp/convert路径映射到MarpConversionView，并集成到主URL配置中。
@@ -549,12 +559,14 @@ a7/                           # 项目根目录
 
 18. **知识点到PPT转换系统**:
    - `a7/courses/serializers_ppt.py`定义KnowledgePointToPPTSerializer类，验证知识点转PPT的输入参数。
-   - `a7/courses/services/knowledge_to_ppt.py`实现KnowledgePointToPPTService类，提供知识点层次结构获取、Markdown生成和文件转换功能。
+   - `a7/courses/services/knowledge_to_ppt.py`实现KnowledgePointToPPTService类，提供知识点层次结构获取、Markdown生成和文件转换功能。集成了MarkdownValidator进行内容验证和修复，确保生成的Markdown符合marp规范。
    - `a7/courses/views.py`中的KnowledgePointToPPTViewSet处理API请求，验证输入并调用服务完成转换。
    - `a7/courses/urls.py`注册KnowledgePointToPPTViewSet，提供'/api/knowledge-points-to-ppt/'端点。
    - `a7/courses/tests/test_knowledge_to_ppt_api.py`和`a7/courses/tests/test_knowledge_to_ppt_real.py`验证API功能和实际文件生成。
+   - `marp_integration_test.py`提供完整的集成测试脚本，可手动执行测试知识点到PPT的整个流程，包括使用真实的n8n服务进行Markdown生成、验证和修复、以及转换为演示文稿。支持--use-ai参数切换AI生成和本地生成模式，支持多种输出格式(pptx/pdf/html)，提供详细日志记录。
    - `a7/marp_service/__init__.py`提供convert_markdown_to_format方法，由KnowledgePointToPPTService调用以将Markdown转换为演示文稿。
    - `a7/marp_service/cli.py`提供MarpCLIBuilder和MarpCLIExecutor类，负责构建和执行marp-cli命令，实现Markdown到演示文稿的转换功能。
+   - `a7/marp_service/validation.py`提供MarkdownValidator类，对Markdown内容进行验证和自动修复，确保符合marp规范和保持知识点层级结构。
    - 转换服务生成的文件保存在presentations/目录（临时文件）或复制到pptx_output/目录（用于长期保存和查看）。
    - 系统支持多种输出格式（pptx、pdf、html），并能够保留知识点的层级结构，反映在生成的演示文稿中。
    - 服务实现了错误处理，包括知识点ID不存在、转换失败等情况的适当响应。

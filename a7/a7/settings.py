@@ -34,12 +34,21 @@ ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0
 CSRF_TRUSTED_ORIGINS = [
     'https://*', 
     'http://*',
-    'https://29c44f27bbdc.ngrok-free.app',
-    'http://29c44f27bbdc.ngrok-free.app'
+    'https://b0642ff316d7.ngrok-free.app',
+    'http://b0642ff316d7.ngrok-free.app'
 ]
 
 # CSRF豁免URL配置，符合这些正则表达式的URL将不需要CSRF验证
-CSRF_EXEMPT_URLS = [r'^api/.*$', r'^admin/login/.*$', r'^ngrok-.*$']  # 豁免所有API路径和管理员登录路径
+CSRF_EXEMPT_URLS = [
+    r'^api/.*$',  # 豁免所有API路径
+    r'^admin/login/.*$',  # 豁免管理员登录路径
+    r'^ngrok-.*$',  # 豁免ngrok路径
+    r'^/api/login/$',  # 特别豁免登录API
+]
+
+# 设置CSRF cookie名称和域，以便前端正确获取
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 
 # 可选：如果仍有CSRF问题，可以考虑这些设置（不推荐用于生产环境）
 # CSRF_COOKIE_SECURE = False
@@ -79,7 +88,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS中间件，必须放在CommonMiddleware之前
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',  # 暂时禁用CSRF中间件解决ngrok访问问题
+    'django.middleware.csrf.CsrfViewMiddleware',  # 重新启用CSRF中间件，但使用豁免处理API请求
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -238,17 +247,23 @@ SIMPLE_JWT = {
 }
 
 # CORS 配置
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:8000",
-#     "http://127.0.0.1:8000",
-#     "null",
-#     "https://glowing-sunburst-d86f36.netlify.app"
-# ]
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://glowing-sunburst-d86f36.netlify.app",
+    "https://29c44f27bbdc.ngrok-free.app",
+    "http://29c44f27bbdc.ngrok-free.app"
+]
+# CORS_ALLOW_ALL_ORIGINS = True  # 注释掉，改用明确的域名列表
 
 # 修复CORS问题的额外设置
 CORS_ALLOW_CREDENTIALS = True  # 允许跨域请求携带凭证
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken', 'Authorization']  # 允许前端访问的响应头
+
+# 预检请求缓存时间设置
+CORS_PREFLIGHT_MAX_AGE = 86400  # 预检请求结果缓存1天（86400秒）
 
 # 确保包含指定域名
 CORS_ALLOWED_ORIGIN_REGEXES = [

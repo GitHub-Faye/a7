@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 
 from courses.models import KnowledgePoint, Course
 from marp_service import convert_markdown_to_format
+from marp_service.validation import MarkdownValidator
 from ai_services.services.n8n_webhook.client import N8nWebhookClient
 
 logger = logging.getLogger(__name__)
@@ -163,13 +164,27 @@ class KnowledgePointToPPTService:
                     course = knowledge_data["courses"][course_id]
                     md_lines.append(f"## {course['title']} - {course['subject']} {course['grade_level']}")
         
+        # 确保标题页有一些内容
+        md_lines.append("知识点幻灯片")
         md_lines.append("")
         md_lines.append("---")
         md_lines.append("")
         
         # 处理每个知识点
-        for kp in knowledge_data["knowledge_points"]:
-            self._add_knowledge_point_to_markdown(md_lines, kp, 1)
+        knowledge_points = knowledge_data.get("knowledge_points", [])
+        if knowledge_points:
+            for i, kp in enumerate(knowledge_points):
+                # 如果不是第一个知识点，添加分隔符
+                if i > 0:
+                    md_lines.append("---")
+                    md_lines.append("")
+                
+                self._add_knowledge_point_to_markdown(md_lines, kp, 1)
+        else:
+            # 至少添加一个空白内容页
+            md_lines.append("## 无可用知识点")
+            md_lines.append("")
+            md_lines.append("请添加知识点内容")
         
         return "\n".join(md_lines)
     
@@ -187,14 +202,21 @@ class KnowledgePointToPPTService:
                 md_lines.append(line)
             
             md_lines.append("")
+        else:
+            # 确保即使没有内容也添加一些默认内容
+            md_lines.append("暂无详细内容")
+            md_lines.append("")
         
-        # 添加分页符
-        md_lines.append("---")
-        md_lines.append("")
+        # 不在每个知识点后添加分页符，而是在处理子知识点前添加
         
         # 处理子知识点
         if "children" in kp and kp["children"]:
-            for child in kp["children"]:
+            for i, child in enumerate(kp["children"]):
+                # 为每个子知识点添加分页符
+                if i > 0:
+                    md_lines.append("---")
+                    md_lines.append("")
+                
                 self._add_knowledge_point_to_markdown(md_lines, child, min(level + 1, 3))
     
     def validate_and_convert_markdown(self, markdown: str, format: str = 'pptx', theme: str = 'default') -> Tuple[str, str]:
@@ -209,6 +231,26 @@ class KnowledgePointToPPTService:
         Returns:
             元组 (文件路径, 文件名)
         """
+        # 创建验证器对象
+        validator = MarkdownValidator(markdown)
+        
+        # 执行验证
+        is_valid = validator.validate()
+        
+        # 如果存在问题，尝试修复
+        if not is_valid:
+            issues = validator.get_issues()
+            logger.warning(f"Markdown验证发现问题: {issues}")
+            
+            # 尝试修复问题
+            markdown = validator.fix()
+            logger.info("已尝试修复Markdown问题")
+            
+            # 再次验证修复后的内容
+            validator = MarkdownValidator(markdown)
+            if not validator.validate():
+                logger.warning(f"修复后仍然存在问题: {validator.get_issues()}")
+        
         # 生成唯一文件名
         unique_id = str(uuid.uuid4())
         output_filename = f"presentation_{unique_id}.{format}"
