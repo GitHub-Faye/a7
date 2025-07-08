@@ -118,6 +118,9 @@ a7/                           # 项目根目录
 │   │   ├── exceptions.py     # Marp服务异常类定义
 │   │   ├── temp.py           # 临时文件管理
 │   │   ├── utils.py          # 工具函数
+│   │   ├── serializers.py    # REST API序列化器，处理输入验证
+│   │   ├── views.py          # REST API视图，处理HTTP请求和响应
+│   │   ├── urls.py           # URL路由配置
 │   │   ├── management/       # Django管理命令目录
 │   │   │   ├── __init__.py   # Python包初始化文件
 │   │   │   └── commands/     # 具体命令目录
@@ -130,7 +133,9 @@ a7/                           # 项目根目录
 │   │       ├── test_exceptions.py # 异常相关单元测试
 │   │       ├── test_integration.py # 集成测试
 │   │       ├── test_temp.py  # 临时文件管理单元测试
-│   │       └── test_utils.py # 工具函数单元测试
+│   │       ├── test_utils.py # 工具函数单元测试
+│   │       ├── test_serializers.py # 序列化器单元测试
+│   │       └── test_views.py # 视图单元测试
 │   ├── Dockerfile            # Docker容器构建配置文件
 │   ├── compose.yaml          # Docker Compose服务配置文件
 │   ├── README.Docker.md      # Docker部署和使用说明文档
@@ -512,18 +517,24 @@ a7/                           # 项目根目录
     - `a7/marp_service/exceptions.py`: 异常类定义，定义异常层次结构，通过继承关系组织不同类型的错误，使错误处理更加精确。
     - `a7/marp_service/temp.py`: 临时文件管理，MarpTempFileManager类提供上下文管理器接口，确保临时文件的生命周期管理，避免资源泄露。
     - `a7/marp_service/utils.py`: 工具函数，提供实用函数，支持格式验证和MIME类型映射，与`cli.py`和顶层API密切协作，确保输入输出的一致性。
+    - `a7/marp_service/serializers.py`: REST API序列化器，定义MarpConversionSerializer类处理输入验证，验证markdown内容、输出格式(pdf/pptx/html/png)和可选的主题，确保API请求数据的有效性。
+    - `a7/marp_service/views.py`: REST API视图，实现MarpConversionView类处理HTTP请求，接收POST请求到/api/marp/convert端点，调用marp服务执行转换，并返回转换后的文件作为HTTP响应，带有适当的MIME类型。
+    - `a7/marp_service/urls.py`: URL路由配置，定义API端点路径，将/api/marp/convert路径映射到MarpConversionView，并集成到主URL配置中。
     - `a7/marp_service/tests/test_cli.py`: CLI相关单元测试，验证命令行参数构建和执行功能。
     - `a7/marp_service/tests/test_exceptions.py`: 异常相关单元测试，验证异常类的行为和继承关系。
     - `a7/marp_service/tests/test_integration.py`: 集成测试，使用真实的marp-cli工具验证完整的转换流程。包含对不同输出格式（PDF、PPTX、HTML、PNG）的测试，以及对Windows和Linux/Mac环境的特殊处理，确保跨平台兼容性。使用@unittest.skipIf装饰器在不同环境下智能跳过特定测试。新增了check_marp_cli_available函数，简化了marp命令检测逻辑，适配Windows环境下的命令执行方式。
     - `a7/marp_service/tests/test_temp.py`: 临时文件管理单元测试，验证临时文件的创建、使用和清理。
     - `a7/marp_service/tests/test_utils.py`: 工具函数单元测试，验证格式验证和MIME类型映射功能。
+    - `a7/marp_service/tests/test_serializers.py`: 序列化器单元测试，验证输入验证逻辑，包括格式验证、必填字段检查和主题验证。
+    - `a7/marp_service/tests/test_views.py`: 视图单元测试，使用mock服务测试视图逻辑，验证请求处理、响应生成和错误处理。
     - `a7/marp_service/tests/test_simple.py`: 简单测试脚本，用于在Django测试环境之外直接测试marp命令的执行，验证不同调用方式（直接命令、完整路径、npx调用）在不同环境下的可行性。
     - `a7/a7/settings.py`中添加了MARP_CLI_PATH配置项，用于指定marp-cli的安装路径，支持系统级别的灵活配置。已更新为使用"marp"或"npx @marp-team/marp-cli"作为默认值，提高跨平台兼容性。
-    - 测试文件(`test_cli.py`, `test_exceptions.py`, `test_integration.py`, `test_temp.py`, `test_utils.py`)分别验证各模块的功能和边界情况，确保服务的稳定性和可靠性。
+    - 测试文件(`test_cli.py`, `test_exceptions.py`, `test_integration.py`, `test_temp.py`, `test_utils.py`, `test_serializers.py`, `test_views.py`)分别验证各模块的功能和边界情况，确保服务的稳定性和可靠性。
     - `test_integration.py`实现了使用真实marp-cli工具的集成测试，验证不同输出格式（PDF、PPTX、HTML、PNG）的转换功能，并通过平台检测和条件测试跳过确保在Windows和Linux/Mac环境下都能正确运行。
     - 该服务设计为可独立使用的Django应用，通过INSTALLED_APPS注册，可以方便地集成到a7项目或其他Django项目中。
     - 服务实现了Markdown转换为PDF、PPTX、HTML和PNG等常见演示文档格式，支持自定义主题、背景色、页面比例等参数。
     - 服务具有跨平台兼容性，通过特殊处理确保在Windows和Linux/Mac环境下都能正确工作，特别是处理了Windows环境下的命令执行和PNG输出格式的特殊需求。Windows环境下使用shell=True执行命令，解决了命令路径解析问题。
+    - REST API端点(/api/marp/convert)提供了完整的Markdown到演示文档的转换功能，支持多种输出格式和主题选项，返回适当的MIME类型和文件名，集成了Swagger文档，便于API使用者理解和调用。
 
 ## 目录组织逻辑
 
@@ -651,6 +662,13 @@ a7/                           # 项目根目录
    - 返回标准化的API响应（成功或错误信息）
    - 提供丰富的错误处理（请求错误、连接错误、超时错误）
    - 与n8n工作流自动化工具集成，支持AI任务处理
+
+8. **Marp服务API**:
+   - `/api/marp/convert` - Markdown转换API端点，接收POST请求，包含markdown内容、输出格式和可选主题
+   - 支持多种输出格式：PDF、PPTX、HTML、PNG
+   - 返回转换后的文件作为HTTP响应，带有适当的MIME类型和文件名
+   - 提供详细的错误处理，包括格式验证、转换错误和服务器错误
+   - 集成Swagger文档，提供API使用说明和示例
 
 ## 练习与评测系统
 

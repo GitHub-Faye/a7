@@ -64,4 +64,7 @@ urlpatterns = [
     
     # 添加AI服务应用URL
     path('api/ai/', include('ai_services.urls', namespace='ai_services')),
+    
+    # 添加Marp服务应用URL
+    path('api/marp/', include('marp_service.urls', namespace='marp_service')),
 ]

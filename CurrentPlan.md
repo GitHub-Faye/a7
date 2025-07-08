@@ -1,152 +1,112 @@
-# 任务15.2实施计划：实现Python服务层处理marp-cli交互
+# Marp转换服务REST API端点实施计划 (任务15.3)
 
 ## 任务概述
-任务15.2要求创建Python服务层，用于处理与marp-cli的交互，包括构建命令行参数、管理临时文件。这是为了支持将Markdown内容转换为各种演示格式（PDF、PPTX、HTML、PNG）的Web API服务。
+根据任务15.3的要求，我们需要设计和实现REST API端点，用于接收Markdown内容，并将其转换为各种演示格式（PDF、PPTX、HTML、PNG）。
 
 ## 当前状态分析
-根据项目状态，我们已完成了：
-1. 任务15.1 - 成功安装和配置marp-cli依赖项，使用npm安装并验证其功能
-2. marp-cli已添加到package.json，可以通过`npx marp`命令执行
+1. marp_service应用已实现服务层功能，包括：
+   - convert_markdown_to_format 方法：将Markdown内容转换为指定格式
+   - convert_file_to_format 方法：将Markdown文件转换为指定格式
+   - 支持的格式：PDF、PPTX、HTML、PNG
+   - 支持可选主题应用
+   - 提供完善的异常处理和临时文件管理
 
-现在需要构建Python服务层，该服务层将：
-1. 处理与marp-cli的子进程调用
-2. 构建命令行参数
-3. 管理临时文件
+2. 尚未实现的部分：
+   - RESTful API端点
+   - 输入验证
+   - 文件下载响应
+   - 错误处理和HTTP状态码映射
+   - 大文件上传处理
 
-## 技术设计
+## API设计
 
-### 1. 服务层架构设计
-将创建一个Django应用程序模块，命名为`marp_service`，使用Django管理命令创建并放置在a7项目下：
+### 1. `/api/marp/convert` 端点设计
+
+#### HTTP方法: POST
+
+#### 请求体格式 (JSON):
+```json
+{
+  "content": "# Markdown内容\n\n幻灯片内容...",
+  "format": "pdf", // 可选值: "pdf", "pptx", "html", "png"
+  "theme": "default" // 可选参数，默认为null
+}
 ```
-a7/
-  a7/
-    marp_service/  # Django应用模块
-      __init__.py
-      apps.py      # Django应用配置
-      cli.py       # CLI参数构建和进程调用
-      temp.py      # 临时文件管理
-      utils.py     # 工具函数和格式定义
-      exceptions.py  # 自定义异常类
-      tests/       # 测试目录
-        __init__.py
-        test_cli.py
-        test_temp.py
+
+#### 响应格式:
+- 成功: 返回转换后的文件（适当的Content-Type和Content-Disposition头）
+- 错误: 返回JSON格式错误信息
+```json
+{
+  "success": false,
+  "error": "不支持的输出格式: xyz。支持的格式有: pdf, pptx, html, png"
+}
 ```
 
-### 2. CLI交互模块设计
-`cli.py`模块将负责：
-- 构建marp-cli命令行参数
-- 执行子进程调用
-- 处理进程输出和错误
-- 处理进程返回码
+#### HTTP状态码:
+- 200 OK: 成功转换并返回文件
+- 400 Bad Request: 请求参数无效
+- 415 Unsupported Media Type: 不支持的格式
+- 500 Internal Server Error: 服务器内部错误
 
-主要实现以下功能：
-- `MarpCLIBuilder`类：构建和验证marp-cli命令行参数
-- `MarpCLIExecutor`类：执行marp-cli命令并处理结果
+### 2. 文件上传端点 (可选扩展功能)
 
-### 3. 临时文件管理设计
-`temp.py`模块将负责：
-- 创建临时Markdown文件
-- 管理输出文件路径
-- 执行后清理临时文件
+#### HTTP方法: POST
 
-主要实现以下功能：
-- `MarpTempFileManager`类：处理临时文件的创建、写入和清理
+#### 端点: `/api/marp/convert-file`
 
-### 4. 异常处理设计
-`exceptions.py`模块将定义以下异常类：
-- `MarpServiceError`：基础异常类
-- `MarpCLIError`：CLI调用相关错误
-- `MarpFileError`：文件处理错误
-- `MarpConversionError`：转换过程错误
+#### 请求格式: multipart/form-data
+- file: Markdown文件
+- format: 输出格式
+- theme: 可选主题
 
-### 5. 接口设计
-提供简洁的接口方法：
-- `convert_markdown_to_format(content, output_format, theme=None, output_path=None)`：将Markdown内容转换为指定格式
-- `convert_file_to_format(file_path, output_format, theme=None, output_path=None)`：将Markdown文件转换为指定格式
+#### 响应格式:
+- 与上一个端点相同
 
 ## 实施步骤
 
-### 1. 使用Django命令行创建应用模块
-- 使用Django的管理命令创建marp_service应用：
-  ```
-  cd a7
-  python manage.py startapp marp_service
-  ```
-- 清理不必要的文件（models.py、views.py等），保留应用基本结构
-- 创建所需的Python文件（cli.py、temp.py、utils.py、exceptions.py）
+### 1. 创建序列化器
+创建 `MarpConversionSerializer` 用于验证和反序列化输入数据。
 
-### 2. 在Django设置中注册应用
-- 在a7/a7/settings.py中的INSTALLED_APPS列表中添加'marp_service'
-- 确保Django能够识别并加载这个应用
+### 2. 创建API视图
+实现 `MarpConversionView` 类，处理POST请求，使用service层函数进行转换，并返回适当的响应。
 
-### 3. 实现临时文件管理功能
-- 设计并实现`MarpTempFileManager`类
-- 实现临时文件创建、写入和删除功能
-- 添加自动清理功能
+### 3. 定义URL配置
+添加API路由到 `marp_service/urls.py` 并确保在主URLs配置中包含。
 
-### 4. 实现CLI交互功能
-- 设计并实现`MarpCLIBuilder`类，支持各种输出格式和主题选项
-- 实现`MarpCLIExecutor`类，处理子进程调用
-- 添加错误处理和输出捕获
+### 4. 增强错误处理
+确保API端点能够适当处理和报告所有可能的错误情况。
 
-### 5. 实现异常处理机制
-- 创建自定义异常类层次结构
-- 在各组件中集成异常处理
+### 5. 添加文件上传支持
+实现文件上传和处理逻辑，处理大型文件上传。
 
-### 6. 实现高级接口
-- 实现`convert_markdown_to_format`和`convert_file_to_format`方法
-- 确保接口使用简单直观
+### 6. 配置权限
+根据项目权限策略配置API端点的访问权限。
 
-### 7. 编写单元测试
-- 在marp_service/tests/目录下创建测试文件
-- 为临时文件管理功能编写测试
-- 为CLI参数构建功能编写测试
-- 为转换过程编写测试
+## 测试策略
 
-## 技术细节
+### 1. 单元测试
+- 测试序列化器验证
+- 测试视图逻辑
+- 测试错误处理路径
 
-### 命令行参数构建
-marp-cli支持多种命令行参数，我们需要支持的主要参数包括：
-- `--output <file>` - 输出文件路径
-- `--pdf` - 转换为PDF格式
-- `--pptx` - 转换为PowerPoint格式
-- `--html` - 转换为HTML格式
-- `--image png` - 转换为PNG图片
-- `--theme <theme>` - 应用主题
-- `--allow-local-files` - 允许访问本地文件
+### 2. 集成测试
+- 测试实际Markdown转换和文件下载
+- 测试不同格式和主题组合
+- 测试边缘情况（空内容、非常大的内容）
 
-### 异常处理策略
-- 捕获并分类subprocess执行过程中的异常
-- 提供详细的错误信息和日志记录
-- 确保即使在出错情况下也能清理临时文件
 
-### 临时文件管理
-- 使用Python的`tempfile`模块创建临时文件和目录
-- 实现上下文管理器（context manager）模式，确保资源自动清理
-- 处理文件权限和跨平台兼容性
 
-### Django集成
-- 利用Django的日志系统进行日志记录
-- 使用Django的设置系统存储配置参数（如marp-cli路径）
-- 遵循Django的应用结构和命名约定
+## 实现注意事项
+1. 使用 `FileResponse` 返回生成的文件
+2. 正确设置Content-Type和Content-Disposition头部
+3. 确保临时文件在请求结束后被清理
+4. 添加适当的日志记录，特别是错误情况
 
-## 实施注意事项
-- 提供全面的错误处理和日志记录
-- 考虑超时机制，避免长时间运行的进程
-- 实现资源限制，防止过度消耗系统资源
-- 检查安全隐患，避免命令注入等风险
 
-## 预期成果
-- 完整的marp_service Django应用，可以处理marp-cli调用
-- 支持将Markdown内容转换为多种格式（PDF、PPTX、HTML、PNG）
-- 高效的临时文件管理系统
-- 完整的单元测试
-
-## 验收标准
-1. 所有单元测试通过
-2. 支持所有指定的输出格式
-3. 正确处理错误情况并提供有用的错误信息
-4. 临时文件在所有情况下都能正确清理
-5. 代码质量高，包含适当的文档和注释
-6. 符合Django应用结构和最佳实践
+## 时间估算
+- 序列化器和视图实现: 1小时
+- URL配置和基础功能测试: 30分钟
+- 文件上传支持: 1小时
+- 完整测试套件: 1.5小时
+- 总计: 约4小时
