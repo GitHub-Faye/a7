@@ -34,8 +34,8 @@ ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0
 CSRF_TRUSTED_ORIGINS = [
     'https://*', 
     'http://*',
-    'https://b0642ff316d7.ngrok-free.app',
-    'http://b0642ff316d7.ngrok-free.app'
+    'https://b8d6dd43f441.ngrok-free.app',
+    'http://b8d6dd43f441.ngrok-free.app'
 ]
 
 # CSRF豁免URL配置，符合这些正则表达式的URL将不需要CSRF验证

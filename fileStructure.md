@@ -112,7 +112,9 @@ a7/                           # 项目根目录
 │   │   │   ├── test_question_export_integration.py # 问题导出集成测试
 │   │   │   ├── test_api_exercises.py         # 练习题和学生答案API测试
 │   │   │   ├── test_knowledge_to_ppt_api.py  # 知识点到PPT转换API测试
-│   │   │   └── test_knowledge_to_ppt_real.py # 知识点到PPT转换真实场景测试
+│   │   │   ├── test_knowledge_to_ppt_real.py # 知识点到PPT转换真实场景测试
+│   │   │   ├── test_knowledge_to_ppt_conversion.py # 知识点到PPT转换服务单元测试
+│   │   │   └── test_knowledge_to_ppt_integration.py # 知识点到PPT转换完整流程集成测试
 │   │   ├── services/         # 服务实现目录
 │   │   │   ├── __init__.py   # Python包初始化文件 
 │   │   │   └── knowledge_to_ppt.py # 知识点到PPT转换服务实现
@@ -284,6 +286,9 @@ a7/                           # 项目根目录
 - **a7/ai_services/tests/test_views_integration.py**: N8nWebhookAPIView的集成测试，验证从API接收请求到数据持久化的完整流程。
 - **a7/ai_services/tests/test_knowledge_to_ppt_api.py**: 知识点到PPT转换API测试文件，包含三个主要测试类：KnowledgePointToPPTSerializerTests（测试序列化器的验证逻辑）、KnowledgePointToPPTServiceTests（测试服务类的各项功能，包括知识点层次结构获取、Markdown生成和文件转换）和KnowledgePointToPPTAPITests（测试API端点的请求处理和响应生成）。测试涵盖正常场景和各种错误情况处理。
 - **a7/ai_services/tests/test_knowledge_to_ppt_real.py**: 知识点到PPT转换真实场景测试，创建真实的知识点数据（包括Python编程基础课程及其层级知识点结构），并调用API生成实际的PPTX文件，验证整个功能链路的正确性。生成的PPTX文件被保存到pptx_output目录以便查看和验证。
+- **a7/ai_services/tests/test_knowledge_to_ppt_conversion.py**: 知识点到PPT转换服务的单元测试，验证`validate_and_convert_markdown`方法的功能，包括：有效Markdown内容处理、无效Markdown的验证和修复、不同输出格式支持（PDF/PPTX/HTML）、不同主题支持、异常处理等。使用mock模拟依赖服务，确保测试的隔离性和可靠性。
+- **a7/ai_services/tests/test_knowledge_to_ppt_integration.py**: 知识点到PPT转换功能的完整流程集成测试，从创建测试课程和知识点开始，验证知识点层级结构获取、Markdown生成和PPT转换的完整过程。测试场景包括：知识点层次结构获取、Markdown生成、Markdown转换为PPT，以及process_knowledge_points_to_ppt方法的端到端测试。使用临时目录和环境覆盖来确保测试的可复现性和清理。
+- **a7/run_markdown_to_ppt_tests.py**: 知识点到PPT转换测试运行脚本，用于自动化执行单元测试和集成测试，提供日志记录和测试结果分析。设计为独立运行或集成到CI/CD流程中，支持完整项目测试或针对PPT转换功能的特定测试。
 
 ### pytest配置文件
 
@@ -563,6 +568,9 @@ a7/                           # 项目根目录
    - `a7/courses/views.py`中的KnowledgePointToPPTViewSet处理API请求，验证输入并调用服务完成转换。
    - `a7/courses/urls.py`注册KnowledgePointToPPTViewSet，提供'/api/knowledge-points-to-ppt/'端点。
    - `a7/courses/tests/test_knowledge_to_ppt_api.py`和`a7/courses/tests/test_knowledge_to_ppt_real.py`验证API功能和实际文件生成。
+   - `a7/courses/tests/test_knowledge_to_ppt_conversion.py`提供针对validate_and_convert_markdown方法的单元测试，验证Markdown验证、修复和转换功能，包括有效内容处理、无效内容修复、不同输出格式、主题和异常处理等测试场景。
+   - `a7/courses/tests/test_knowledge_to_ppt_integration.py`提供完整流程的集成测试，从知识点数据准备到最终PPT生成的全流程测试，确保各组件协同工作正常。
+   - `a7/run_markdown_to_ppt_tests.py`用于自动化执行知识点到PPT转换相关的测试套件，提供集中式测试执行和结果分析。
    - `marp_integration_test.py`提供完整的集成测试脚本，可手动执行测试知识点到PPT的整个流程，包括使用真实的n8n服务进行Markdown生成、验证和修复、以及转换为演示文稿。支持--use-ai参数切换AI生成和本地生成模式，支持多种输出格式(pptx/pdf/html)，提供详细日志记录。
    - `a7/marp_service/__init__.py`提供convert_markdown_to_format方法，由KnowledgePointToPPTService调用以将Markdown转换为演示文稿。
    - `a7/marp_service/cli.py`提供MarpCLIBuilder和MarpCLIExecutor类，负责构建和执行marp-cli命令，实现Markdown到演示文稿的转换功能。
@@ -571,6 +579,8 @@ a7/                           # 项目根目录
    - 系统支持多种输出格式（pptx、pdf、html），并能够保留知识点的层级结构，反映在生成的演示文稿中。
    - 服务实现了错误处理，包括知识点ID不存在、转换失败等情况的适当响应。
    - KnowledgePointToPPTService实现了完整的处理流程，将课程管理系统与Marp服务无缝集成，实现从结构化知识点数据到完整演示文稿的转换。
+   - 系统具有高度的健壮性，能够处理各种边缘情况，如MEDIA_ROOT或MEDIA_URL为None的情况，确保在不同环境下都能正常工作。
+   - 实现了详细的测试套件，包括单元测试和集成测试，覆盖各种正常和异常场景，确保功能的稳定性和可靠性。
 
 ## 目录组织逻辑
 

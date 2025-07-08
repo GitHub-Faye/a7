@@ -3,6 +3,7 @@ import uuid
 import json
 import logging
 from typing import List, Dict, Any, Optional, Tuple
+import tempfile
 
 from django.conf import settings
 from django.db.models import Q
@@ -257,7 +258,16 @@ class KnowledgePointToPPTService:
         output_path = os.path.join(self.presentation_dir, output_filename)
         
         # 创建完整的物理路径
-        full_output_path = os.path.join(settings.MEDIA_ROOT, output_path)
+        # 处理settings.MEDIA_ROOT为None的情况（测试环境）
+        media_root = settings.MEDIA_ROOT
+        if media_root is None:
+            media_root = tempfile.gettempdir()
+            logger.info(f"MEDIA_ROOT为None，使用临时目录: {media_root}")
+            
+        full_output_path = os.path.join(media_root, output_path)
+        
+        # 确保输出目录存在
+        os.makedirs(os.path.dirname(full_output_path), exist_ok=True)
         
         try:
             # 调用marp服务进行转换
@@ -419,10 +429,15 @@ class KnowledgePointToPPTService:
             )
             
             # 4. 构建响应
+            # 处理MEDIA_URL为None的情况
+            media_url = settings.MEDIA_URL or '/'
+            if not media_url.endswith('/'):
+                media_url += '/'
+                
             return {
                 "status": "success",
                 "data": {
-                    "file_url": f"{settings.MEDIA_URL}{output_path}",
+                    "file_url": f"{media_url}{output_path}",
                     "filename": filename
                 }
             }
