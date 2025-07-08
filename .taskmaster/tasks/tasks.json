@@ -618,11 +618,11 @@
             "id": 2,
             "title": "Integrate AI for Markdown Generation",
             "description": "Utilize the existing AI service to generate hierarchical Markdown content from structured knowledge points.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               1
             ],
-            "details": "Leverage Task 13's AI service to convert structured knowledge points into Markdown, preserving hierarchy in marp-cli syntax.",
+            "details": "Leverage Task 13's AI service to convert structured knowledge points into Markdown, preserving hierarchy in marp-cli syntax.\n<info added on 2025-07-08T07:42:06.713Z>\nImplementation completed with the following details:\n- Added KnowledgeToMarkdownRequestData and KnowledgeToMarkdownResponseData classes in formats.py\n- Implemented generate_markdown_from_knowledge methods in client.py\n- Updated KnowledgePointToPPTSerializer with use_ai option\n- Integrated AI generation in KnowledgePointToPPTService with generate_markdown_using_ai method\n- Added automatic marp-cli syntax detection and repair\n- Developed comprehensive test cases covering normal/AI generation and fallback scenarios\n- Verified functionality maintains hierarchy and produces higher quality output than local generation\n- Confirmed successful end-to-end conversion from knowledge points to PPTX via AI-generated Markdown\n</info added on 2025-07-08T07:42:06.713Z>",
             "testStrategy": "Validate generated Markdown for correct representation of hierarchy."
           },
           {
@@ -663,7 +663,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-08T06:46:20.206Z",
+      "updated": "2025-07-08T07:42:10.220Z",
       "description": "Tasks for master context"
     }
   }

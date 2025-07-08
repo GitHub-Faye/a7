@@ -48,6 +48,12 @@ class KnowledgePointToPPTSerializer(serializers.Serializer):
         help_text="是否包含课程信息，默认为true"
     )
     
+    use_ai = serializers.BooleanField(
+        default=False, 
+        required=False,
+        help_text="是否使用AI服务生成Markdown，默认为false"
+    )
+    
     def validate_knowledge_point_ids(self, value):
         """
         验证知识点ID列表，检查ID是否有重复

@@ -116,6 +116,24 @@ class QuestionGenerationResponseData(BaseResponse):
 
 
 # ==============================================================================
+# 知识点到Markdown转换任务格式 (Knowledge to Markdown Conversion Task Formats)
+# ==============================================================================
+
+class KnowledgeToMarkdownRequestData(BaseRequest):
+    """知识点到Markdown转换任务的请求数据模型"""
+    knowledge_data: Dict[str, Any] = Field(..., description="知识点数据结构，包含知识点及其层级关系")
+    title: Optional[str] = Field(None, description="演示文稿标题")
+    include_course_info: bool = Field(True, description="是否包含课程信息")
+    theme: Optional[str] = Field(None, description="演示文稿主题")
+    chatInput: str = Field(..., description="生成Markdown的提示文本")
+    sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
+
+class KnowledgeToMarkdownResponseData(BaseResponse):
+    """知识点到Markdown转换任务的响应数据模型"""
+    markdown: str = Field(..., description="生成的Markdown内容")
+
+
+# ==============================================================================
 # 响应格式化和转换 (Response Formatting and Conversion)
 # ==============================================================================
 
@@ -419,6 +437,51 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         )
 
 
+def format_knowledge_to_markdown_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    尝试将n8n返回的数据格式化为符合KnowledgeToMarkdownResponseData要求的结构
+    
+    Args:
+        data: n8n返回的原始数据
+        
+    Returns:
+        格式化后的数据，符合KnowledgeToMarkdownResponseData结构
+    
+    Raises:
+        N8nResponseError: 如果无法格式化数据
+    """
+    logger.info("正在格式化知识点到Markdown转换响应数据")
+    
+    # 情况1: 如果n8n返回的是带有answer字段的对象
+    if isinstance(data, dict) and 'answer' in data and isinstance(data['answer'], str):
+        markdown_content = data['answer']
+        logger.info(f"从answer字段中提取Markdown内容，长度: {len(markdown_content)}")
+        return {"markdown": markdown_content}
+    
+    # 情况2: 如果收到的是包含output字段的响应
+    if isinstance(data, dict) and 'output' in data and isinstance(data['output'], str):
+        markdown_content = data['output']
+        logger.info(f"从output字段中提取Markdown内容，长度: {len(markdown_content)}")
+        return {"markdown": markdown_content}
+    
+    # 情况3: 如果返回的数据已经包含markdown字段
+    if isinstance(data, dict) and 'markdown' in data and isinstance(data['markdown'], str):
+        logger.info("数据结构已符合期望格式")
+        return data
+    
+    # 尝试从文本中提取Markdown
+    if isinstance(data, str):
+        logger.info(f"直接使用字符串响应作为Markdown内容，长度: {len(data)}")
+        return {"markdown": data}
+    
+    # 如果无法识别格式，抛出异常
+    logger.error(f"无法格式化知识点到Markdown转换响应: {str(data)[:200]}...")
+    raise N8nResponseError(
+        message="无法识别AI服务返回的Markdown内容格式",
+        error_data=data
+    )
+
+
 # ==============================================================================
 # 任务格式注册与管理 (Task Format Registry)
 # ==============================================================================
@@ -436,6 +499,10 @@ TASK_FORMATS: Dict[str, Dict[str, Any]] = {
     "questionGeneration": {
         "request": QuestionGenerationRequestData,
         "response": QuestionGenerationResponseData,
+    },
+    "knowledgeToMarkdown": {
+        "request": KnowledgeToMarkdownRequestData,
+        "response": KnowledgeToMarkdownResponseData,
     },
     # 在这里可以添加其他任务类型的格式定义
     # "another_task": {
@@ -519,6 +586,8 @@ def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
         data = format_course_generation_response(data)
     elif task_type == "questionGeneration":
         data = format_question_generation_response(data)
+    elif task_type == "knowledgeToMarkdown":
+        data = format_knowledge_to_markdown_response(data)
 
     try:
         validated_model = response_model.model_validate(data)

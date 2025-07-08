@@ -295,4 +295,28 @@ class N8nWebhookClient:
         Returns:
             生成的问题列表
         """
-        return asyncio.run(self.generate_questions(request_data)) 
+        return asyncio.run(self.generate_questions(request_data))
+
+    async def generate_markdown_from_knowledge(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        从知识点数据生成Markdown的异步方法
+        
+        Args:
+            request_data: 包含知识点数据的请求数据
+            
+        Returns:
+            Dict[str, Any]: 包含生成Markdown的响应数据
+        """
+        return await self.process_ai_task("knowledgeToMarkdown", request_data)
+
+    def generate_markdown_from_knowledge_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        从知识点数据生成Markdown的同步方法
+        
+        Args:
+            request_data: 包含知识点数据的请求数据
+            
+        Returns:
+            Dict[str, Any]: 包含生成Markdown的响应数据
+        """
+        return asyncio.run(self.generate_markdown_from_knowledge(request_data)) 

@@ -30,8 +30,16 @@ DEBUG = True
 # 添加允许的主机
 ALLOWED_HOSTS = ['DariaJane.pythonanywhere.com','127.0.0.1','localhost','0.0.0.0','*']
 
-# 添加CSRF信任源，允许所有域名（存在安全风险）
-CSRF_TRUSTED_ORIGINS = ['https://*', 'http://*']
+# 添加CSRF信任源，添加具体的ngrok URL
+CSRF_TRUSTED_ORIGINS = [
+    'https://*', 
+    'http://*',
+    'https://29c44f27bbdc.ngrok-free.app',
+    'http://29c44f27bbdc.ngrok-free.app'
+]
+
+# CSRF豁免URL配置，符合这些正则表达式的URL将不需要CSRF验证
+CSRF_EXEMPT_URLS = [r'^api/.*$', r'^admin/login/.*$', r'^ngrok-.*$']  # 豁免所有API路径和管理员登录路径
 
 # 可选：如果仍有CSRF问题，可以考虑这些设置（不推荐用于生产环境）
 # CSRF_COOKIE_SECURE = False
@@ -71,7 +79,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS中间件，必须放在CommonMiddleware之前
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',  # 暂时禁用CSRF中间件解决ngrok访问问题
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

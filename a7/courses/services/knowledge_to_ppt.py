@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 
 from courses.models import KnowledgePoint, Course
 from marp_service import convert_markdown_to_format
+from ai_services.services.n8n_webhook.client import N8nWebhookClient
 
 logger = logging.getLogger(__name__)
 
@@ -232,6 +233,99 @@ class KnowledgePointToPPTService:
             logger.error(f"Markdown转换失败: {str(e)}")
             raise ValueError(f"Markdown转换失败: {str(e)}")
     
+    def generate_markdown_using_ai(
+        self, 
+        knowledge_data: Dict[str, Any], 
+        title: Optional[str] = None,
+        include_course_info: bool = True,
+        theme: Optional[str] = None
+    ) -> str:
+        """
+        使用AI服务根据知识点数据生成Markdown
+        
+        Args:
+            knowledge_data: 知识点数据字典
+            title: 自定义演示标题
+            include_course_info: 是否包含课程信息
+            theme: 演示主题名称
+            
+        Returns:
+            生成的Markdown字符串
+        """
+        logger.info("使用AI服务生成Markdown")
+        
+        try:
+            # 准备请求数据
+            session_id = f"kp-to-md-{str(uuid.uuid4())}"
+            
+            # 将知识点数据转换为可读的JSON字符串
+            knowledge_json = json.dumps(knowledge_data, ensure_ascii=False, indent=2)
+            
+            # 构建提示文本
+            prompt = "请将以下知识点数据转换为适用于marp-cli的Markdown格式，保持层级结构。"
+            
+            if title:
+                prompt += f" 演示标题为：{title}。"
+                
+            if theme:
+                prompt += f" 使用主题：{theme}。"
+                
+            if include_course_info:
+                prompt += " 包含课程信息。"
+            else:
+                prompt += " 不需要包含课程信息。"
+                
+            prompt += "\n\n知识点数据如下：\n```json\n" + knowledge_json + "\n```"
+            
+            # 生成Markdown的要求
+            prompt += "\n\n生成的Markdown应满足以下要求："
+            prompt += "\n1. 符合marp-cli的语法，以---分隔幻灯片"
+            prompt += "\n2. 以marp前置元数据开头，包含marp: true, theme: default, paginate: true等配置"
+            prompt += "\n3. 保持知识点的层级结构，标题级别反映层级关系"
+            prompt += "\n4. 第一张幻灯片为标题页，包含演示标题"
+            prompt += "\n5. 每个知识点应有独立的幻灯片"
+            prompt += "\n6. 给每张幻灯片添加适当的格式，如标题、正文、列表等"
+            
+            # 创建客户端
+            client = N8nWebhookClient()
+            
+            # 准备请求数据
+            request_data = {
+                "knowledge_data": knowledge_data,
+                "title": title,
+                "include_course_info": include_course_info,
+                "theme": theme,
+                "chatInput": prompt,
+                "sessionId": session_id
+            }
+            
+            logger.info("正在调用AI服务生成Markdown")
+            
+            # 调用AI服务
+            response = client.generate_markdown_from_knowledge_sync(request_data)
+            
+            # 提取Markdown内容
+            if response and "markdown" in response:
+                markdown_content = response["markdown"]
+                logger.info(f"AI成功生成Markdown，内容长度: {len(markdown_content)}")
+                
+                # 确保Markdown以marp前置元数据开头
+                if not markdown_content.strip().startswith("---"):
+                    logger.warning("AI生成的Markdown不包含marp前置元数据，添加默认配置")
+                    marp_header = "---\nmarp: true\ntheme: default\npaginate: true\n---\n\n"
+                    markdown_content = marp_header + markdown_content
+                
+                return markdown_content
+            else:
+                logger.error("AI响应缺少markdown字段")
+                raise ValueError("AI生成Markdown失败: 响应缺少markdown字段")
+                
+        except Exception as e:
+            logger.exception(f"使用AI生成Markdown时出错: {str(e)}")
+            # 如果AI生成失败，回退到本地生成逻辑
+            logger.info("回退到本地Markdown生成逻辑")
+            return self.generate_markdown_from_knowledge_points(knowledge_data, title, include_course_info)
+    
     def process_knowledge_points_to_ppt(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         处理知识点到PPT的完整流程
@@ -258,11 +352,22 @@ class KnowledgePointToPPTService:
                 }
             
             # 2. 生成Markdown
-            markdown_content = self.generate_markdown_from_knowledge_points(
-                knowledge_data,
-                data.get("title"),
-                data.get("include_course_info", True)
-            )
+            use_ai = data.get("use_ai", False)
+            if use_ai:
+                # 使用AI服务生成Markdown
+                markdown_content = self.generate_markdown_using_ai(
+                    knowledge_data,
+                    data.get("title"),
+                    data.get("include_course_info", True),
+                    data.get("theme", "default")
+                )
+            else:
+                # 使用本地逻辑生成Markdown
+                markdown_content = self.generate_markdown_from_knowledge_points(
+                    knowledge_data,
+                    data.get("title"),
+                    data.get("include_course_info", True)
+                )
             
             # 3. 验证并转换Markdown
             output_path, filename = self.validate_and_convert_markdown(

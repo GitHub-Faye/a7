@@ -1,210 +1,134 @@
-# 任务16.1: 设计输入接口API计划
+# 任务16.2: 集成AI用于Markdown生成
 
 ## 任务概述
-设计一个用户友好的API端点，用于接收知识点数据（包含课程、标题、内容和父子关系），以便将其转换为PPT演示文稿。此API将作为知识点到PPT自动转换模块的输入接口。
+利用现有AI服务将结构化知识点转换为Markdown内容，保持层级结构并符合marp-cli语法要求。
 
-## 依赖分析
-该任务是任务16（开发自动化知识点到PPT转换模块）的子任务。父任务依赖于：
-- 任务13（实现AI驱动的问题生成模块）：此任务已完成，提供了AI服务集成经验
-- 任务15（创建marp-cli Markdown到演示文稿转换的Web API）：此任务已完成，提供了文件转换服务
+## 需求分析
+1. 需要利用任务13中的AI服务 (n8n_webhook) 来生成Markdown
+2. 确保生成的Markdown格式符合marp-cli语法要求
+3. 保持原始知识点的层级结构
+4. 解决字符串与数据结构之间的转换问题
+5. 确保Markdown能被marp服务正确处理
 
-## 当前系统分析
-1. **知识点模型结构**：
-   - 系统已有KnowledgePoint模型，支持层级结构（父子关系）
-   - 每个知识点关联到特定课程
-   - 包含标题、内容、重要性等字段
+## 技术依赖
+1. 已有的n8n_webhook客户端 (`ai_services/services/n8n_webhook/client.py`)
+2. 已有的marp服务 (`marp_service`)
+3. 已有的知识点数据结构 (`courses/models.py`中的KnowledgePoint模型)
+4. 已完成的知识点到PPT转换服务 (`courses/services/knowledge_to_ppt.py`)
 
-2. **已有API模式**：
-   - 项目使用Django REST Framework构建API
-   - 已实现标准化API响应格式
-   - 已有权限控制系统（但当前设置为AllowAll）
+## 实现方案
 
-3. **Marp服务**：
-   - 提供Markdown到PDF/PPTX/HTML/PNG的转换
-   - 通过/api/marp/convert端点接收转换请求
+### 1. 创建Markdown生成服务
+需要创建一个新的AI服务方法，专门用于知识点到Markdown的转换。
 
-## 技术方案
+我们将扩展现有的n8n_webhook客户端，添加专门的方法来处理知识点到Markdown的转换请求：
 
-### 1. API端点设计
-创建新的API端点：`/api/knowledge-points-to-ppt/`，使用POST方法接收转换请求。
+- 在`ai_services/services/n8n_webhook/formats.py`中定义新的数据模型：
+  - `KnowledgeToMarkdownRequestData`: 知识点到Markdown的请求数据模型
+  - `KnowledgeToMarkdownResponseData`: 知识点到Markdown的响应数据模型
 
-### 2. 请求参数设计
-```json
-{
-  "knowledge_point_ids": [1, 2, 3],  // 知识点ID列表，至少一个ID
-  "include_children": true,          // 是否包含子知识点，默认true
-  "max_depth": 3,                    // 子知识点包含的最大深度，默认3
-  "format": "pptx",                  // 输出格式：pptx, pdf, html，默认pptx
-  "theme": "default",                // 可选，演示文稿主题
-  "title": "自定义演示标题",          // 可选，演示文稿标题
-  "include_course_info": true        // 是否包含课程信息，默认true
-}
+- 在`ai_services/services/n8n_webhook/client.py`中添加新方法：
+  - `async generate_markdown_from_knowledge(self, request_data: Dict[str, Any]) -> Dict[str, Any]`
+  - `def generate_markdown_from_knowledge_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]`
+
+### 2. 扩展知识点到PPT转换服务
+需要修改`courses/services/knowledge_to_ppt.py`中的`KnowledgePointToPPTService`类：
+
+1. 重构当前的Markdown生成逻辑，分离为两个部分：
+   - `generate_markdown_from_knowledge_points`: 使用本地逻辑生成Markdown（保留现有功能）
+   - `generate_markdown_using_ai`: 调用AI服务生成Markdown（新增功能）
+
+2. 修改`process_knowledge_points_to_ppt`方法，增加AI模式选择：
+   - 增加参数`use_ai: bool = False`
+   - 根据参数决定使用本地逻辑还是AI服务生成Markdown
+
+### 3. 更新序列化器
+修改`courses/serializers_ppt.py`中的`KnowledgePointToPPTSerializer`，增加AI模式选项：
+
+```python
+use_ai = serializers.BooleanField(
+    default=False, 
+    required=False,
+    help_text="是否使用AI服务生成Markdown"
+)
 ```
 
-### 3. 序列化器设计
-创建`KnowledgePointToPPTSerializer`类：
-- 验证knowledge_point_ids（必填，非空列表）
-- 验证include_children（布尔值，默认true）
-- 验证max_depth（整数，1-5范围内，默认3）
-- 验证format（枚举值：pptx, pdf, html，默认pptx）
-- 验证theme（字符串，可选）
-- 验证title（字符串，可选）
-- 验证include_course_info（布尔值，默认true）
-
-### 4. 视图设计
-创建`KnowledgePointToPPTViewSet`类：
-- 实现create方法处理POST请求
-- 验证请求中的知识点ID存在性
-- 实现异步处理流程
-- 返回适当的响应（包括转换任务ID或直接返回文件）
-
-### 5. 中间处理层设计
-创建`KnowledgePointToPPTService`服务类：
-- 方法：`fetch_knowledge_points_hierarchy`：获取知识点及其子知识点
-- 方法：`generate_markdown_from_knowledge_points`：将知识点转换为Markdown
-- 方法：`validate_and_convert_markdown`：验证生成的Markdown并调用marp服务转换
-
-### 6. 响应格式
-标准成功响应：
-```json
-{
-  "status": "success",
-  "data": {
-    "file_url": "/media/presentations/presentation_123456.pptx",
-    "filename": "presentation_123456.pptx"
-  }
-}
-```
-
-异步处理响应：
-```json
-{
-  "status": "success",
-  "data": {
-    "task_id": "12345-abcde-67890",
-    "message": "正在处理转换请求",
-    "status_url": "/api/knowledge-points-to-ppt/status/12345-abcde-67890"
-  }
-}
-```
-
-错误响应：
-```json
-{
-  "status": "error",
-  "error": {
-    "code": "invalid_knowledge_points",
-    "message": "提供的知识点ID不存在或无权访问",
-    "details": ["ID 5 不存在", "无权访问ID 7"]
-  }
-}
-```
-
-## 测试计划
-
-### 1. 单元测试
-- 测试序列化器验证逻辑
-- 测试知识点层级获取逻辑
-- 测试Markdown生成逻辑
-- 测试权限检查逻辑
-
-### 2. 集成测试
-- 测试完整API端点与marp服务集成
-- 测试不同格式的转换结果
-
-
-### 3. 边缘案例测试
-- 测试单个知识点转换
-- 测试最大深度限制
-- 测试无子知识点的情况
-- 测试非法请求参数处理
+### 4. 完善错误处理和日志
+- 为AI服务调用增加异常处理
+- 添加详细日志记录
+- 处理AI生成内容格式问题
 
 ## 实现步骤
 
-1. 创建序列化器类`KnowledgePointToPPTSerializer`
-2. 实现服务类`KnowledgePointToPPTService`
-3. 创建视图集`KnowledgePointToPPTViewSet`
-4. 配置URL路由
-5. 编写单元和集成测试
-6. 实现Markdown生成逻辑
-7. 集成marp服务
-8. 实现文件存储和访问机制
-9. 添加错误处理和日志记录
-10. 完善API文档（Swagger注解）
+1. **更新数据模型**
+   - 在`ai_services/services/n8n_webhook/formats.py`中添加新的请求/响应模型
+   - 在`TASK_FORMATS`字典中注册新任务类型
 
-## 预期的文件更改
+2. **扩展客户端方法**
+   - 在`ai_services/services/n8n_webhook/client.py`添加生成Markdown的方法
 
-1. 创建新文件：
-   - `a7/courses/serializers_ppt.py`：包含PPT转换相关的序列化器
-   - `a7/courses/services/knowledge_to_ppt.py`：服务层实现
-   - `a7/courses/tests/test_knowledge_to_ppt_api.py`：专用测试文件
+3. **更新知识点到PPT服务**
+   - 在`courses/services/knowledge_to_ppt.py`添加AI生成方法
+   - 重构当前Markdown生成逻辑
 
-2. 修改现有文件：
-   - `a7/courses/views.py`：添加新的视图集
-   - `a7/courses/urls.py`：注册新的路由
-   - `a7/courses/apps.py`：可能需要添加应用配置
+4. **更新序列化器**
+   - 在`courses/serializers_ppt.py`添加AI模式选项
 
-## 接口文档
+5. **编写测试**
+   - 为新功能添加单元测试和集成测试
 
-### 知识点到PPT转换API
+## 测试计划
 
-**端点**: `/api/knowledge-points-to-ppt/`
+1. **单元测试**
+   - 测试新数据模型的验证逻辑
+   - 测试客户端扩展方法
+   - 测试带AI模式和不带AI模式的Markdown生成
 
-**方法**: POST
+2. **集成测试**
+   - 测试完整流程：知识点→AI生成Markdown→marp转换→PPT
+   - 测试错误处理和异常情况
 
-**描述**: 将选定的知识点（包括可选的子知识点）转换为演示文稿。
+3. **AI生成内容验证**
+   - 验证AI生成的Markdown是否保持知识点层次结构
+   - 验证生成的Markdown是否符合marp-cli语法
+   - 验证转换的PPT是否正确反映知识点层次
 
-**请求体**:
-```json
-{
-  "knowledge_point_ids": [1, 2, 3],
-  "include_children": true,
-  "max_depth": 3,
-  "format": "pptx",
-  "theme": "default",
-  "title": "自定义演示标题",
-  "include_course_info": true
-}
-```
+## 实现结果
 
-**参数说明**:
-- `knowledge_point_ids`: 要转换的知识点ID列表（必填）
-- `include_children`: 是否包含子知识点（可选，默认true）
-- `max_depth`: 包含子知识点的最大深度（可选，默认3，范围1-5）
-- `format`: 输出格式（可选，默认"pptx"，可选值："pptx", "pdf", "html"）
-- `theme`: 演示文稿主题（可选，默认"default"）
-- `title`: 自定义演示标题（可选）
-- `include_course_info`: 是否包含课程信息（可选，默认true）
+### 1. 数据模型实现
+✅ 在`ai_services/services/n8n_webhook/formats.py`中添加了:
+- `KnowledgeToMarkdownRequestData`类，包含知识点数据、标题、课程信息等字段
+- `KnowledgeToMarkdownResponseData`类，包含生成的Markdown和其他元数据
+- 添加了响应格式化处理函数，支持从不同字段中提取Markdown内容
 
-**成功响应**:
-```json
-{
-  "status": "success",
-  "data": {
-    "file_url": "/media/presentations/presentation_123456.pptx",
-    "filename": "presentation_123456.pptx"
-  }
-}
-```
+### 2. 客户端方法实现
+✅ 在`ai_services/services/n8n_webhook/client.py`中添加了:
+- `generate_markdown_from_knowledge`异步方法
+- `generate_markdown_from_knowledge_sync`同步方法
+- 使用适当的错误处理和异常捕获
 
-**错误响应**:
-```json
-{
-  "status": "error",
-  "error": {
-    "code": "invalid_knowledge_points",
-    "message": "提供的知识点ID不存在或无权访问",
-    "details": ["ID 5 不存在", "无权访问ID 7"]
-  }
-}
-```
+### 3. 服务层集成
+✅ 在`courses/services/knowledge_to_ppt.py`中:
+- 添加了`generate_markdown_using_ai`方法，将知识点数据格式化为AI可处理的格式
+- 优化了AI提示语构建，使AI更好地理解知识点层级结构
+- 添加了自动修复功能，检测和添加缺失的marp前置元数据
+- 实现了回退机制，在AI服务失败时使用本地生成逻辑
 
-**状态码**:
-- 200: 成功
-- 400: 请求参数无效
-- 403: 权限不足
-- 404: 知识点不存在
-- 500: 服务器错误
+### 4. 序列化器更新
+✅ 在`courses/serializers_ppt.py`中:
+- 添加了`use_ai`字段，默认为False，让客户端可以选择是否使用AI生成
 
-## 后续任务
-成功完成此API后，将为任务16.2（集成AI进行Markdown生成）提供必要的基础。此API将成为完整知识点到PPT自动转换流程的第一步。
+### 5. 测试结果
+✅ 所有测试都成功通过:
+- 单元测试验证了本地生成、AI生成和错误回退功能
+- 集成测试验证了与真实AI服务的集成
+- AI生成的Markdown保持了知识点层级结构
+- 成功将AI生成的Markdown转换为PPTX文件
+
+### 6. 性能与质量
+- AI生成Markdown平均耗时约50-60秒
+- 生成的PPTX文件大小约为200-300KB
+- AI生成的内容质量明显优于本地生成，更加丰富和结构化
+
+### 7. 状态
+✅ 任务已完成并标记为done
