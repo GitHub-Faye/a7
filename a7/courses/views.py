@@ -44,6 +44,12 @@ import uuid
 from datetime import datetime
 from drf_yasg import openapi
 
+from django.http import FileResponse, HttpResponse
+from django.conf import settings
+
+from .serializers_ppt import KnowledgePointToPPTSerializer
+from .services.knowledge_to_ppt import KnowledgePointToPPTService
+
 
 class CourseViewSet(viewsets.ModelViewSet):
     """
@@ -957,3 +963,101 @@ class StudentAnswerViewSet(viewsets.ModelViewSet):
         elif self.action == 'update' or self.action == 'partial_update':
             return StudentAnswerUpdateSerializer
         return StudentAnswerSerializer
+
+
+class KnowledgePointToPPTViewSet(viewsets.ViewSet):
+    """
+    知识点转PPT视图集
+    提供将知识点转换为PPT演示文稿的API端点
+    """
+    
+    @swagger_auto_schema(
+        operation_description="将知识点转换为PPT演示文稿",
+        request_body=KnowledgePointToPPTSerializer,
+        responses={
+            200: openapi.Response(
+                description="成功",
+                examples={
+                    "application/json": {
+                        "status": "success",
+                        "data": {
+                            "file_url": "/media/presentations/presentation_123456.pptx",
+                            "filename": "presentation_123456.pptx"
+                        }
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="请求参数无效",
+                examples={
+                    "application/json": {
+                        "status": "error",
+                        "error": {
+                            "code": "validation_error",
+                            "message": "参数验证错误",
+                            "details": {
+                                "knowledge_point_ids": ["知识点ID列表不能为空"]
+                            }
+                        }
+                    }
+                }
+            ),
+            404: openapi.Response(
+                description="知识点不存在",
+                examples={
+                    "application/json": {
+                        "status": "error",
+                        "error": {
+                            "code": "invalid_knowledge_points",
+                            "message": "部分知识点ID不存在",
+                            "details": ["ID 5 不存在"]
+                        }
+                    }
+                }
+            ),
+            500: openapi.Response(
+                description="服务器错误",
+                examples={
+                    "application/json": {
+                        "status": "error",
+                        "error": {
+                            "code": "processing_error",
+                            "message": "处理失败: 内部服务器错误"
+                        }
+                    }
+                }
+            )
+        }
+    )
+    def create(self, request):
+        """
+        处理POST请求，将知识点转换为PPT
+        """
+        # 验证请求数据
+        serializer = KnowledgePointToPPTSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                "status": "error",
+                "error": {
+                    "code": "validation_error",
+                    "message": "参数验证错误",
+                    "details": serializer.errors
+                }
+            }, status=400)
+        
+        # 处理知识点到PPT转换
+        service = KnowledgePointToPPTService()
+        result = service.process_knowledge_points_to_ppt(serializer.validated_data)
+        
+        # 根据结果返回响应
+        if result["status"] == "success":
+            return Response(result, status=200)
+        else:
+            # 确定适当的状态码
+            error_code = result.get("error", {}).get("error", "")
+            if error_code == "invalid_knowledge_points":
+                status_code = 404
+            else:
+                status_code = 500
+            
+            return Response(result, status=status_code)

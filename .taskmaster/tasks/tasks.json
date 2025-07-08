@@ -591,11 +591,79 @@
             "testStrategy": "Test file conversion for all supported formats and verify the downloaded files are correct and have proper MIME types. Check for residual temporary files post-conversion."
           }
         ]
+      },
+      {
+        "id": 16,
+        "title": "Develop Automated Knowledge Point to PPT Conversion Module",
+        "description": "Implement a module to automate the conversion of knowledge points (with hierarchical structure) into PPT presentations by leveraging AI for Markdown generation and marp-cli for conversion, ensuring input simplicity and output quality.",
+        "status": "pending",
+        "dependencies": [
+          13,
+          15
+        ],
+        "priority": "medium",
+        "details": "1. **Input Interface**: Design a user-friendly API endpoint to accept knowledge points with course, title, content, and parent relationships, ensuring the interface is intuitive and well-documented.\n2. **AI Integration**: Utilize the existing AI service (Task 13) to generate hierarchical Markdown content from the structured knowledge points, preserving parent-child relationships in the output.\n3. **Markdown Validation**: Implement validation to ensure the generated Markdown meets marp-cli's specifications while maintaining the knowledge point hierarchy in the presentation structure.\n4. **PPT Conversion**: Use the marp-cli Web API (Task 15) to convert the validated hierarchical Markdown into a PPT presentation, handling file generation and cleanup.\n5. **Visual Enhancements**: Ensure the final PPT properly represents hierarchical relationships through appropriate styling.\n6. **Error Handling**: Implement robust error handling for each step with special attention to hierarchical validation.",
+        "testStrategy": "1. **Unit Testing**:\n   - Test the input interface with various knowledge point structures (including hierarchical relationships).\n   - Verify the AI-generated Markdown preserves hierarchy while adhering to marp-cli syntax rules.\n2. **Integration Testing**:\n   - Simulate the full workflow with hierarchical knowledge points to ensure proper conversion through all steps.\n   - Validate the representation of hierarchy in the generated PPT.\n3. **Edge Case Testing**:\n   - Test with incomplete hierarchies.\n   - Verify the system handles deep nesting efficiently without performance degradation.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Input Interface API",
+            "description": "Create a user-friendly API endpoint to accept knowledge points with course, title, content, and parent relationships.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Design an intuitive and well-documented API endpoint that handles the full KnowledgePoint model structure including hierarchical relationships.\n<info added on 2025-07-08T06:46:15.140Z>\n已完成知识点到PPT转换模块的输入接口API设计和实现：\n\n1. 设计并实现了KnowledgePointToPPTSerializer类，用于验证输入参数：\n   - 必需参数：knowledge_point_ids（知识点ID列表）\n   - 可选参数：include_children（是否包含子知识点）、max_depth（包含子知识点的最大深度）、format（输出格式）、theme（主题）等\n\n2. 实现了KnowledgePointToPPTService服务类，提供完整功能：\n   - fetch_knowledge_points_hierarchy：获取知识点层次结构\n   - generate_markdown_from_knowledge_points：生成Markdown\n   - validate_and_convert_markdown：验证并转换Markdown为演示文稿\n   - process_knowledge_points_to_ppt：完整处理流程\n\n3. 实现了KnowledgePointToPPTViewSet视图集：\n   - 处理客户端请求\n   - 验证输入参数\n   - 调用服务类完成转换\n   - 返回带文件URL的标准响应\n\n4. 添加了完整的错误处理机制：\n   - 验证错误（参数无效）\n   - 知识点不存在（ID无效）\n   - 处理/转换错误\n\n5. 实现了综合的测试套件，包括单元测试和集成测试：\n   - 序列化器测试：验证参数验证功能\n   - 服务类测试：验证所有核心功能\n   - API端点测试：验证HTTP请求处理\n   - 真实PPTX生成测试：验证端到端功能，成功生成837KB大小的实际演示文稿\n\n接口API已完全实现，支持通过POST请求到/api/knowledge-points-to-ppt/端点，接收知识点ID列表并返回生成的演示文稿文件URL。\n</info added on 2025-07-08T06:46:15.140Z>",
+            "testStrategy": "Test API endpoint with hierarchical knowledge points to ensure it accepts and processes all attributes correctly."
+          },
+          {
+            "id": 2,
+            "title": "Integrate AI for Markdown Generation",
+            "description": "Utilize the existing AI service to generate hierarchical Markdown content from structured knowledge points.",
+            "status": "pending",
+            "dependencies": [
+              1
+            ],
+            "details": "Leverage Task 13's AI service to convert structured knowledge points into Markdown, preserving hierarchy in marp-cli syntax.",
+            "testStrategy": "Validate generated Markdown for correct representation of hierarchy."
+          },
+          {
+            "id": 3,
+            "title": "Implement Markdown Validation",
+            "description": "Validate the generated Markdown to meet marp-cli specifications while maintaining knowledge structure.",
+            "status": "pending",
+            "dependencies": [
+              2
+            ],
+            "details": "Check Markdown for proper representation of hierarchy and other marp-cli requirements.",
+            "testStrategy": "Test validation with hierarchical Markdown samples of varying complexity."
+          },
+          {
+            "id": 4,
+            "title": "Convert Markdown to PPT",
+            "description": "Use marp-cli Web API to convert validated hierarchical Markdown into a PPT presentation.",
+            "status": "pending",
+            "dependencies": [
+              3
+            ],
+            "details": "Handle file generation and cleanup while preserving the knowledge structure in the output.",
+            "testStrategy": "Verify PPT output maintains the input hierarchy representations."
+          },
+          {
+            "id": 5,
+            "title": "Enhance PPT Visuals",
+            "description": "Apply visual enhancements that reflect knowledge point hierarchy.",
+            "status": "pending",
+            "dependencies": [
+              4
+            ],
+            "details": "Configure marp-cli themes and settings to visually represent parent-child relationships.",
+            "testStrategy": "Review PPT for proper visual representation of hierarchy."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-08T02:58:23.316Z",
+      "updated": "2025-07-08T06:46:20.206Z",
       "description": "Tasks for master context"
     }
   }

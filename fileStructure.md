@@ -95,6 +95,7 @@ a7/                           # 项目根目录
 │   │   ├── apps.py           # 课程应用配置
 │   │   ├── models.py         # 课程相关模型定义
 │   │   ├── serializers.py    # 课程序列化器
+│   │   ├── serializers_ppt.py # 知识点到PPT转换序列化器
 │   │   ├── permissions.py    # 课程权限类
 │   │   ├── urls.py           # 课程应用URL配置
 │   │   ├── views.py          # 课程相关视图和API实现
@@ -109,7 +110,12 @@ a7/                           # 项目根目录
 │   │   ├── tests/            # 课程应用测试子目录
 │   │   │   ├── test_question_export.py       # 问题导出工具单元测试
 │   │   │   ├── test_question_export_integration.py # 问题导出集成测试
-│   │   │   └── test_api_exercises.py         # 练习题和学生答案API测试
+│   │   │   ├── test_api_exercises.py         # 练习题和学生答案API测试
+│   │   │   ├── test_knowledge_to_ppt_api.py  # 知识点到PPT转换API测试
+│   │   │   └── test_knowledge_to_ppt_real.py # 知识点到PPT转换真实场景测试
+│   │   ├── services/         # 服务实现目录
+│   │   │   ├── __init__.py   # Python包初始化文件 
+│   │   │   └── knowledge_to_ppt.py # 知识点到PPT转换服务实现
 │   │   └── migrations/       # 课程模型数据库迁移文件
 │   ├── marp_service/         # Marp演示文档转换服务应用
 │   │   ├── __init__.py       # Python包初始化文件，提供主要API接口
@@ -152,6 +158,7 @@ a7/                           # 项目根目录
 ├── test_html/                # 测试HTML文件目录
 │   ├── auth_test.html        # 登录/登出/密码更改功能测试页面
 │   └── permissions_test.html # 角色权限测试页面
+├── pptx_output/              # 知识点到PPT转换输出目录，存储生成的PPTX文件
 ├── test_api.py               # API测试脚本，用于测试中间件功能
 ├── test_api_question.py      # API测试脚本，用于测试问题生成API
 ├── .env.example              # 环境变量示例文件
@@ -242,6 +249,7 @@ a7/                           # 项目根目录
 - **a7/courses/tests/test_question_export_integration.py**: 问题导出功能的集成测试，验证从问题生成到导出的完整流程。使用模拟技术测试API响应、会话存储和多种格式导出。
 - **a7/courses/tests/test_api_exercises.py**: 练习题和学生答案API的CRUD功能测试，包括对过滤、排序和搜索功能的全面测试用例，验证按知识点过滤、按创建时间排序、按内容搜索等功能的正确性。
 - **a7/courses/tests/test_api_exercises_additional.py**: 练习题和学生答案API的补充测试文件，包含ExerciseValidationTests（字段验证和边缘情况测试）、StudentAnswerValidationTests（学生答案约束测试）、CombinedFilteringTests（组合过滤和排序测试）、PaginationAndEdgeCaseTests（分页和边缘情况测试）和APIResponseFormatTests（API响应格式测试）五个测试类，共18个测试用例。验证了字段验证、学生答案约束、组合过滤排序、分页功能、特殊字符处理和API响应格式等方面。
+- **a7/courses/serializers_ppt.py**: 知识点到PPT转换序列化器定义，包含KnowledgePointToPPTSerializer类，负责验证知识点转PPT所需的各项参数，包括必填的knowledge_point_ids（知识点ID列表）和可选参数如include_children（是否包含子知识点）、max_depth（包含子知识点的最大深度）、format（输出格式，支持pptx/pdf/html）、theme（演示主题）等。实现了validate_knowledge_point_ids方法检查ID重复，以及validate方法进行整体数据验证。
 
 ### AI服务应用文件
 
@@ -254,6 +262,7 @@ a7/                           # 项目根目录
 - **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类，处理webhook请求并转发至n8n服务，使用标准化的响应格式。在接收到课程生成结果后，会调用`a7/ai_services/services/knowledge_converter.py`将结果持久化。
 - **a7/ai_services/services/knowledge_converter.py**: 负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
 - **a7/ai_services/services/question_export.py**: 问题导出工具类，提供将AI生成的问题导出为JSON和CSV格式的功能。实现了优雅的文件名生成、Unicode字符处理和大型数据集优化。包含QuestionExporter类，提供export_as_json、export_as_csv和通用export_questions方法。
+- **a7/ai_services/services/knowledge_to_ppt.py**: 知识点到PPT转换服务实现，包含KnowledgePointToPPTService类，提供完整的知识点到PPT转换功能，主要方法包括fetch_knowledge_points_hierarchy（获取知识点及其子知识点的层级结构）、generate_markdown_from_knowledge_points（根据知识点数据生成Markdown）、validate_and_convert_markdown（验证Markdown并调用marp服务转换为演示文稿）和process_knowledge_points_to_ppt（处理完整流程）。该服务处理知识点层级结构，生成适合marp转换的Markdown，并调用marp_service模块将Markdown转换为指定格式的演示文稿。
 
 ### n8n Webhook服务文件
 
@@ -270,6 +279,8 @@ a7/                           # 项目根目录
 - **a7/ai_services/tests/test_knowledge_converter.py**: knowledge_converter模块的单元测试，验证JSON到Django模型的转换逻辑、数据验证、递归深度限制和数据库操作的原子性（事务回滚）。
 - **a7/ai_services/tests/test_n8n_service.py**: n8n Webhook服务的异步测试实现。包含使用模拟(mock)数据的单元测试和针对真实n8n环境的集成测试，以验证端到端的功能。
 - **a7/ai_services/tests/test_views_integration.py**: N8nWebhookAPIView的集成测试，验证从API接收请求到数据持久化的完整流程。
+- **a7/ai_services/tests/test_knowledge_to_ppt_api.py**: 知识点到PPT转换API测试文件，包含三个主要测试类：KnowledgePointToPPTSerializerTests（测试序列化器的验证逻辑）、KnowledgePointToPPTServiceTests（测试服务类的各项功能，包括知识点层次结构获取、Markdown生成和文件转换）和KnowledgePointToPPTAPITests（测试API端点的请求处理和响应生成）。测试涵盖正常场景和各种错误情况处理。
+- **a7/ai_services/tests/test_knowledge_to_ppt_real.py**: 知识点到PPT转换真实场景测试，创建真实的知识点数据（包括Python编程基础课程及其层级知识点结构），并调用API生成实际的PPTX文件，验证整个功能链路的正确性。生成的PPTX文件被保存到pptx_output目录以便查看和验证。
 
 ### pytest配置文件
 
@@ -536,6 +547,19 @@ a7/                           # 项目根目录
     - 服务具有跨平台兼容性，通过特殊处理确保在Windows和Linux/Mac环境下都能正确工作，特别是处理了Windows环境下的命令执行和PNG输出格式的特殊需求。Windows环境下使用shell=True执行命令，解决了命令路径解析问题。
     - REST API端点(/api/marp/convert)提供了完整的Markdown到演示文档的转换功能，支持多种输出格式和主题选项，返回适当的MIME类型和文件名，集成了Swagger文档，便于API使用者理解和调用。
 
+18. **知识点到PPT转换系统**:
+   - `a7/courses/serializers_ppt.py`定义KnowledgePointToPPTSerializer类，验证知识点转PPT的输入参数。
+   - `a7/courses/services/knowledge_to_ppt.py`实现KnowledgePointToPPTService类，提供知识点层次结构获取、Markdown生成和文件转换功能。
+   - `a7/courses/views.py`中的KnowledgePointToPPTViewSet处理API请求，验证输入并调用服务完成转换。
+   - `a7/courses/urls.py`注册KnowledgePointToPPTViewSet，提供'/api/knowledge-points-to-ppt/'端点。
+   - `a7/courses/tests/test_knowledge_to_ppt_api.py`和`a7/courses/tests/test_knowledge_to_ppt_real.py`验证API功能和实际文件生成。
+   - `a7/marp_service/__init__.py`提供convert_markdown_to_format方法，由KnowledgePointToPPTService调用以将Markdown转换为演示文稿。
+   - `a7/marp_service/cli.py`提供MarpCLIBuilder和MarpCLIExecutor类，负责构建和执行marp-cli命令，实现Markdown到演示文稿的转换功能。
+   - 转换服务生成的文件保存在presentations/目录（临时文件）或复制到pptx_output/目录（用于长期保存和查看）。
+   - 系统支持多种输出格式（pptx、pdf、html），并能够保留知识点的层级结构，反映在生成的演示文稿中。
+   - 服务实现了错误处理，包括知识点ID不存在、转换失败等情况的适当响应。
+   - KnowledgePointToPPTService实现了完整的处理流程，将课程管理系统与Marp服务无缝集成，实现从结构化知识点数据到完整演示文稿的转换。
+
 ## 目录组织逻辑
 
 项目采用了以下组织逻辑：
@@ -560,7 +584,8 @@ a7/                           # 项目根目录
 
 4. **配置与内容分离**:
    - 配置文件(如`.taskmasterconfig`, `.roomodes`)位于根目录。
-   - 实际内容(如规则文件、任务文件)存储在相关子目录中。
+   - 实际内容(如规则文件、任务文件、生成的PPTX)存储在相关子目录中。
+   - 生成的PPTX文件存储在`pptx_output/`目录，便于浏览和分享。
 
 5. **测试与实现分离**:
    - 单元测试放在应用目录中(`users/tests.py`, `courses/tests.py`)
@@ -669,6 +694,9 @@ a7/                           # 项目根目录
    - 返回转换后的文件作为HTTP响应，带有适当的MIME类型和文件名
    - 提供详细的错误处理，包括格式验证、转换错误和服务器错误
    - 集成Swagger文档，提供API使用说明和示例
+
+9. **知识点到PPT转换API**:
+   - `/api/knowledge-points-to-ppt/` - 知识点转PPT演示文稿端点，接收知识点ID列表并返回生成的演示文稿文件URL
 
 ## 练习与评测系统
 
