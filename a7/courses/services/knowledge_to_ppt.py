@@ -4,6 +4,7 @@ import json
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 import tempfile
+from datetime import datetime
 
 from django.conf import settings
 from django.db.models import Q
@@ -127,46 +128,64 @@ class KnowledgePointToPPTService:
         self, 
         knowledge_data: Dict[str, Any], 
         title: Optional[str] = None,
-        include_course_info: bool = True
+        include_course_info: bool = True,
+        theme: str = 'hierarchy-default',  # 新增主题参数，默认使用层级默认主题
+        color_scheme: str = 'default'  # 新增配色方案参数
     ) -> str:
         """
-        根据知识点数据生成Markdown
+        根据知识点数据生成Markdown，支持层级视觉增强
         
         Args:
             knowledge_data: 知识点数据字典
             title: 自定义演示标题
             include_course_info: 是否包含课程信息
+            theme: 主题名称，默认使用层级默认主题
+            color_scheme: 配色方案，可选 default, teaching, minimalist
             
         Returns:
             生成的Markdown字符串
         """
         md_lines = []
         
-        # 添加marp指令
+        # 获取当前日期
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        
+        # 确定第一个课程（如果有）用于页脚/页眉
+        first_course_title = "知识点演示"
+        if knowledge_data["knowledge_points"] and include_course_info:
+            first_kp = knowledge_data["knowledge_points"][0]
+            course_id = first_kp.get("course_id")
+            if course_id in knowledge_data.get("courses", {}):
+                first_course_title = knowledge_data["courses"][course_id].get("title", "知识点演示")
+        
+        # 添加增强的marp指令
         md_lines.append("---")
         md_lines.append("marp: true")
-        md_lines.append("theme: default")
+        md_lines.append(f"theme: {theme}")  # 使用传入的主题
+        md_lines.append("class: hierarchy")  # 添加通用层级类
         md_lines.append("paginate: true")
+        md_lines.append(f"header: 'Course: {first_course_title}'")  # 添加课程名称到页眉
+        md_lines.append(f"footer: '{current_date}'")  # 添加日期到页脚
         md_lines.append("---")
         md_lines.append("")
         
-        # 添加标题页
+        # 添加标题页，使用level-1类
         if title:
-            md_lines.append(f"# {title}")
+            md_lines.append(f"# {title} {{.level-1}}")
         elif knowledge_data["knowledge_points"]:
             # 如果未提供标题，使用第一个知识点标题
             first_kp = knowledge_data["knowledge_points"][0]
-            md_lines.append(f"# {first_kp['title']}")
+            md_lines.append(f"# {first_kp['title']} {{.level-1}}")
             
             # 如果包含课程信息且存在课程
             if include_course_info and knowledge_data["courses"]:
                 course_id = first_kp["course_id"]
                 if course_id in knowledge_data["courses"]:
                     course = knowledge_data["courses"][course_id]
-                    md_lines.append(f"## {course['title']} - {course['subject']} {course['grade_level']}")
+                    md_lines.append(f"## {course['title']} - {course['subject']} {course['grade_level']} {{.level-1}}")
         
         # 确保标题页有一些内容
-        md_lines.append("知识点幻灯片")
+        md_lines.append("<!-- 知识点层级结构演示 -->")
         md_lines.append("")
         md_lines.append("---")
         md_lines.append("")
@@ -180,47 +199,69 @@ class KnowledgePointToPPTService:
                     md_lines.append("---")
                     md_lines.append("")
                 
-                self._add_knowledge_point_to_markdown(md_lines, kp, 1)
+                self._add_knowledge_point_to_markdown_enhanced(md_lines, kp, 1)
         else:
             # 至少添加一个空白内容页
-            md_lines.append("## 无可用知识点")
+            md_lines.append("## 无可用知识点 {.level-1}")
             md_lines.append("")
             md_lines.append("请添加知识点内容")
         
         return "\n".join(md_lines)
     
-    def _add_knowledge_point_to_markdown(self, md_lines: List[str], kp: Dict[str, Any], level: int):
-        """递归添加知识点到Markdown中"""
-        # 添加标题
-        md_lines.append(f"{'#' * level} {kp['title']}")
+    def _add_knowledge_point_to_markdown_enhanced(self, md_lines: List[str], kp: Dict[str, Any], level: int):
+        """递归添加知识点到Markdown中，增强版支持视觉层级标识"""
+        # 添加标题和层级CSS类
+        md_lines.append(f"{'#' * level} {kp['title']} {{.level-{level}}}")
         md_lines.append("")
+        
+        # 给整个幻灯片添加层级类标识
+        md_lines.append(f"<!-- _class: level-{level} -->")
+        md_lines.append("")
+        
+        # 如果是一级知识点，添加索引章节号（可选）
+        if level == 1:
+            md_lines.append(f"<!-- _header: '章节 {kp.get('id', '')}' -->")
+            md_lines.append("")
         
         # 添加内容
         if kp['content']:
-            # 简单格式化内容，实际可能需要更复杂的处理
+            # 内容放在层级包装div中
+            md_lines.append(f"<div class=\"content level-{level}-content\">")
+            
+            # 处理内容，支持基本Markdown格式
             content_lines = kp['content'].split('\n')
             for line in content_lines:
                 md_lines.append(line)
             
+            md_lines.append("</div>")
             md_lines.append("")
         else:
             # 确保即使没有内容也添加一些默认内容
+            md_lines.append(f"<div class=\"content level-{level}-content\">")
             md_lines.append("暂无详细内容")
+            md_lines.append("</div>")
             md_lines.append("")
-        
-        # 不在每个知识点后添加分页符，而是在处理子知识点前添加
         
         # 处理子知识点
         if "children" in kp and kp["children"]:
             for i, child in enumerate(kp["children"]):
-                # 为每个子知识点添加分页符
-                if i > 0:
+                # 为每个子知识点添加分页符和层级注释
+                if i > 0 or level == 1:  # 如果是一级知识点的第一个子项，也添加分页符
                     md_lines.append("---")
                     md_lines.append("")
+                    md_lines.append(f"<!-- level: {level+1} -->")
+                    md_lines.append("")
                 
-                self._add_knowledge_point_to_markdown(md_lines, child, min(level + 1, 3))
+                self._add_knowledge_point_to_markdown_enhanced(md_lines, child, min(level + 1, 4))
     
-    def validate_and_convert_markdown(self, markdown: str, format: str = 'pptx', theme: str = 'default') -> Tuple[str, str]:
+    def validate_and_convert_markdown(
+        self, 
+        markdown: str, 
+        format: str = 'pptx', 
+        theme: str = 'default',
+        theme_dir: Optional[str] = None,
+        style_options: Optional[Dict[str, str]] = None
+    ) -> Tuple[str, str]:
         """
         验证Markdown并调用marp服务转换为演示文稿
         
@@ -228,6 +269,8 @@ class KnowledgePointToPPTService:
             markdown: Markdown内容
             format: 输出格式(pptx, pdf, html)
             theme: 主题名称
+            theme_dir: 主题目录路径，包含自定义CSS主题文件
+            style_options: 样式选项字典，作为CSS变量注入
             
         Returns:
             元组 (文件路径, 文件名)
@@ -269,13 +312,29 @@ class KnowledgePointToPPTService:
         # 确保输出目录存在
         os.makedirs(os.path.dirname(full_output_path), exist_ok=True)
         
+        # 如果提供的是内置主题名称，查找主题目录
+        if not theme_dir and theme.startswith('hierarchy-'):
+            # 构建主题目录路径
+            hierarchy_theme_dir = os.path.join(
+                settings.BASE_DIR, 
+                'marp_service', 
+                'themes'
+            )
+            
+            # 检查目录是否存在
+            if os.path.exists(hierarchy_theme_dir) and os.path.isdir(hierarchy_theme_dir):
+                theme_dir = hierarchy_theme_dir
+                logger.info(f"使用层级主题目录: {theme_dir}")
+        
         try:
             # 调用marp服务进行转换
             convert_markdown_to_format(
                 content=markdown,
                 output_format=format,
                 output_path=full_output_path,
-                theme=theme
+                theme=theme,
+                theme_dir=theme_dir,
+                style_options=style_options
             )
             
             # 返回相对路径和文件名，用于构建URL
@@ -403,6 +462,67 @@ class KnowledgePointToPPTService:
                     "error": knowledge_data
                 }
             
+            # 准备主题和样式选项
+            theme = data.get("theme", "hierarchy-default")
+            color_scheme = data.get("color_scheme", "blue")
+            show_relations = data.get("show_relations", True)
+            
+            # 创建样式选项字典
+            style_options = {}
+            if color_scheme:
+                # 根据不同配色方案设置CSS变量值
+                if color_scheme == "red":
+                    style_options.update({
+                        "--color-primary": "#e63946",
+                        "--color-secondary": "#f1726f",
+                        "--color-tertiary": "#f8998d",
+                        "--color-quaternary": "#fdc1ab",
+                        "--color-accent": "#457b9d"
+                    })
+                elif color_scheme == "green":
+                    style_options.update({
+                        "--color-primary": "#2a9d8f",
+                        "--color-secondary": "#40b5a7",
+                        "--color-tertiary": "#57cfbf",
+                        "--color-quaternary": "#73e8d9",
+                        "--color-accent": "#264653"
+                    })
+                elif color_scheme == "purple":
+                    style_options.update({
+                        "--color-primary": "#7b2cbf",
+                        "--color-secondary": "#9d4edd",
+                        "--color-tertiary": "#c77dff",
+                        "--color-quaternary": "#e0aaff",
+                        "--color-accent": "#5a189a"
+                    })
+                elif color_scheme == "dark":
+                    style_options.update({
+                        "--color-primary": "#1b263b",
+                        "--color-secondary": "#415a77",
+                        "--color-tertiary": "#778da9",
+                        "--color-quaternary": "#a3b8cc",
+                        "--color-background": "#2b2d42",
+                        "--color-text": "#e0e1dd"
+                    })
+                elif color_scheme == "light":
+                    style_options.update({
+                        "--color-primary": "#758bfd",
+                        "--color-secondary": "#9ba7fa",
+                        "--color-tertiary": "#c1c8f8",
+                        "--color-quaternary": "#e2e4f6",
+                        "--color-background": "#f8f9fa",
+                        "--color-text": "#495057"
+                    })
+                    
+            # 设置关系指示器显示选项
+            if show_relations is False:
+                # 隐藏连接线和边框
+                style_options.update({
+                    ".level-2::before": "display: none",
+                    ".level-3::before": "display: none",
+                    ".level-4::before": "display: none"
+                })
+                
             # 2. 生成Markdown
             use_ai = data.get("use_ai", False)
             if use_ai:
@@ -411,21 +531,24 @@ class KnowledgePointToPPTService:
                     knowledge_data,
                     data.get("title"),
                     data.get("include_course_info", True),
-                    data.get("theme", "default")
+                    theme
                 )
             else:
                 # 使用本地逻辑生成Markdown
                 markdown_content = self.generate_markdown_from_knowledge_points(
                     knowledge_data,
                     data.get("title"),
-                    data.get("include_course_info", True)
+                    data.get("include_course_info", True),
+                    theme,
+                    color_scheme
                 )
             
             # 3. 验证并转换Markdown
             output_path, filename = self.validate_and_convert_markdown(
                 markdown_content,
                 data.get("format", "pptx"),
-                data.get("theme", "default")
+                theme,
+                style_options=style_options
             )
             
             # 4. 构建响应

@@ -33,8 +33,28 @@ class KnowledgePointToPPTSerializer(serializers.Serializer):
     
     theme = serializers.CharField(
         required=False, 
+        default='hierarchy-default',
+        help_text="演示文稿主题，默认为'hierarchy-default'，可选值：'hierarchy-default', 'hierarchy-teaching', 'hierarchy-minimalist', 'default'"
+    )
+    
+    visual_style = serializers.ChoiceField(
+        choices=['default', 'teaching', 'minimalist'],
+        required=False,
         default='default',
-        help_text="演示文稿主题，默认为'default'"
+        help_text="视觉样式，可选值：default(默认层级样式), teaching(教学型), minimalist(简约型)"
+    )
+    
+    color_scheme = serializers.ChoiceField(
+        choices=['blue', 'red', 'green', 'purple', 'dark', 'light'],
+        required=False,
+        default='blue',
+        help_text="配色方案，可选值：blue(蓝色系), red(红色系), green(绿色系), purple(紫色系), dark(暗色), light(亮色)"
+    )
+    
+    show_relations = serializers.BooleanField(
+        default=True,
+        required=False,
+        help_text="是否显示知识点之间的关系指示器，默认为true"
     )
     
     title = serializers.CharField(
@@ -52,6 +72,12 @@ class KnowledgePointToPPTSerializer(serializers.Serializer):
         default=False, 
         required=False,
         help_text="是否使用AI服务生成Markdown，默认为false"
+    )
+    
+    return_file_content = serializers.BooleanField(
+        default=False,
+        required=False,
+        help_text="是否直接返回文件内容（Base64编码），而不是URL，默认为false"
     )
     
     def validate_knowledge_point_ids(self, value):
@@ -72,5 +98,10 @@ class KnowledgePointToPPTSerializer(serializers.Serializer):
             # 这里只是添加警告，不影响验证结果
             # 在真实环境中可以通过日志记录
             pass
+            
+        # 如果选择了visual_style，自动映射到对应的theme
+        visual_style = data.get('visual_style')
+        if visual_style and visual_style != 'default':
+            data['theme'] = f'hierarchy-{visual_style}'
             
         return data 

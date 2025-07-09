@@ -21,6 +21,10 @@ class MarpCLIBuilder:
         self.args = []
         # 基本参数已添加
         self.has_format = False
+        # 主题相关配置跟踪
+        self.has_theme = False
+        self.has_theme_dir = False
+        self.has_style = False
     
     def add_input_file(self, file_path: str) -> 'MarpCLIBuilder':
         """
@@ -91,7 +95,73 @@ class MarpCLIBuilder:
         Returns:
             更新后的构建器实例
         """
+        if self.has_theme:
+            raise ValueError("主题已设置，不能重复设置")
+            
         self.args.extend(["--theme", theme])
+        self.has_theme = True
+        return self
+    
+    def add_theme_dir(self, theme_dir: str) -> 'MarpCLIBuilder':
+        """
+        添加自定义主题目录
+        
+        Args:
+            theme_dir: 主题目录路径，包含自定义CSS文件
+            
+        Returns:
+            更新后的构建器实例
+        """
+        if self.has_theme_dir:
+            raise ValueError("主题目录已设置，不能重复设置")
+            
+        if not os.path.exists(theme_dir) or not os.path.isdir(theme_dir):
+            raise ValueError(f"主题目录不存在或不是一个有效目录: {theme_dir}")
+            
+        self.args.extend(["--theme-set", theme_dir])
+        self.has_theme_dir = True
+        return self
+    
+    def add_style(self, css_path: str) -> 'MarpCLIBuilder':
+        """
+        添加额外样式表
+        
+        Args:
+            css_path: CSS文件路径
+            
+        Returns:
+            更新后的构建器实例
+        """
+        if not os.path.exists(css_path) or not css_path.endswith('.css'):
+            raise ValueError(f"无效的CSS文件路径: {css_path}")
+            
+        self.args.extend(["--style", css_path])
+        self.has_style = True
+        return self
+    
+    def add_style_options(self, options: Dict[str, str]) -> 'MarpCLIBuilder':
+        """
+        添加样式选项，以CSS变量的形式注入
+        
+        Args:
+            options: 样式选项字典，键为CSS变量名，值为CSS变量值
+            
+        Returns:
+            更新后的构建器实例
+        """
+        if not options:
+            return self
+            
+        # 创建内联样式表
+        style_content = ":root {\n"
+        for key, value in options.items():
+            if not key.startswith("--"):
+                key = f"--{key}"
+            style_content += f"  {key}: {value};\n"
+        style_content += "}"
+        
+        # 添加内联样式选项
+        self.args.extend(["--style-css", style_content])
         return self
     
     def allow_local_files(self) -> 'MarpCLIBuilder':

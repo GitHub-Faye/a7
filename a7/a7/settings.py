@@ -228,6 +228,12 @@ REST_FRAMEWORK = {
     
     # 测试配置
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',  # 测试客户端默认使用JSON格式
+    
+    # 添加URL方案配置，优先使用HTTPS
+    'URL_FORMAT_OVERRIDE': 'format',
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+    'URL_FIELD_NAME': 'url',
+    'URL_SCHEME': 'https', 
 }
 
 # JWT 配置
@@ -253,8 +259,11 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://glowing-sunburst-d86f36.netlify.app",
-    "https://29c44f27bbdc.ngrok-free.app",
-    "http://29c44f27bbdc.ngrok-free.app"
+    "http://glowing-sunburst-d86f36.netlify.app",
+    "http://12e11e70c836.ngrok-free.app",
+    "https://12e11e70c836.ngrok-free.app",
+    "https://b0642ff316d7.ngrok-free.app",
+    "http://b0642ff316d7.ngrok-free.app"
 ]
 # CORS_ALLOW_ALL_ORIGINS = True  # 注释掉，改用明确的域名列表
 
@@ -306,7 +315,27 @@ SWAGGER_SETTINGS = {
     'USE_SESSION_AUTH': False,
     'JSON_EDITOR': True,
     'VALIDATOR_URL': None,
+    # 添加Swagger UI的HTTPS支持
+    'SCHEME': 'https',
+    'SUPPORTED_SUBMIT_METHODS': [
+        'get',
+        'post',
+        'put',
+        'delete',
+        'patch',
+        'options',
+        'head'
+    ],
 }
+
+# 启用代理协议头处理，确保ngrok HTTPS请求正确处理
+USE_X_FORWARDED_PROTO = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# 确保Django生成的URL使用HTTPS
+SECURE_SSL_REDIRECT = False  # 在开发环境中设为False，生产环境可设为True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 # 日志配置
 LOGGING = {

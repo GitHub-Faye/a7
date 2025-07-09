@@ -1,0 +1,241 @@
+/* hierarchy-minimalist.css - 简洁型主题 */
+
+/* 基础样式 */
+:root {
+  --color-primary: #333333;
+  --color-secondary: #555555;
+  --color-tertiary: #777777;
+  --color-quaternary: #999999;
+  --color-background: #ffffff;
+  --color-accent: #4285f4;
+  --color-text: #333333;
+  --base-font-size: 28px;
+}
+
+section {
+  font-size: var(--base-font-size);
+  padding: 50px;
+  color: var(--color-text);
+  background-color: var(--color-background);
+  font-family: 'Helvetica Neue', 'Arial', sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+/* 标题层级样式 - 简约型 */
+h1 {
+  color: var(--color-primary);
+  font-size: 1.8em;
+  font-weight: 500;
+  margin-bottom: 30px;
+  border-bottom: 1px solid var(--color-primary);
+  padding-bottom: 10px;
+  width: 100%;
+}
+
+h2 {
+  color: var(--color-secondary);
+  font-size: 1.5em;
+  font-weight: 400;
+  margin-top: 25px;
+  margin-bottom: 20px;
+  padding-bottom: 5px;
+  width: 100%;
+}
+
+h3 {
+  color: var(--color-tertiary);
+  font-size: 1.3em;
+  font-weight: 400;
+  margin-top: 20px;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+h4 {
+  color: var(--color-quaternary);
+  font-size: 1.1em;
+  font-weight: 400;
+  margin-top: 15px;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+/* 知识点层级容器样式 - 通过缩进和空间区分 */
+.level-1 {
+  width: 100%;
+}
+
+.level-2 {
+  width: 95%;
+  margin-left: 5%;
+}
+
+.level-3 {
+  width: 90%;
+  margin-left: 10%;
+}
+
+.level-4 {
+  width: 85%;
+  margin-left: 15%;
+}
+
+/* 层级幻灯片样式 */
+section.level-1 {
+  background-color: var(--color-background);
+}
+
+section.level-2 {
+  background-color: var(--color-background);
+  border-left: 3px solid var(--color-accent);
+}
+
+section.level-3 {
+  background-color: var(--color-background);
+  border-left: 6px solid var(--color-accent);
+}
+
+section.level-4 {
+  background-color: var(--color-background);
+  border-left: 9px solid var(--color-accent);
+}
+
+/* 代码块样式 - 简约版 */
+code {
+  background-color: #f8f8f8;
+  border-radius: 2px;
+  padding: 0.2em 0.4em;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 0.9em;
+  color: var(--color-accent);
+}
+
+pre {
+  background-color: #f8f8f8;
+  padding: 15px;
+  border-radius: 2px;
+  overflow: auto;
+  width: 100%;
+}
+
+/* 列表样式 - 简约版 */
+ul {
+  padding-left: 20px;
+}
+
+ul li {
+  margin-bottom: 10px;
+}
+
+ol {
+  padding-left: 20px;
+}
+
+ol li {
+  margin-bottom: 10px;
+}
+
+/* 强调内容 */
+strong {
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+em {
+  font-style: italic;
+}
+
+/* 引用块样式 */
+blockquote {
+  border-left: 2px solid var(--color-accent);
+  padding: 10px 20px;
+  margin: 15px 0;
+  color: var(--color-secondary);
+}
+
+/* 表格样式 */
+table {
+  border-collapse: collapse;
+  margin: 15px 0;
+  width: 100%;
+}
+
+th {
+  border-bottom: 2px solid var(--color-accent);
+  padding: 10px;
+  text-align: left;
+  font-weight: normal;
+  color: var(--color-accent);
+}
+
+td {
+  border-bottom: 1px solid #eee;
+  padding: 10px;
+}
+
+/* 页面导航 */
+header, footer {
+  font-size: 0.7em;
+  color: var(--color-quaternary);
+}
+
+/* 页码样式 */
+section::after {
+  content: attr(data-marpit-pagination);
+  font-size: 0.7em;
+  color: var(--color-quaternary);
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+  :root {
+    --color-primary: #000000;
+    --color-secondary: #222222;
+    --color-tertiary: #444444;
+    --color-quaternary: #666666;
+    --color-background: #ffffff;
+    --color-accent: #0000ff;
+    --color-text: #000000;
+  }
+  
+  section.level-1 {
+    background-color: #ffffff;
+  }
+  
+  section.level-2 {
+    background-color: #f5f5f5;
+    border-left: 5px solid #0000ff;
+  }
+  
+  section.level-3 {
+    background-color: #eeeeee;
+    border-left: 8px solid #0000ff;
+  }
+  
+  section.level-4 {
+    background-color: #e8e8e8;
+    border-left: 11px solid #0000ff;
+  }
+  
+  code {
+    background-color: #e0e0e0;
+    color: #0000ff;
+  }
+  
+  pre {
+    background-color: #e0e0e0;
+    border: 1px solid #000000;
+  }
+  
+  th {
+    border-bottom: 3px solid #0000ff;
+    background-color: #f0f0f0;
+  }
+  
+  td {
+    border-bottom: 1px solid #000000;
+  }
+} 

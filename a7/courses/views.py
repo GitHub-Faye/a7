@@ -46,6 +46,8 @@ from drf_yasg import openapi
 
 from django.http import FileResponse, HttpResponse
 from django.conf import settings
+import os
+import base64
 
 from .serializers_ppt import KnowledgePointToPPTSerializer
 from .services.knowledge_to_ppt import KnowledgePointToPPTService
@@ -1051,7 +1053,61 @@ class KnowledgePointToPPTViewSet(viewsets.ViewSet):
         
         # 根据结果返回响应
         if result["status"] == "success":
-            return Response(result, status=200)
+            # 检查是否请求直接返回文件内容
+            if serializer.validated_data.get("return_file_content", False):
+                # 获取文件路径
+                file_url = result["data"]["file_url"]
+                filename = result["data"]["filename"]
+                
+                # 构建完整的文件路径
+                if file_url.startswith('/'):
+                    file_url = file_url[1:]  # 去掉开头的斜杠
+                
+                # 尝试多种路径组合
+                media_root = settings.MEDIA_ROOT
+                possible_paths = [
+                    os.path.join(media_root, file_url),
+                    os.path.join(media_root, filename),
+                    os.path.join(media_root, 'presentations', filename),
+                    file_url
+                ]
+                
+                file_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        file_path = path
+                        break
+                
+                if file_path and os.path.exists(file_path):
+                    # 读取文件内容
+                    with open(file_path, 'rb') as f:
+                        file_content = f.read()
+                    
+                    # Base64编码文件内容
+                    file_content_b64 = base64.b64encode(file_content).decode('utf-8')
+                    
+                    # 返回包含文件内容的响应
+                    return Response({
+                        "status": "success",
+                        "data": {
+                            "file_url": file_url,
+                            "filename": filename,
+                            "file_content": file_content_b64
+                        }
+                    }, status=200)
+                else:
+                    # 文件不存在，返回错误
+                    return Response({
+                        "status": "error",
+                        "error": {
+                            "code": "file_not_found",
+                            "message": "无法找到生成的文件",
+                            "details": f"文件路径: {file_url}"
+                        }
+                    }, status=404)
+            else:
+                # 返回标准响应（仅包含文件URL）
+                return Response(result, status=200)
         else:
             # 确定适当的状态码
             error_code = result.get("error", {}).get("error", "")

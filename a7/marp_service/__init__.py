@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Optional
+from typing import Dict, Optional, Any
 
 from .cli import MarpCLIBuilder, MarpCLIExecutor
 from .exceptions import MarpConversionError, MarpFileError, MarpServiceError
@@ -12,7 +12,10 @@ def convert_markdown_to_format(
     content: str,
     output_format: str,
     theme: Optional[str] = None,
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    theme_dir: Optional[str] = None,
+    style_path: Optional[str] = None,
+    style_options: Optional[Dict[str, Any]] = None
 ) -> str:
     """
     将Markdown内容转换为指定格式。
@@ -22,6 +25,9 @@ def convert_markdown_to_format(
         output_format: 输出格式 ('pdf', 'pptx', 'html', 'png')
         theme: 可选的Marp主题名称
         output_path: 可选的输出文件路径，如果未提供则使用临时文件
+        theme_dir: 可选的主题目录路径，包含自定义CSS主题文件
+        style_path: 可选的额外样式表路径
+        style_options: 可选的样式选项字典，作为CSS变量注入
         
     Returns:
         生成的文件路径
@@ -60,9 +66,21 @@ def convert_markdown_to_format(
             builder.add_output_file(file_path)
             builder.allow_local_files()
             
+            # 添加主题相关配置
+            if theme_dir and os.path.isdir(theme_dir):
+                builder.add_theme_dir(theme_dir)
+                
             # 添加主题（如果提供）
             if theme:
                 builder.add_theme(theme)
+                
+            # 添加额外样式表（如果提供）
+            if style_path and os.path.exists(style_path):
+                builder.add_style(style_path)
+                
+            # 添加样式选项（如果提供）
+            if style_options:
+                builder.add_style_options(style_options)
                 
             args = builder.build()
             
@@ -90,7 +108,10 @@ def convert_file_to_format(
     file_path: str,
     output_format: str,
     theme: Optional[str] = None,
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    theme_dir: Optional[str] = None,
+    style_path: Optional[str] = None,
+    style_options: Optional[Dict[str, Any]] = None
 ) -> str:
     """
     将Markdown文件转换为指定格式。
@@ -100,6 +121,9 @@ def convert_file_to_format(
         output_format: 输出格式 ('pdf', 'pptx', 'html', 'png')
         theme: 可选的Marp主题名称
         output_path: 可选的输出文件路径，如果未提供则使用临时文件
+        theme_dir: 可选的主题目录路径，包含自定义CSS主题文件
+        style_path: 可选的额外样式表路径
+        style_options: 可选的样式选项字典，作为CSS变量注入
         
     Returns:
         生成的文件路径
@@ -140,9 +164,21 @@ def convert_file_to_format(
         builder.add_output_file(output_file_path)
         builder.allow_local_files()
         
+        # 添加主题相关配置
+        if theme_dir and os.path.isdir(theme_dir):
+            builder.add_theme_dir(theme_dir)
+            
         # 添加主题（如果提供）
         if theme:
             builder.add_theme(theme)
+            
+        # 添加额外样式表（如果提供）
+        if style_path and os.path.exists(style_path):
+            builder.add_style(style_path)
+            
+        # 添加样式选项（如果提供）
+        if style_options:
+            builder.add_style_options(style_options)
             
         args = builder.build()
         

@@ -7,16 +7,42 @@ Marp服务API集成测试脚本
 
 import os
 import sys
+import django
 import json
 import time
 import requests
 import argparse
 from pathlib import Path
 
+# 将项目根目录添加到Python路径
+# D:\file\A7
+current_dir = Path(__file__).resolve().parent
+# D:\file\A7
+project_root = current_dir
+
+# 根据用户反馈，Django项目的根目录在'a7'子目录中。
+# 我们需要将这个子目录添加到sys.path中，以便Django可以找到'a7.settings'模块。
+django_root = project_root / 'a7'
+sys.path.insert(0, str(django_root))
+
 # 测试配置
 DEFAULT_URL = "http://127.0.0.1:8000/api/marp/convert/"
 TEST_FORMATS = ["pdf", "pptx", "html", "png"]
 OUTPUT_DIR = "marp_test_output"
+
+
+def setup_django():
+    """手动配置Django环境"""
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'a7.settings')
+    try:
+        django.setup()
+    except ImportError:
+        raise ImportError(
+            "无法导入Django设置。请确保：\n"
+            "1. 你在项目的根目录下运行此脚本。\n"
+            "2. DJANGO_SETTINGS_MODULE环境变量已正确设置。\n"
+            "3. a7.settings模块路径正确。\n"
+        )
 
 
 def setup_test_environment():
@@ -149,50 +175,170 @@ def test_invalid_requests(api_url):
             print(f"  错误: {e}")
 
 
-def run_integration_tests(api_url):
-    """运行所有集成测试"""
-    print("=" * 60)
-    print(f"开始Marp API集成测试 - 端点: {api_url}")
-    print("=" * 60)
+def run_test(test_name, markdown_content, output_dir, theme, output_formats, style_options=None):
+    """
+    运行单个测试用例，生成多种格式的演示文稿。
+
+    Args:
+        test_name (str): 测试用例的名称。
+        markdown_content (str): 用于转换的Markdown内容。
+        output_dir (str): 输出目录。
+        theme (str): 使用的主题名称。
+        output_formats (list): 输出格式列表 (e.g., ['pptx', 'pdf', 'html'])。
+        style_options (dict, optional): 样式选项。
+    """
+    print(f"--- Running Test: {test_name} ---")
     
-    # 设置测试环境
-    setup_test_environment()
+    # 确保输出目录存在
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
-    # 测试所有格式
-    results = {}
-    for fmt in TEST_FORMATS:
-        results[fmt] = test_convert_markdown(api_url, fmt)
+    # 获取自定义主题目录
+    theme_dir = project_root / 'a7' / 'marp_service' / 'themes'
+    if not theme_dir.exists():
+        print(f"  [ERROR] 主题目录未找到: {theme_dir}")
+        return
+
+    from marp_service import convert_markdown_to_format
+
+    for fmt in output_formats:
+        output_filename = f"{test_name.replace(' ', '_').lower()}.{fmt}"
+        output_path = Path(output_dir) / output_filename
+        
+        try:
+            print(f"  -> Generating {fmt.upper()}...")
+            convert_markdown_to_format(
+                content=markdown_content,
+                output_format=fmt,
+                output_path=str(output_path),
+                theme=theme,
+                theme_dir=str(theme_dir),
+                style_options=style_options
+            )
+            if output_path.exists() and output_path.stat().st_size > 0:
+                print(f"  [SUCCESS] {fmt.upper()} 文件已生成: {output_path}")
+            else:
+                print(f"  [FAILURE] {fmt.upper()} 文件生成失败或为空。")
+        except Exception as e:
+            print(f"  [ERROR] 生成 {fmt.upper()} 时出错: {e}")
+    print("-" * (len(test_name) + 20))
+
+
+def main():
+    """
+    主函数，定义并运行所有集成测试。
+    """
+    # 初始化Django
+    setup_django()
+
+    # 通用测试Markdown内容
+    test_markdown = """---
+marp: true
+paginate: true
+header: 'A7-System'
+footer: 'Integration Test'
+---
+
+# 1. 一级知识点
+
+<!-- _class: level-1 -->
+
+这是一级知识点的主要内容。
+
+- 列表项 A
+- 列表项 B
+
+---
+
+<!-- _class: level-1 -->
+
+## 1.1 二级知识点 (A)
+
+<!-- _class: level-2 -->
+
+这是二级知识点 A 的详细说明。
+
+```python
+def hello_world():
+    print("Hello from a level 2 slide!")
+```
+
+---
+
+<!-- _class: level-1 -->
+
+## 1.2 二级知识点 (B)
+
+<!-- _class: level-2 -->
+
+这是二级知识点 B 的详细说明。
+
+> 这是一个引用块，用于强调重要信息。
+
+---
+
+<!-- _class: level-2 -->
+
+### 1.2.1 三级知识点
+
+<!-- _class: level-3 -->
+
+这是三级知识点的具体内容。
+
+| 表头1 | 表头2 |
+|---|---|
+| 单元格1 | 单元格2 |
+| 单元格3 | 单元格4 |
+
+"""
+
+    # --- 定义测试用例 ---
+    output_dir_base = project_root / "marp_test_output"
+    formats_to_generate = ['pptx', 'pdf', 'html']
+
+    # 测试1: 默认层级主题 (hierarchy-default)
+    run_test(
+        "Default Hierarchy Theme",
+        test_markdown,
+        output_dir=output_dir_base / "default_theme",
+        theme="hierarchy-default",
+        output_formats=formats_to_generate
+    )
+
+    # 测试2: 教学型主题 (hierarchy-teaching)
+    run_test(
+        "Teaching Hierarchy Theme",
+        test_markdown.replace("marp: true", "marp: true\nclass: teaching"), # 添加教学型class
+        output_dir=output_dir_base / "teaching_theme",
+        theme="hierarchy-teaching",
+        output_formats=formats_to_generate
+    )
+
+    # 测试3: 简洁型主题 (hierarchy-minimalist)
+    run_test(
+        "Minimalist Hierarchy Theme",
+        test_markdown,
+        output_dir=output_dir_base / "minimalist_theme",
+        theme="hierarchy-minimalist",
+        output_formats=formats_to_generate
+    )
+
+    # 测试4: 默认主题 + 红色配色方案
+    run_test(
+        "Default Theme with Red Scheme",
+        test_markdown,
+        output_dir=output_dir_base / "style_options",
+        theme="hierarchy-default",
+        output_formats=formats_to_generate,
+        style_options={
+            "--color-primary": "#e63946",
+            "--color-secondary": "#f1726f",
+            "--color-tertiary": "#f8998d"
+        }
+    )
     
-    # 测试带主题的转换
-    theme_result = test_convert_markdown(api_url, "pdf", theme="default")
-    
-    # 测试无效请求
-    test_invalid_requests(api_url)
-    
-    # 显示测试结果摘要
-    print("\n" + "=" * 60)
-    print("测试结果摘要:")
-    print("=" * 60)
-    
-    all_passed = True
-    for fmt, passed in results.items():
-        status = "✅ 通过" if passed else "❌ 失败"
-        print(f"{fmt.upper()} 格式转换: {status}")
-        if not passed:
-            all_passed = False
-    
-    theme_status = "✅ 通过" if theme_result else "❌ 失败"
-    print(f"带主题的转换: {theme_status}")
-    
-    print("\n总体结果:", "✅ 全部通过" if all_passed and theme_result else "❌ 部分或全部失败")
-    
-    return all_passed and theme_result
+    print("\n所有集成测试已完成。")
+    print(f"请检查输出目录: {output_dir_base.resolve()}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Marp API集成测试")
-    parser.add_argument("--url", default=DEFAULT_URL, help=f"API端点URL (默认: {DEFAULT_URL})")
-    args = parser.parse_args()
-    
-    success = run_integration_tests(args.url)
-    sys.exit(0 if success else 1) 
+    main() 
