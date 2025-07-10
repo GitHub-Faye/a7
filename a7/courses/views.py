@@ -59,7 +59,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     """
     queryset = Course.objects.all().order_by('-created_at')
     serializer_class = CourseSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]  # 默认需要用户认证
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'description', 'subject', 'grade_level']
     ordering_fields = ['created_at', 'title', 'subject', 'grade_level']
@@ -78,27 +78,43 @@ class CourseViewSet(viewsets.ModelViewSet):
         """
         根据操作类型设置不同的权限
         """
-        if self.action == 'create':
-            # 只有教师和管理员可以创建课程
-            self.permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+        if self.action == 'list' or self.action == 'retrieve':
+            # 允许任何人查看课程列表和详情
+            self.permission_classes = [permissions.AllowAny]
+        elif self.action == 'create':
+            # 需要登录才能创建课程
+            self.permission_classes = [permissions.IsAuthenticated]
         elif self.action in ['update', 'partial_update', 'destroy']:
-            # 只有课程创建者和管理员可以修改或删除课程
-            self.permission_classes = [permissions.IsAuthenticated, IsCourseTeacherOrAdmin]
+            # 只有课程创建者或管理员才能修改/删除课程
+            self.permission_classes = [IsCourseTeacherOrAdmin]
         return super().get_permissions()
     
     @swagger_auto_schema(
         operation_summary="获取当前用户创建的课程列表",
         operation_description="返回当前已认证用户创建的所有课程"
     )
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def my_courses(self, request):
         """
         获取当前用户创建的课程列表
         """
         try:
-            user = request.user
-            queryset = self.queryset.filter(teacher=user)
+            # 确保用户已认证
+            if not request.user.is_authenticated:
+                return Response(
+                    {"success": False, "message": "用户未登录或认证失败"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
             
+            # 获取用户ID
+            user = request.user
+            print(f"当前用户: ID={user.id}, 用户名={user.username}")
+            
+            # 查询属于当前用户的课程
+            queryset = self.queryset.filter(teacher=user.id)
+            print(f"查询到的课程数量: {queryset.count()}")
+            
+            # 分页处理
             page = self.paginate_queryset(queryset)
             if page is not None:
                 serializer = self.get_serializer(page, many=True)
@@ -107,6 +123,8 @@ class CourseViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response(
                 {"success": False, "message": "获取课程失败", "errors": [str(e)]},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -119,7 +137,7 @@ class KnowledgePointViewSet(viewsets.ModelViewSet):
     """
     queryset = KnowledgePoint.objects.all().order_by('importance', 'title')
     serializer_class = KnowledgePointSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # 允许所有请求访问，无需验证权限
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'content']
     ordering_fields = ['importance', 'title']
@@ -162,11 +180,11 @@ class KnowledgePointViewSet(viewsets.ModelViewSet):
         根据操作类型设置不同的权限
         """
         if self.action == 'create':
-            # 只有教师和管理员可以创建知识点
-            self.permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+            # 任何人都可以创建知识点
+            self.permission_classes = [permissions.AllowAny]
         elif self.action in ['update', 'partial_update', 'destroy']:
-            # 只有知识点所属课程的创建者和管理员可以修改或删除知识点
-            self.permission_classes = [permissions.IsAuthenticated, IsKnowledgePointCourseTeacherOrAdmin]
+            # 任何人都可以修改或删除知识点
+            self.permission_classes = [permissions.AllowAny]
         return super().get_permissions()
     
     @swagger_auto_schema(
@@ -238,7 +256,7 @@ class CoursewareViewSet(viewsets.ModelViewSet):
     """
     queryset = Courseware.objects.all().order_by('-created_at')
     serializer_class = CoursewareSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # 允许所有请求访问，无需验证权限
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'content', 'type']
     ordering_fields = ['created_at', 'title', 'type']
@@ -278,11 +296,11 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         根据操作类型设置不同的权限
         """
         if self.action == 'create':
-            # 只有教师和管理员可以创建课件
-            self.permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+            # 任何人都可以创建课件
+            self.permission_classes = [permissions.AllowAny]
         elif self.action in ['update', 'partial_update', 'destroy']:
-            # 只有课件创建者和管理员可以修改或删除课件
-            self.permission_classes = [permissions.IsAuthenticated, IsCoursewareCreatorOrAdmin]
+            # 任何人都可以修改或删除课件
+            self.permission_classes = [permissions.AllowAny]
         return super().get_permissions()
     
     @swagger_auto_schema(
@@ -316,7 +334,7 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
     """
     通过AI生成课程内容的API视图集
     """
-    permission_classes = [permissions.IsAuthenticated, IsTeacherOrAdmin]
+    permission_classes = [permissions.IsAuthenticated]  # 需要登录才能生成内容
 
     def _create_knowledge_points_recursive(self, course, parent, knowledge_point_data):
         """
@@ -938,6 +956,7 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
 class ExerciseViewSet(viewsets.ModelViewSet):
     """练习题视图集，支持CRUD操作"""
     queryset = Exercise.objects.all().order_by('-created_at')
+    permission_classes = [permissions.AllowAny]  # 允许所有请求访问，无需验证权限
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['title', 'content']  # 移除不存在的 question_text 字段
     ordering_fields = ['created_at', 'difficulty', 'type', 'id']  # 添加 id 用于排序
@@ -954,6 +973,7 @@ class ExerciseViewSet(viewsets.ModelViewSet):
 class StudentAnswerViewSet(viewsets.ModelViewSet):
     """学生答案视图集，支持CRUD操作"""
     queryset = StudentAnswer.objects.all().order_by('-submitted_at')
+    permission_classes = [permissions.AllowAny]  # 允许所有请求访问，无需验证权限
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['content']
     ordering_fields = ['submitted_at', 'score', 'id']  # 添加 id 用于排序

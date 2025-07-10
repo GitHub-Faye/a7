@@ -88,16 +88,15 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS中间件，必须放在CommonMiddleware之前
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',  # 重新启用CSRF中间件，但使用豁免处理API请求
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
     # 自定义中间件
     'apps.core.middleware.RequestLoggingMiddleware',  # 请求日志记录中间件
-    # 'users.middleware.JWTAuthMiddleware',  # JWT认证中间件 - 已禁用
+    'users.middleware.jwt_auth_middleware.JWTAuthMiddleware',  # JWT认证中间件 - 已启用
     'apps.core.middleware.RequestProcessorMiddleware',  # 请求处理中间件
-    # 'users.middleware.RoleBasedPermissionMiddleware',  # 基于角色的权限中间件 - 计划将来实现
 ]
 
 ROOT_URLCONF = 'a7.urls'
@@ -180,7 +179,7 @@ AUTH_USER_MODEL = 'users.User'
 REST_FRAMEWORK = {
     # 认证类配置
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        # 'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT令牌认证（已禁用）
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT令牌认证（恢复）
         'rest_framework.authentication.SessionAuthentication',  # 会话认证（支持浏览器可视化API）
     ),
     
@@ -262,8 +261,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://glowing-sunburst-d86f36.netlify.app",
     "http://12e11e70c836.ngrok-free.app",
     "https://12e11e70c836.ngrok-free.app",
-    "https://b0642ff316d7.ngrok-free.app",
-    "http://b0642ff316d7.ngrok-free.app"
+    "https://046db807ed8b.ngrok-free.app",
+    "http://046db807ed8b.ngrok-free.app"
 ]
 CORS_ALLOW_ALL_ORIGINS = True  # 注释掉，改用明确的域名列表
 
