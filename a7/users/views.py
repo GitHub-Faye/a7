@@ -96,6 +96,19 @@ class UserViewSet(viewsets.ModelViewSet):
         获取当前登录用户的所有权限
         """
         user = request.user
+        
+        # 检查是否为匿名用户
+        if user.is_anonymous:
+            # 匿名用户没有权限和角色
+            return Response({
+                'role': None,
+                'permissions': [],
+                'is_staff': False,
+                'is_superuser': False,
+                'is_authenticated': False
+            })
+            
+        # 已认证用户的处理
         # 获取用户的所有权限
         permissions = list(user.get_all_permissions())
         role_name = user.role
@@ -105,6 +118,7 @@ class UserViewSet(viewsets.ModelViewSet):
             'permissions': permissions,
             'is_staff': user.is_staff,
             'is_superuser': user.is_superuser,
+            'is_authenticated': True
         })
 
 

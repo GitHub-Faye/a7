@@ -265,7 +265,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://b0642ff316d7.ngrok-free.app",
     "http://b0642ff316d7.ngrok-free.app"
 ]
-# CORS_ALLOW_ALL_ORIGINS = True  # 注释掉，改用明确的域名列表
+CORS_ALLOW_ALL_ORIGINS = True  # 注释掉，改用明确的域名列表
 
 # 修复CORS问题的额外设置
 CORS_ALLOW_CREDENTIALS = True  # 允许跨域请求携带凭证
@@ -280,6 +280,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://glowing-sunburst-d86f36\.netlify\.app$",
     r"^http://localhost:\d+$",
     r"^http://127\.0\.0\.1:\d+$",
+    r"^https?://.*\.loca\.lt$",  # 允许所有loca.lt子域名
 ]
 
 CORS_ALLOW_METHODS = [
@@ -301,6 +302,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'ngrok-skip-browser-warning',
 ]
 
 # Swagger/OpenAPI 配置
