@@ -696,3 +696,34 @@ class StudentAnswerFeedbackSerializer(serializers.ModelSerializer):
                 value, "feedback", min_length=2
             )
         return value 
+
+class StudentDialogueSerializer(serializers.Serializer):
+    """学生对话请求的序列化器"""
+    query = serializers.CharField(
+        required=True, 
+        help_text="学生的问题或查询文本"
+    )
+    session_id = serializers.CharField(
+        required=False, 
+        allow_blank=True,
+        help_text="会话ID，用于维持多轮对话上下文"
+    )
+    context = serializers.JSONField(
+        required=False, 
+        help_text="可选上下文信息，如当前学习内容",
+        default=dict
+    )
+    
+    def validate(self, attrs):
+        """验证请求数据"""
+        # 确保查询不为空
+        query = attrs.get('query', '').strip()
+        if not query:
+            raise serializers.ValidationError({"query": "查询内容不能为空"})
+            
+        # 如果提供了上下文，确保其为有效格式
+        context = attrs.get('context')
+        if context and not isinstance(context, dict):
+            raise serializers.ValidationError({"context": "上下文必须是有效的JSON对象"})
+            
+        return attrs 

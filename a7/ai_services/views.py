@@ -1,110 +1,193 @@
-from django.shortcuts import render
-
-# Create your views here.
-
 """
-AI服务API视图模块
+AI服务视图模块
 """
 
-from rest_framework import views, status
+import logging
+import uuid
+from typing import Dict, Any
+
+from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError, APIException
+from django.conf import settings
 
+from courses.models import Course, KnowledgePoint
+from courses.serializers import (
+    CourseGenerationSerializer, 
+    QuestionGenerationSerializer,
+    StudentDialogueSerializer
+)
 from .services.n8n_webhook.client import N8nWebhookClient
-from .services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
-from .models import WebhookConfig
+from .services.n8n_webhook.exceptions import N8nWebhookError
 from .api_response import create_api_response
-from .services.knowledge_converter import create_course_with_knowledge_points
+
+logger = logging.getLogger(__name__)
 
 
-class N8nWebhookAPIView(views.APIView):
-    """n8n Webhook API接口视图"""
-    permission_classes = [AllowAny]  # 允许所有请求访问，无需验证权限
+class CourseContentGenerationViewSet(viewsets.ViewSet):
+    """课程内容生成API视图集"""
+    permission_classes = [permissions.IsAuthenticated]
     
-    def post(self, request, *args, **kwargs):
-        """处理POST请求，将请求转发到n8n webhook"""
+    def create(self, request, *args, **kwargs):
+        """处理课程内容生成请求"""
+        serializer = CourseContentGenerationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
         try:
-            # 获取请求数据
-            data = request.data
-            task_type = data.get('task_type')
-            task_data = data.get('data', {})
+            # 准备请求数据
+            course_data = {
+                "course_name": serializer.validated_data["course_name"],
+                "course_description": serializer.validated_data["course_description"],
+                "chapter_count": serializer.validated_data["chapter_count"],
+                "subject": serializer.validated_data["subject"],
+                "grade_level": serializer.validated_data["grade_level"],
+                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
+                # n8n格式要求
+                "chatInput": f"Generate course content for {serializer.validated_data['course_name']}",
+                "sessionId": str(uuid.uuid4())
+            }
             
-            # 验证任务类型
-            if not task_type:
-                return create_api_response(
-                    success=False,
-                    error_code="MISSING_PARAMETER",
-                    message="缺少必要参数: task_type",
-                    status_code=status.HTTP_400_BAD_REQUEST
-                )
+            # 调用n8n客户端
+            client = N8nWebhookClient()
+            result = client.generate_course_content_sync(course_data)
             
-            # 获取webhook配置（可以基于请求中的标识或默认配置）
-            webhook_id = data.get('webhook_id')
-            webhook_config = None
+            return Response({
+                "course": result["course"],
+                "knowledge_points": result["knowledge_points"]
+            }, status=status.HTTP_200_OK)
             
-            if webhook_id:
-                try:
-                    webhook_config = WebhookConfig.objects.get(id=webhook_id, active=True)
-                except WebhookConfig.DoesNotExist:
-                    return create_api_response(
-                        success=False,
-                        error_code="INVALID_WEBHOOK_ID",
-                        message=f"找不到ID为 {webhook_id} 的活跃Webhook配置",
-                        status_code=status.HTTP_404_NOT_FOUND
-                    )
-            
-            # 创建客户端实例并发送请求
-            client = N8nWebhookClient(webhook_config=webhook_config)
-            result = client.process_ai_task_sync(task_type, task_data)
-            
-            # 如果是课程生成任务，则在数据库中创建课程和知识点
-            if task_type == 'courseGeneration':
-                course = create_course_with_knowledge_points(result, user=request.user)
-                # 返回新创建的课程信息，而不是原始的n8n响应
-                response_data = {
-                    'course_id': course.id,
-                    'title': course.title,
-                    'message': '课程已成功创建'
-                }
-                return create_api_response(
-                    success=True, 
-                    data=response_data,
-                    message="课程创建成功",
-                    status_code=status.HTTP_201_CREATED  # 使用 201 表示资源已创建
-                )
+        except N8nWebhookError as e:
+            logger.error(f"课程内容生成失败: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.exception(f"课程内容生成处理异常: {str(e)}")
+            return Response(
+                {"error": f"处理课程内容生成请求时出错: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-            # 对于其他任务，返回原始结果
+
+class QuestionGenerationViewSet(viewsets.ViewSet):
+    """问题生成API视图集"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def create(self, request, *args, **kwargs):
+        """处理问题生成请求"""
+        serializer = QuestionGenerationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            # 获取知识点数据
+            knowledge_point_ids = serializer.validated_data["knowledge_point_ids"]
+            knowledge_points = KnowledgePoint.objects.filter(id__in=knowledge_point_ids)
+            
+            if not knowledge_points.exists():
+                return Response(
+                    {"error": "未找到指定的知识点"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # 构建知识点内容字符串
+            knowledge_content = ""
+            for kp in knowledge_points:
+                knowledge_content += f"知识点 {kp.id}: {kp.title}\n{kp.content}\n\n"
+            
+            # 准备请求数据
+            question_data = {
+                "knowledge_point_ids": knowledge_point_ids,
+                "question_types": serializer.validated_data["question_types"],
+                "quantity": serializer.validated_data["quantity"],
+                "difficulty": serializer.validated_data.get("difficulty"),
+                # n8n格式要求
+                "chatInput": f"Generate {serializer.validated_data['quantity']} questions based on the following knowledge points:\n{knowledge_content}",
+                "sessionId": str(uuid.uuid4())
+            }
+            
+            # 调用n8n客户端
+            client = N8nWebhookClient()
+            result = client.generate_questions_sync(question_data)
+            
+            return Response(result, status=status.HTTP_200_OK)
+            
+        except N8nWebhookError as e:
+            logger.error(f"问题生成失败: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.exception(f"问题生成处理异常: {str(e)}")
+            return Response(
+                {"error": f"处理问题生成请求时出错: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class StudentDialogueViewSet(viewsets.ViewSet):
+    """学生助手对话API视图集，处理学生查询并提供AI回复"""
+    permission_classes = [permissions.AllowAny]  # 学生可无需认证使用
+    
+    def create(self, request, *args, **kwargs):
+        """处理学生提问并返回AI响应"""
+        serializer = StudentDialogueSerializer(data=request.data)
+        
+        # 手动处理验证错误，以保留字段错误信息
+        if not serializer.is_valid():
             return create_api_response(
-                success=True, 
-                data=result, 
-                message="任务处理成功",
+                success=False,
+                message="请求参数验证失败",
+                error_code="VALIDATION_ERROR",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 准备会话ID，如果请求中没有提供则生成新的
+            session_id = serializer.validated_data.get('session_id')
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            # 准备请求数据 - 注意：n8n服务期望chatInput而不是query
+            dialogue_data = {
+                # 将query映射到chatInput
+                "chatInput": serializer.validated_data["query"],
+                "sessionId": session_id,
+                # 可选：如果需要传递上下文
+                "context": serializer.validated_data.get("context", {})
+            }
+            
+            # 调用n8n客户端
+            client = N8nWebhookClient()
+            result = client.dialogue_with_student_sync(dialogue_data)
+            
+            # 在响应中包含会话ID，便于客户端进行后续对话
+            result["session_id"] = session_id
+            
+            # 使用标准化响应格式
+            return create_api_response(
+                success=True,
+                data=result,
+                message="对话请求处理成功",
                 status_code=status.HTTP_200_OK
             )
             
-        except N8nInvalidRequestError as e:
-            # 处理无效请求数据异常
-            return create_api_response(
-                success=False,
-                error_code="INVALID_REQUEST_DATA",
-                message=str(e),
-                status_code=e.status_code,
-                details=e.validation_errors
-            )
-            
         except N8nWebhookError as e:
-            # 处理n8n webhook相关的其他异常
+            logger.error(f"学生对话处理失败: {str(e)}")
             return create_api_response(
                 success=False,
-                error_code="WEBHOOK_PROCESSING_ERROR",
                 message=str(e),
-                status_code=e.status_code
+                error_code="N8N_WEBHOOK_ERROR",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
         except Exception as e:
-            # 处理其他所有未捕获的异常
+            logger.exception(f"学生对话处理异常: {str(e)}")
             return create_api_response(
                 success=False,
+                message=f"处理学生对话请求时出错: {str(e)}",
                 error_code="INTERNAL_SERVER_ERROR",
-                message=f"处理请求时发生未知服务器错误: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

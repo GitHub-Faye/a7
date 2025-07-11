@@ -53,6 +53,32 @@ class RagAIResponseData(BaseResponse):
 
 
 # ==============================================================================
+# 学生对话任务格式 (Student Dialogue Task Formats)
+# ==============================================================================
+
+class DialogueRequestData(BaseRequest):
+    """学生对话任务的请求数据模型"""
+    chatInput: str = Field(..., description="学生的问题或查询文本")
+    sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
+    context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="可选上下文信息，如当前学习内容")
+
+
+class DialogueResource(BaseResponse):
+    """学生对话响应中的参考资源信息模型"""
+    title: str = Field(..., description="资源标题")
+    content: str = Field(..., description="资源内容摘要")
+    type: str = Field(..., description="资源类型，如'知识点'、'课程'等")
+    id: Optional[int] = Field(None, description="资源在系统中的ID")
+
+
+class DialogueResponseData(BaseResponse):
+    """学生对话任务的响应数据模型"""
+    answer: str = Field(..., description="AI助手的回答")
+    resources: Optional[List[DialogueResource]] = Field(default_factory=list, description="相关参考资源列表")
+    follow_up_questions: Optional[List[str]] = Field(default_factory=list, description="可能的后续问题建议")
+
+
+# ==============================================================================
 # 课程内容生成任务格式 (Course Content Generation Task Formats)
 # ==============================================================================
 
@@ -482,6 +508,94 @@ def format_knowledge_to_markdown_response(data: Dict[str, Any]) -> Dict[str, Any
     )
 
 
+def format_student_dialogue_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    尝试将n8n返回的数据格式化为符合DialogueResponseData要求的结构
+    
+    Args:
+        data: n8n返回的原始数据
+        
+    Returns:
+        格式化后的数据，符合DialogueResponseData结构
+    
+    Raises:
+        N8nResponseError: 如果无法格式化数据
+    """
+    logger.info("正在格式化学生对话响应数据")
+    
+    # 情况1: 如果n8n返回的是带有answer字段的对象
+    if isinstance(data, dict) and 'answer' in data and isinstance(data['answer'], str):
+        answer_text = data['answer']
+        logger.info(f"检测到带有answer字段的响应，长度: {len(answer_text)}")
+        
+        # 尝试从answer中提取JSON
+        extracted_json = extract_json_from_text(answer_text)
+        if extracted_json and isinstance(extracted_json, dict) and 'answer' in extracted_json:
+            logger.info("成功从answer字段中提取完整JSON结构")
+            return extracted_json
+        else:
+            # 创建基本响应结构
+            return {
+                "answer": answer_text,
+                "resources": [],
+                "follow_up_questions": []
+            }
+    
+    # 情况2: 如果收到的是包含output字段的响应
+    if isinstance(data, dict) and 'output' in data and isinstance(data['output'], str):
+        output_text = data['output']
+        logger.info(f"检测到带有output字段的响应，长度: {len(output_text)}")
+        
+        # 尝试从output中提取JSON
+        extracted_json = extract_json_from_text(output_text)
+        if extracted_json and isinstance(extracted_json, dict) and 'answer' in extracted_json:
+            logger.info("成功从output字段中提取完整JSON结构")
+            return extracted_json
+        else:
+            # 创建基本响应结构
+            return {
+                "answer": output_text,
+                "resources": [],
+                "follow_up_questions": []
+            }
+    
+    # 情况3: 如果返回的数据已包含answer/resources等字段
+    if isinstance(data, dict) and 'answer' in data and isinstance(data['answer'], str):
+        logger.info("数据结构已包含基本字段")
+        
+        # 确保包含所有必要字段
+        if 'resources' not in data or not isinstance(data['resources'], list):
+            data['resources'] = []
+        if 'follow_up_questions' not in data or not isinstance(data['follow_up_questions'], list):
+            data['follow_up_questions'] = []
+            
+        return data
+    
+    # 情况4: 如果数据是字符串
+    if isinstance(data, str):
+        logger.info(f"收到的是纯文本响应，长度: {len(data)}")
+        
+        # 尝试从字符串中提取JSON
+        extracted_json = extract_json_from_text(data)
+        if extracted_json and isinstance(extracted_json, dict) and 'answer' in extracted_json:
+            logger.info("成功从文本响应中提取完整JSON结构")
+            return extracted_json
+        else:
+            # 创建基本响应结构
+            return {
+                "answer": data,
+                "resources": [],
+                "follow_up_questions": []
+            }
+    
+    # 如果无法识别格式，抛出异常
+    logger.error(f"无法格式化学生对话响应: {str(data)[:200]}...")
+    raise N8nResponseError(
+        message="无法识别AI服务返回的对话内容格式",
+        error_data=data
+    )
+
+
 # ==============================================================================
 # 任务格式注册与管理 (Task Format Registry)
 # ==============================================================================
@@ -503,6 +617,10 @@ TASK_FORMATS: Dict[str, Dict[str, Any]] = {
     "knowledgeToMarkdown": {
         "request": KnowledgeToMarkdownRequestData,
         "response": KnowledgeToMarkdownResponseData,
+    },
+    "studentDialogue": {
+        "request": DialogueRequestData,
+        "response": DialogueResponseData,
     },
     # 在这里可以添加其他任务类型的格式定义
     # "another_task": {
@@ -588,6 +706,8 @@ def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
         data = format_question_generation_response(data)
     elif task_type == "knowledgeToMarkdown":
         data = format_knowledge_to_markdown_response(data)
+    elif task_type == "studentDialogue":
+        data = format_student_dialogue_response(data)
 
     try:
         validated_model = response_model.model_validate(data)

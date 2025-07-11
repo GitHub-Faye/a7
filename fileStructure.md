@@ -40,17 +40,20 @@ a7/                           # 项目根目录
 │   │   ├── apps.py           # 应用配置
 │   │   ├── api_response.py   # 标准化API响应格式化工具
 │   │   ├── models.py         # WebhookConfig和WebhookCallLog模型定义
-│   │   ├── urls.py           # AI服务路由配置
-│   │   ├── views.py          # AI服务视图和API实现，包含N8nWebhookAPIView
+│   │   ├── urls.py           # AI服务路由配置，包含StudentDialogueViewSet路由注册
+│   │   ├── views.py          # AI服务视图和API实现，包含N8nWebhookAPIView和StudentDialogueViewSet
+│   │   ├── README.md         # AI服务应用文档，包含学生助手对话API的使用说明
 │   │   ├── services/         # 服务实现目录
 │   │   │   ├── __init__.py              # Python包初始化文件
+│   │   │   ├── base.py                  # 服务基类定义
 │   │   │   ├── knowledge_converter.py   # AI响应到课程模型的转换器
 │   │   │   ├── question_export.py       # 问题导出工具，支持JSON和CSV格式
+│   │   │   ├── question_format.py       # 问题格式化工具
 │   │   │   └── n8n_webhook/             # n8n Webhook服务目录
 │   │   │       ├── __init__.py          # Python包初始化文件
-│   │   │       ├── client.py            # N8nWebhookClient客户端实现
+│   │   │       ├── client.py            # N8nWebhookClient客户端实现，包含dialogue_with_student方法
 │   │   │       ├── exceptions.py        # 异常类定义
-│   │   │       └── formats.py           # 请求/响应格式定义
+│   │   │       └── formats.py           # 请求/响应格式定义，包含DialogueRequestData和DialogueResponseData模型
 │   │   └── tests/                       # AI服务测试目录
 │   │       ├── __init__.py                  # Python包初始化文件
 │   │       ├── conftest.py                  # pytest配置文件
@@ -58,104 +61,12 @@ a7/                           # 项目根目录
 │   │       ├── test_formats.py              # 数据格式模型测试
 │   │       ├── test_knowledge_converter.py  # 数据转换器测试
 │   │       ├── test_n8n_service.py          # n8n服务异步测试
+│   │       ├── test_question_format.py      # 问题格式化工具测试
+│   │       ├── test_real_n8n_integration.py # n8n真实集成测试
+│   │       ├── test_student_dialogue.py     # 学生对话API单元测试
+│   │       ├── test_student_dialogue_integration.py # 学生对话API集成测试
 │   │       ├── test_views_integration.py    # AI服务视图集成测试
-│   │       └── services/         # 服务实现目录
-│   │           ├── __init__.py              # Python包初始化文件
-│   │           ├── knowledge_converter.py   # AI响应到课程模型的转换器
-│   │           ├── question_export.py       # 问题导出工具，支持JSON和CSV格式
-│   │           └── n8n_webhook/             # n8n Webhook服务目录
-│   ├── users/                # 用户管理应用
-│   │   ├── __init__.py       # Python包初始化文件
-│   │   ├── admin.py          # Django Admin配置
-│   │   ├── apps.py           # 应用配置
-│   │   ├── middleware/       # 用户中间件目录
-│   │   │   ├── __init__.py   # 中间件包初始化文件
-│   │   │   └── jwt_auth_middleware.py # JWT认证中间件
-│   │   ├── models.py         # 用户和角色模型
-│   │   ├── permissions.py    # 自定义权限类
-│   │   ├── permission_utils.py # 权限工具函数
-│   │   ├── serializers.py    # 序列化器
-│   │   ├── signals.py        # 信号处理
-│   │   ├── tests/            # 用户应用测试目录
-│   │   │   ├── __init__.py   # 测试包初始化文件
-│   │   │   ├── test_jwt_middleware.py # JWT中间件测试
-│   │   │   └── test_models.py # 用户模型测试
-│   │   ├── urls.py           # URL路由配置
-│   │   ├── views.py          # API视图
-│   │   ├── management/       # 管理命令目录
-│   │   │   ├── __init__.py   # Python包初始化文件
-│   │   │   └── commands/     # 具体命令目录
-│   │   │       ├── __init__.py # Python包初始化文件
-│   │   │       ├── init_roles.py # 角色和权限初始化命令
-│   │   │       └── sync_roles.py # 角色和权限同步命令
-│   │   └── migrations/       # 数据库迁移文件
-│   ├── courses/              # 课程管理应用
-│   │   ├── __init__.py       # Python包初始化文件
-│   │   ├── admin.py          # 课程模型的Admin配置
-│   │   ├── apps.py           # 课程应用配置
-│   │   ├── models.py         # 课程相关模型定义
-│   │   ├── serializers.py    # 课程序列化器
-│   │   ├── serializers_ppt.py # 知识点到PPT转换序列化器
-│   │   ├── permissions.py    # 课程权限类
-│   │   ├── urls.py           # 课程应用URL配置
-│   │   ├── views.py          # 课程相关视图和API实现
-│   │   ├── validations.py    # 通用验证工具类
-│   │   ├── utils.py          # 工具函数，包含请求参数验证
-│   │   ├── tests.py          # 课程模型的测试用例
-│   │   ├── tests_serializers.py # Exercise和StudentAnswer序列化器的测试用例
-│   │   ├── tests_api.py      # 课程API的测试用例
-│   │   ├── tests_api_new.py  # 课程API的全面测试用例，包含CourseAPITests、KnowledgePointAPITests和CoursewareAPITests测试类
-│   │   ├── tests_validation.py # 验证逻辑的测试用例
-│   │   ├── tests_api_questions.py # 问题生成API的测试用例，包含QuestionGenerationAPITests测试类
-│   │   ├── tests/            # 课程应用测试子目录
-│   │   │   ├── test_question_export.py       # 问题导出工具单元测试
-│   │   │   ├── test_question_export_integration.py # 问题导出集成测试
-│   │   │   ├── test_api_exercises.py         # 练习题和学生答案API测试
-│   │   │   ├── test_knowledge_to_ppt_api.py  # 知识点到PPT转换API测试
-│   │   │   ├── test_knowledge_to_ppt_real.py # 知识点到PPT转换真实场景测试
-│   │   │   ├── test_knowledge_to_ppt_conversion.py # 知识点到PPT转换服务单元测试
-│   │   │   ├── test_knowledge_to_ppt_integration.py # 知识点到PPT转换完整流程集成测试
-│   │   │   └── test_knowledge_to_ppt_direct_download.py # 知识点到PPT直接下载功能测试
-│   │   ├── services/         # 服务实现目录
-│   │   │   ├── __init__.py   # Python包初始化文件 
-│   │   │   └── knowledge_to_ppt.py # 知识点到PPT转换服务实现
-│   │   └── migrations/       # 课程模型数据库迁移文件
-│   ├── marp_service/         # Marp演示文档转换服务应用
-│   │   ├── __init__.py       # Python包初始化文件，提供主要API接口
-│   │   ├── apps.py           # 应用配置
-│   │   ├── cli.py            # Marp命令行接口构建与执行
-│   │   ├── exceptions.py     # Marp服务异常类定义
-│   │   ├── temp.py           # 临时文件管理
-│   │   ├── utils.py          # 工具函数
-│   │   ├── validation.py     # Markdown验证模块，提供MarkdownValidator类实现验证和修复功能
-│   │   ├── serializers.py    # REST API序列化器，处理输入验证
-│   │   ├── views.py          # REST API视图，处理HTTP请求和响应
-│   │   ├── urls.py           # URL路由配置
-│   │   ├── management/       # Django管理命令目录
-│   │   │   ├── __init__.py   # Python包初始化文件
-│   │   │   └── commands/     # 具体命令目录
-│   │   │       └── __init__.py # Python包初始化文件
-│   │   ├── migrations/       # 数据库迁移文件目录
-│   │   │   └── __init__.py   # Python包初始化文件
-│   │   └── tests/            # 测试目录
-│   │       ├── __init__.py   # Python包初始化文件
-│   │       ├── test_cli.py   # CLI相关单元测试
-│   │       ├── test_exceptions.py # 异常相关单元测试
-│   │       ├── test_integration.py # 集成测试
-│   │       ├── test_temp.py  # 临时文件管理单元测试
-│   │       ├── test_utils.py # 工具函数单元测试
-│   │       ├── test_serializers.py # 序列化器单元测试
-│   │       └── test_views.py # 视图单元测试
-│   ├── Dockerfile            # Docker容器构建配置文件
-│   ├── compose.yaml          # Docker Compose服务配置文件
-│   ├── README.Docker.md      # Docker部署和使用说明文档
-│   ├── .dockerignore         # Docker构建过程中要忽略的文件列表
-│   ├── db.sqlite3            # SQLite数据库文件
-│   ├── permission.log        # 项目级权限日志文件
-│   ├── request.log           # 请求日志文件
-│   ├── jwt_auth.log          # JWT认证日志文件
-│   ├── pytest.ini            # pytest配置文件，定义异步测试模式和标记
-│   └── manage.py             # Django命令行工具
+│   │       └── run_student_dialogue_tests.py # 学生对话测试运行脚本
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
 ├── tasks/                    # 任务文件目录（Task Master生成的任务）
@@ -267,17 +178,19 @@ a7/                           # 项目根目录
 - **a7/ai_services/apps.py**: 应用配置文件，包含应用元数据和启动逻辑。
 - **a7/ai_services/api_response.py**: 标准化API响应格式化工具，提供`create_api_response`函数用于生成统一的API响应。
 - **a7/ai_services/models.py**: 模型定义，包含WebhookConfig（webhook配置）和WebhookCallLog（调用日志）模型，实现与外部服务集成和调用记录功能。
-- **a7/ai_services/urls.py**: URL路由配置，定义AI服务的API端点路径。
-- **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类，处理webhook请求并转发至n8n服务，使用标准化的响应格式。在接收到课程生成结果后，会调用`a7/ai_services/services/knowledge_converter.py`将结果持久化。
+- **a7/ai_services/urls.py**: URL路由配置，定义AI服务的API端点路径，包含StudentDialogueViewSet的路由注册。
+- **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类和StudentDialogueViewSet视图集，处理webhook请求、学生对话请求，并转发至n8n服务，使用标准化的响应格式。
+- **a7/ai_services/README.md**: AI服务应用文档，包含服务概述、配置说明、API使用示例、Webhook配置管理、错误处理和学生助手对话API的详细使用说明。
 - **a7/ai_services/services/knowledge_converter.py**: 负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
 - **a7/ai_services/services/question_export.py**: 问题导出工具类，提供将AI生成的问题导出为JSON和CSV格式的功能。实现了优雅的文件名生成、Unicode字符处理和大型数据集优化。包含QuestionExporter类，提供export_as_json、export_as_csv和通用export_questions方法。
-- **a7/ai_services/services/knowledge_to_ppt.py**: 知识点到PPT转换服务实现，包含KnowledgePointToPPTService类，提供完整的知识点到PPT转换功能，主要方法包括fetch_knowledge_points_hierarchy（获取知识点及其子知识点的层级结构）、generate_markdown_from_knowledge_points（根据知识点数据生成Markdown）、validate_and_convert_markdown（验证Markdown并调用marp服务转换为演示文稿）和process_knowledge_points_to_ppt（处理完整流程）。该服务处理知识点层级结构，生成适合marp转换的Markdown，并调用marp_service模块将Markdown转换为指定格式的演示文稿。
+- **a7/ai_services/services/base.py**: 服务基类定义，提供共享的服务功能和接口。
+- **a7/ai_services/services/question_format.py**: 问题格式化工具，提供标准化问题格式的功能。
 
 ### n8n Webhook服务文件
 
-- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。还实现了问题生成的便捷方法（generate_questions和generate_questions_sync）。
+- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。还实现了问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。
 - **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，包括N8nWebhookError基类、N8nConnectionError（连接错误）、N8nTimeoutError（超时错误）、N8nResponseError（响应错误）以及请求/响应验证相关的异常。
-- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）。
+- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）和学生对话相关的数据模型（DialogueRequestData、DialogueResource、DialogueResponseData）。
 
 ### AI服务测试文件
 
@@ -287,12 +200,12 @@ a7/                           # 项目根目录
 - **a7/ai_services/tests/test_formats.py**: n8n webhook数据格式(Pydantic模型)的单元测试。
 - **a7/ai_services/tests/test_knowledge_converter.py**: knowledge_converter模块的单元测试，验证JSON到Django模型的转换逻辑、数据验证、递归深度限制和数据库操作的原子性（事务回滚）。
 - **a7/ai_services/tests/test_n8n_service.py**: n8n Webhook服务的异步测试实现。包含使用模拟(mock)数据的单元测试和针对真实n8n环境的集成测试，以验证端到端的功能。
+- **a7/ai_services/tests/test_question_format.py**: 问题格式化工具的单元测试。
+- **a7/ai_services/tests/test_real_n8n_integration.py**: 与真实n8n服务的集成测试。
+- **a7/ai_services/tests/test_student_dialogue.py**: 学生对话API的单元测试，包含序列化器测试、数据模型测试和API端点测试，使用模拟对象替代真实的n8n服务。
+- **a7/ai_services/tests/test_student_dialogue_integration.py**: 学生对话API的集成测试，包含与真实n8n服务的交互测试和错误处理测试，验证单轮对话和多轮对话功能。
 - **a7/ai_services/tests/test_views_integration.py**: N8nWebhookAPIView的集成测试，验证从API接收请求到数据持久化的完整流程。
-- **a7/ai_services/tests/test_knowledge_to_ppt_api.py**: 知识点到PPT转换API测试文件，包含三个主要测试类：KnowledgePointToPPTSerializerTests（测试序列化器的验证逻辑）、KnowledgePointToPPTServiceTests（测试服务类的各项功能，包括知识点层次结构获取、Markdown生成和文件转换）和KnowledgePointToPPTAPITests（测试API端点的请求处理和响应生成）。测试涵盖正常场景和各种错误情况处理。
-- **a7/ai_services/tests/test_knowledge_to_ppt_real.py**: 知识点到PPT转换真实场景测试，创建真实的知识点数据（包括Python编程基础课程及其层级知识点结构），并调用API生成实际的PPTX文件，验证整个功能链路的正确性。生成的PPTX文件被保存到pptx_output目录以便查看和验证。
-- **a7/ai_services/tests/test_knowledge_to_ppt_conversion.py**: 知识点到PPT转换服务的单元测试，验证`validate_and_convert_markdown`方法的功能，包括：有效Markdown内容处理、无效Markdown的验证和修复、不同输出格式支持（PDF/PPTX/HTML）、不同主题支持、异常处理等。使用mock模拟依赖服务，确保测试的隔离性和可靠性。
-- **a7/ai_services/tests/test_knowledge_to_ppt_integration.py**: 知识点到PPT转换功能的完整流程集成测试，从创建测试课程和知识点开始，验证知识点层级结构获取、Markdown生成和PPT转换的完整过程。测试场景包括：知识点层次结构获取、Markdown生成、Markdown转换为PPT，以及process_knowledge_points_to_ppt方法的端到端测试。使用临时目录和环境覆盖来确保测试的可复现性和清理。
-- **a7/run_markdown_to_ppt_tests.py**: 知识点到PPT转换测试运行脚本，用于自动化执行单元测试和集成测试，提供日志记录和测试结果分析。设计为独立运行或集成到CI/CD流程中，支持完整项目测试或针对PPT转换功能的特定测试。
+- **a7/ai_services/tests/run_student_dialogue_tests.py**: 学生对话测试运行脚本，提供便捷的方式运行单元测试和集成测试。
 
 ### pytest配置文件
 
@@ -501,19 +414,21 @@ a7/                           # 项目根目录
 
 14. **AI服务系统**:
     - `a7/ai_services/models.py`定义了webhook配置和调用日志的核心数据模型。
-    - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。还提供问题生成的便捷方法（generate_questions和generate_questions_sync）。
+    - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。还提供问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。
     - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
-    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）。
-    - `a7/ai_services/views.py`中的N8nWebhookAPIView权限类已设置为[AllowAny]，允许无需认证即可访问。
+    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）和学生对话相关的数据模型（DialogueRequestData、DialogueResource、DialogueResponseData）。
+    - `a7/ai_services/views.py`中的N8nWebhookAPIView权限类已设置为[AllowAny]，允许无需认证即可访问。新增StudentDialogueViewSet视图集，处理学生对话请求，权限设置为[AllowAny]，允许学生无需认证即可使用。
     - `a7/ai_services/services/knowledge_converter.py`负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
     - `a7/ai_services/services/question_export.py`提供导出工具，将问题数据转换为标准格式（JSON、CSV），支持文件命名和Unicode处理。
-    - `a7/ai_services/urls.py`将API视图与URL路径映射。
+    - `a7/ai_services/urls.py`将API视图与URL路径映射，注册StudentDialogueViewSet提供'/api/student-dialogue/'端点。
     - `a7/courses/views.py`中的QuestionGenerationViewSet实现问题生成API端点，接收知识点ID、问题类型和数量等参数，调用n8n服务生成问题并返回标准化响应。
-    - `a7/courses/serializers.py`中的QuestionGenerationSerializer负责问题生成API的请求参数验证。
+    - `a7/courses/serializers.py`中的QuestionGenerationSerializer负责问题生成API的请求参数验证。新增StudentDialogueSerializer负责学生对话API的请求参数验证。
     - `a7/courses/urls.py`注册QuestionGenerationViewSet，提供'/api/questions-generate/'端点。
     - `a7/courses/tests_api_questions.py`提供问题生成API的全面测试，验证功能完整性、参数验证和权限控制。
     - `a7/ai_services/tests/conftest.py`配置异步测试环境，提供共享事件循环和测试固件。
     - `a7/ai_services/api_response.py`提供标准化API响应的辅助函数。
+    - `a7/ai_services/README.md`提供AI服务的详细文档，包括学生助手对话API的使用说明、请求/响应格式和测试方法。
+    - `a7/ai_services/tests/test_student_dialogue.py`和`a7/ai_services/tests/test_student_dialogue_integration.py`提供学生对话API的单元测试和集成测试，验证功能完整性、错误处理和与真实n8n服务的集成。
 
 15. **问题生成系统**:
     - `a7/ai_services/services/n8n_webhook/formats.py`中的QuestionData模型定义问题数据结构，支持多种题型（如简答题、选择题）和不同格式的答案模板（字符串或列表）。
@@ -595,6 +510,22 @@ a7/                           # 项目根目录
    - `api_test_runner.py`端到端测试脚本，提供自动化测试流程，验证直接下载功能在不同格式(PPTX/PDF/HTML)下的正确性和性能表现。
    - 系统支持根据客户端需求选择两种不同的响应模式：直接下载（适合浏览器端使用）和文件URL/Base64内容返回（适合程序化调用）。
    - 直接下载功能在性能测试中表现良好，PPTX格式初始生成约需30秒，而PDF和HTML格式通常在2秒内完成，文件大小分别约为560KB(PPTX)、150KB(PDF)和106KB(HTML)。
+
+19. **学生助手对话系统**:
+    - `a7/ai_services/views.py`中的StudentDialogueViewSet视图集处理学生对话请求，提供API端点接收学生查询并返回AI助手回答。
+    - `a7/ai_services/services/n8n_webhook/client.py`中的dialogue_with_student和dialogue_with_student_sync方法提供异步和同步的学生对话功能。
+    - `a7/ai_services/services/n8n_webhook/formats.py`中的DialogueRequestData和DialogueResponseData模型定义学生对话的请求和响应数据结构，支持会话ID跟踪多轮对话。
+    - `a7/courses/serializers.py`中的StudentDialogueSerializer验证学生对话请求参数，确保查询文本有效。
+    - `a7/ai_services/urls.py`注册StudentDialogueViewSet，提供'/api/student-dialogue/'端点，实现RESTful API接口。
+    - `a7/ai_services/tests/test_student_dialogue.py`包含全面的单元测试用例，验证学生对话API的功能完整性、参数验证和错误处理。
+    - `a7/ai_services/tests/test_student_dialogue_integration.py`提供与真实n8n服务的集成测试，验证单轮对话和多轮对话功能。
+    - `a7/ai_services/README.md`提供学生助手对话API的详细文档，包括请求/响应格式、多轮对话使用方法和测试说明。
+    - 学生对话系统与n8n服务集成，通过AI模型提供智能回答，支持教育场景中的学生辅助功能。
+    - 系统设计支持多轮对话，通过会话ID跟踪对话上下文，提供连贯的交互体验。
+    - 响应数据结构包含主要答案、相关资源和后续问题建议，丰富学生的学习体验。
+    - 系统实现了完整的错误处理机制，包括参数验证错误、n8n服务错误和一般异常处理。
+    - API端点设置为允许匿名访问，便于学生无需认证即可使用对话功能。
+    - 使用标准化的API响应格式，确保前端应用能够依赖统一的数据结构。
 
 ## 目录组织逻辑
 
@@ -733,6 +664,16 @@ a7/                           # 项目根目录
 
 9. **知识点到PPT转换API**:
    - `/api/knowledge-points-to-ppt/` - 知识点转PPT演示文稿端点，接收知识点ID列表并返回演示文稿（支持URL或Base64编码的文件内容）
+
+10. **学生助手对话API**:
+   - `/api/student-dialogue/` - 学生助手对话端点，接收学生查询并返回AI助手回答
+   - 支持POST方法，接收查询文本、会话ID和可选上下文
+   - 不需要认证（AllowAny权限类），允许学生无需登录即可使用
+   - 支持多轮对话，通过会话ID跟踪对话上下文
+   - 返回标准化的API响应，包含答案、相关资源和后续问题建议
+   - 提供丰富的错误处理，包括参数验证错误、n8n服务错误和一般异常处理
+   - 与n8n工作流自动化工具集成，支持AI模型驱动的智能回答
+   - 响应包含会话ID，便于客户端进行后续对话
 
 ## 练习与评测系统
 

@@ -1,19 +1,38 @@
+"""
+课程应用的URL配置
+"""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views
 
-# 创建路由并注册视图集
+from .views import (
+    CourseViewSet,
+    KnowledgePointViewSet,
+    CoursewareViewSet,
+    ExerciseViewSet,
+    StudentAnswerViewSet,
+    QuestionGenerationViewSet,
+    KnowledgePointToPPTViewSet
+)
+
+from ai_services.views import (
+    CourseContentGenerationViewSet,
+    StudentDialogueViewSet
+)
+
+# 创建一个路由器并注册我们的视图集
 router = DefaultRouter()
-router.register(r'courses', views.CourseViewSet)
-router.register(r'knowledge-points', views.KnowledgePointViewSet)
-router.register(r'courseware', views.CoursewareViewSet)
-router.register(r'course-generate', views.CourseContentGenerationViewSet, basename='course-generate')
-router.register(r'questions-generate', views.QuestionGenerationViewSet, basename='questions-generate')
-router.register(r'exercises', views.ExerciseViewSet)
-router.register(r'student-answers', views.StudentAnswerViewSet)
-router.register(r'knowledge-points-to-ppt', views.KnowledgePointToPPTViewSet, basename='knowledge-points-to-ppt')
+router.register(r'courses', CourseViewSet)
+router.register(r'knowledge-points', KnowledgePointViewSet)
+router.register(r'courseware', CoursewareViewSet)
+router.register(r'exercises', ExerciseViewSet)
+router.register(r'student-answers', StudentAnswerViewSet)
+router.register(r'knowledge-points-to-ppt', KnowledgePointToPPTViewSet, basename='knowledge-points-to-ppt')
 
-# 生成URL配置
+# 注册AI服务相关视图集
+router.register(r'generate-course', CourseContentGenerationViewSet, basename='generate-course')
+router.register(r'generate-questions', QuestionGenerationViewSet, basename='generate-questions')
+router.register(r'student-dialogue', StudentDialogueViewSet, basename='student-dialogue')
+
 urlpatterns = [
     path('', include(router.urls)),
 ] 

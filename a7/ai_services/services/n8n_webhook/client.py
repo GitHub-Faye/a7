@@ -251,72 +251,96 @@ class N8nWebhookClient:
     
     async def generate_course_content(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成课程内容的异步方法
+        生成课程内容的便捷方法
         
         Args:
-            request_data: 课程生成请求数据，包含课程名称、章节数等
-                
+            request_data: 包含课程名称、描述等信息的请求数据
+            
         Returns:
-            Dict[str, Any]: 生成的课程内容，包含课程信息和知识点层级结构
+            Dict[str, Any]: 生成的课程内容
         """
-        return await self.process_ai_task("courseGeneration", request_data)
-
+        return await self.process_ai_task('courseGeneration', request_data)
+    
     def generate_course_content_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成课程内容的同步方法
+        生成课程内容的便捷方法（同步版本）
         
         Args:
-            request_data: 课程生成请求数据，包含课程名称、章节数等
-                
+            request_data: 包含课程名称、描述等信息的请求数据
+            
         Returns:
-            Dict[str, Any]: 生成的课程内容，包含课程信息和知识点层级结构
+            Dict[str, Any]: 生成的课程内容
         """
         return asyncio.run(self.generate_course_content(request_data))
-        
+    
     async def generate_questions(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         生成问题的便捷方法
         
         Args:
-            request_data: 包含知识点ID、问题类型和数量等的请求数据
+            request_data: 包含知识点ID、问题类型和数量等信息的请求数据
             
         Returns:
-            生成的问题列表
+            Dict[str, Any]: 生成的问题列表
         """
         return await self.process_ai_task('questionGeneration', request_data)
-
+    
     def generate_questions_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成问题的同步便捷方法
+        生成问题的便捷方法（同步版本）
         
         Args:
-            request_data: 包含知识点ID、问题类型和数量等的请求数据
+            request_data: 包含知识点ID、问题类型和数量等信息的请求数据
             
         Returns:
-            生成的问题列表
+            Dict[str, Any]: 生成的问题列表
         """
         return asyncio.run(self.generate_questions(request_data))
-
+    
     async def generate_markdown_from_knowledge(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        从知识点数据生成Markdown的异步方法
+        从知识点数据生成Markdown的便捷方法
         
         Args:
-            request_data: 包含知识点数据的请求数据
+            request_data: 包含知识点数据和配置选项的请求数据
             
         Returns:
             Dict[str, Any]: 包含生成Markdown的响应数据
         """
-        return await self.process_ai_task("knowledgeToMarkdown", request_data)
-
+        return await self.process_ai_task('knowledgeToMarkdown', request_data)
+    
     def generate_markdown_from_knowledge_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        从知识点数据生成Markdown的同步方法
+        从知识点数据生成Markdown的便捷方法（同步版本）
         
         Args:
-            request_data: 包含知识点数据的请求数据
+            request_data: 包含知识点数据和配置选项的请求数据
             
         Returns:
             Dict[str, Any]: 包含生成Markdown的响应数据
         """
-        return asyncio.run(self.generate_markdown_from_knowledge(request_data)) 
+        return asyncio.run(self.generate_markdown_from_knowledge(request_data))
+        
+    async def dialogue_with_student(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        处理学生对话请求的便捷方法
+        
+        Args:
+            request_data: 包含学生查询文本和会话ID的请求数据
+            
+        Returns:
+            Dict[str, Any]: 包含AI助手回答的响应数据
+        """
+        return await self.process_ai_task('studentDialogue', request_data)
+    
+    def dialogue_with_student_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        处理学生对话请求的便捷方法（同步版本）
+        
+        Args:
+            request_data: 包含学生查询文本和会话ID的请求数据
+            
+        Returns:
+            Dict[str, Any]: 包含AI助手回答的响应数据
+        """
+        return asyncio.run(self.dialogue_with_student(request_data)) 

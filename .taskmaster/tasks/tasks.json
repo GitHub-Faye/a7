@@ -596,7 +596,7 @@
         "id": 16,
         "title": "Develop Automated Knowledge Point to PPT Conversion Module",
         "description": "Implement a module to automate the conversion of knowledge points (with hierarchical structure) into PPT presentations by leveraging AI for Markdown generation and marp-cli for conversion, ensuring input simplicity and output quality.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           13,
           15
@@ -670,11 +670,82 @@
             "parentTaskId": 16
           }
         ]
+      },
+      {
+        "id": 17,
+        "title": "Create Student Assistant Module with AI Dialogue and Exercise Generation",
+        "description": "Develop a student assistant module that leverages n8n's AI service for dialogue and generates exercises on demand without database persistence, including answer correction functionality.",
+        "details": "1. **AI Dialogue Integration**: Utilize n8n's AI service to enable conversational interactions with students. Implement an API endpoint to handle student queries and forward them to the AI service, ensuring responses are contextually relevant and formatted appropriately.\n2. **Exercise Generation**: Develop functionality to generate exercises based on student requests (e.g., topic, difficulty). Use the AI-powered question generation module (Task 13) to create exercises dynamically, ensuring they are not persisted in the database.\n3. **Answer Correction**: Implement logic to evaluate student-submitted answers against the generated exercises. Leverage the AI service to provide feedback or corrections, ensuring accuracy and helpfulness.\n4. **Temporary Data Handling**: Design the module to manage temporary data (e.g., generated exercises, student answers) in memory or transient storage, avoiding database persistence.\n5. **Error Handling**: Ensure robust error handling for AI service failures, invalid inputs, or unexpected student interactions.",
+        "testStrategy": "1. **Unit Testing**:\n   - Test the AI dialogue endpoint with various student queries to verify correct forwarding and response handling.\n   - Validate exercise generation logic with different parameters (e.g., topics, difficulty levels).\n   - Test answer correction functionality with correct and incorrect student submissions.\n2. **Integration Testing**:\n   - Simulate a full student interaction flow, including querying the assistant, generating exercises, and submitting answers for correction.\n   - Verify temporary data is not persisted in the database.\n3. **Error Testing**:\n   - Test error handling for scenarios like AI service downtime or invalid student inputs.",
+        "status": "pending",
+        "dependencies": [
+          13,
+          14
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set Up AI Dialogue API Endpoint",
+            "description": "Create an API endpoint to handle student queries and integrate with n8n's AI service for conversational responses.",
+            "dependencies": [],
+            "details": "Implement the endpoint to receive student queries, forward them to the AI service, and return contextually relevant responses.\n<info added on 2025-07-11T03:00:04.844Z>\nAdded integration tests with real AI service:\n1. Created test_student_dialogue_integration.py containing:\n   - test_real_dialogue_integration for basic dialogue functionality\n   - test_real_dialogue_without_session_id for auto-generated session IDs\n   - test_real_dialogue_multi_turn for multi-turn conversation testing\n   - test_direct_client_dialogue using N8nWebhookClient directly\n\n2. Created run_student_dialogue_integration_tests.py script for manual test execution:\n   - Supports running all or specific tests\n   - Automatically removes @unittest.skip decorators\n   - Provides detailed test output\n\nTests are marked with @unittest.skip by default to avoid running in regular test suites since they require valid API keys and available AI service. The run_student_dialogue_integration_tests.py script should be used when manual verification of real AI service integration is needed.\n</info added on 2025-07-11T03:00:04.844Z>\n<info added on 2025-07-11T03:18:10.097Z>\n实现了学生助手AI对话API端点，允许学生与AI助手进行对话交互。创建了必要的数据模型：DialogueRequestData、DialogueResponseData和DialogueResource。在N8nWebhookClient中添加了dialogue_with_student相关方法。实现了StudentDialogueViewSet处理API请求，支持匿名访问。添加了会话ID管理功能以支持多轮对话。修复了与n8n服务的集成问题，确保使用正确的参数名称（chatInput而非query）。实现了完善的错误处理和响应格式化机制。编写了全面的测试用例，包括单元测试和集成测试。添加了详细的API文档到README.md。所有测试用例均已通过验证。\n</info added on 2025-07-11T03:18:10.097Z>",
+            "status": "done",
+            "testStrategy": "Test the endpoint with various query types to ensure proper integration and response formatting."
+          },
+          {
+            "id": 2,
+            "title": "Develop Exercise Generation Logic",
+            "description": "Implement functionality to dynamically generate exercises based on student requests using the AI-powered question generation module.",
+            "dependencies": [],
+            "details": "Leverage Task 13's module to create exercises on demand, ensuring they are not persisted in the database.",
+            "status": "pending",
+            "testStrategy": "Validate exercise generation with different topics and difficulty levels to ensure correctness and variety."
+          },
+          {
+            "id": 3,
+            "title": "Implement Answer Correction Mechanism",
+            "description": "Develop logic to evaluate student-submitted answers against generated exercises using the AI service.",
+            "dependencies": [
+              2
+            ],
+            "details": "Use the AI service to provide feedback or corrections, ensuring accuracy and helpfulness in responses.",
+            "status": "pending",
+            "testStrategy": "Test with various correct and incorrect answers to verify feedback accuracy."
+          },
+          {
+            "id": 5,
+            "title": "Integrate Robust Error Handling",
+            "description": "Ensure the module handles errors gracefully, including AI service failures and invalid inputs.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Implement error handling for API failures, invalid student interactions, and unexpected scenarios.",
+            "status": "pending",
+            "testStrategy": "Simulate errors to ensure the system responds appropriately and provides useful feedback."
+          },
+          {
+            "id": 6,
+            "title": "Test and Validate Full Module Integration",
+            "description": "Conduct comprehensive testing of the entire student assistant module to ensure all components work together seamlessly.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              5
+            ],
+            "details": "Test dialogue integration, exercise generation, answer correction, and error handling as a unified system.",
+            "status": "pending",
+            "testStrategy": "Perform end-to-end testing with real-world scenarios to validate functionality and user experience."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-11T01:34:46.849Z",
+      "updated": "2025-07-11T03:18:18.756Z",
       "description": "Tasks for master context"
     }
   }
