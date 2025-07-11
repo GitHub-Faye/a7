@@ -1,0 +1,158 @@
+# Task ID: 15
+# Title: Create Web API for marp-cli Markdown to Presentation Conversion
+# Status: done
+# Dependencies: 5, 6, 13
+# Priority: medium
+# Description: Develop a RESTful API that wraps marp-cli to convert Markdown content into various presentation formats (PDF, PPTX, HTML, PNG) with optional themes and proper error handling.
+# Details:
+1. **Dependency Installation**: Install marp-cli as a project dependency using npm or yarn.
+2. **Service Layer**: Implement a Python service layer to interact with marp-cli via subprocess calls. This layer should handle:
+   - Command-line argument construction for marp-cli (e.g., output format, theme).
+   - Temporary file management (create input Markdown files and clean up after conversion).
+3. **API Design**: Design REST API endpoints with the following specifications:
+   - POST `/convert`: Accepts Markdown content, output format (PDF, PPTX, HTML, PNG), and optional theme.
+   - Validates input parameters and returns appropriate HTTP status codes for errors.
+4. **File Handling**: Implement logic to:
+   - Create temporary Markdown files from input content.
+   - Execute marp-cli to generate the output file.
+   - Clean up temporary files post-conversion.
+5. **Response Handling**: Return the converted file as a downloadable response with the correct MIME type.
+
+**Considerations**:
+- Ensure thread safety for concurrent API requests.
+- Handle large file uploads efficiently.
+- Implement rate limiting if necessary.
+
+# Test Strategy:
+1. **Unit Tests**:
+   - Test the Python service layer for correct command-line argument generation and file handling.
+   - Verify temporary file creation and cleanup.
+2. **Integration Tests**:
+   - Simulate API requests with various Markdown inputs, formats, and themes.
+   - Validate response headers and file correctness.
+3. **Error Handling**:
+   - Test invalid inputs (e.g., unsupported formats, malformed Markdown) and verify appropriate HTTP status codes.
+4. **Performance Tests**:
+   - Measure conversion time for large Markdown files.
+   - Check resource usage during concurrent requests.
+
+# Subtasks:
+## 1. Install and Configure marp-cli Dependency [done]
+### Dependencies: None
+### Description: Set up marp-cli as a project dependency and verify its installation.
+### Details:
+Use npm or yarn to install marp-cli globally or as a project dependency. Verify the installation by running a basic conversion command to ensure marp-cli is functional.
+<info added on 2025-07-07T07:07:55.131Z>
+- Successfully installed marp-cli using `npm install @marp-team/marp-cli --save`
+- Verified installation with version @marp-team/marp-cli v4.2.0 (w/ @marp-team/marp-core v4.1.0)
+- Dependency added to package.json, can be executed via `npx marp` command
+</info added on 2025-07-07T07:07:55.131Z>
+
+## 2. Implement Python Service Layer for marp-cli Interaction [done]
+### Dependencies: 15.1
+### Description: Create a Python service layer to handle marp-cli subprocess calls, command-line argument construction, and temporary file management.
+### Details:
+Develop Python functions to construct marp-cli commands based on input parameters (output format, theme). Implement temporary file creation for input markdown and cleanup post-conversion. Ensure thread safety for concurrent operations.
+<info added on 2025-07-07T07:56:51.629Z>
+Implemented Django application module marp_service with complete functionality:
+1. Module structure created via Django startapp with proper settings configuration
+2. Core components:
+   - exceptions.py: Custom error hierarchy (MarpServiceError, MarpCLIError, MarpFileError, MarpConversionError)
+   - utils.py: Format validation, MIME type mapping and extension conversion
+   - temp.py: MarpTempFileManager for temporary file handling
+   - cli.py: MarpCLIBuilder (fluent parameter builder) and MarpCLIExecutor (command execution)
+3. Public API methods:
+   - convert_markdown_to_format: Content conversion to PDF/PPTX/HTML/PNG
+   - convert_file_to_format: File-based conversion
+4. Comprehensive unit tests covering:
+   - CLI parameter building and validation
+   - Command execution and error handling
+   - Temporary file management
+All tests passing with full functionality accessible through Django application.
+</info added on 2025-07-07T07:56:51.629Z>
+<info added on 2025-07-07T10:10:37.289Z>
+已完成对Windows环境的支持改进：
+
+1. 修改了CLI执行器以适应Windows环境：
+   - 添加了对Windows平台的检测（使用sys.platform == 'win32'）
+   - 在Windows环境下自动在命令前添加"cmd /c"前缀
+   - 修改了命令执行逻辑，确保在Windows下正确使用shell=True参数
+
+2. 增强了PNG输出格式在Windows环境下的处理：
+   - 在Windows上，marp-cli无法直接将PNG输出到目录，需要指定具体文件名
+   - 添加了特殊逻辑检测目录输出路径并自动添加文件名
+
+3. 添加了全面的集成测试：
+   - 创建了新的test_integration.py测试文件，使用真实的marp-cli工具
+   - 实现了对所有输出格式的测试（PDF、PPTX、HTML、PNG）
+   - 添加了平台特定的测试跳过标记，确保测试在不同环境中都能正确运行
+   - 对临时文件生成和主题应用进行了测试
+
+所有测试都已通过，服务层现在可以在Windows和Linux/Mac环境中无缝工作。
+</info added on 2025-07-07T10:10:37.289Z>
+<info added on 2025-07-07T13:43:56.816Z>
+已解决Windows环境下marp-cli工具的集成测试问题：
+
+1. 问题分析：
+   - 在Django测试环境中执行marp命令失败，但在普通Python脚本中可以正常执行
+   - 这是因为Django测试环境使用的子进程环境变量不同于交互式终端
+
+2. 解决方案：
+   - 修改了MarpCLIExecutor类，使用"npx @marp-team/marp-cli"命令代替简单的"marp"命令
+   - 在Windows环境下使用"cmd /c"前缀确保命令正确执行
+   - 简化了命令执行逻辑，统一使用字符串形式的命令和shell=True参数
+
+3. 测试验证：
+   - 创建了独立的test_simple.py脚本验证不同调用方式的可行性
+   - 确认所有三种方式（直接marp命令、完整路径、npx调用）在普通环境中都能正常工作
+   - 修改后的代码在Windows环境下可以正确执行marp命令并生成PDF文件
+
+4. 最终实现：
+   - 使用settings.MARP_CLI_PATH配置项允许灵活设置marp命令路径
+   - 默认使用"npx @marp-team/marp-cli"作为最通用的调用方式
+   - 适配了Windows环境的特殊处理需求
+</info added on 2025-07-07T13:43:56.816Z>
+
+## 3. Design and Implement REST API Endpoints [done]
+### Dependencies: 15.2
+### Description: Create RESTful API endpoints to accept conversion requests and return appropriate responses.
+### Details:
+Design a POST `/convert` endpoint that accepts markdown content, output format, and optional theme. Implement input validation and return proper HTTP status codes for errors. Ensure the API can handle large file uploads efficiently.
+<info added on 2025-07-08T01:55:00.593Z>
+REST API endpoint for Marp conversion successfully implemented with the following components:
+
+1. Input validation through MarpConversionSerializer class:
+   - Validates markdown content, output format (pdf/pptx/html/png) and optional theme
+   - Includes format and theme validation logic
+
+2. MarpConversionView view class implementation:
+   - Handles POST requests to /api/marp/convert endpoint
+   - Uses serializer for input validation
+   - Calls existing marp_service for conversion
+   - Returns converted file with proper MIME type in HTTP response
+
+3. URL routing configuration:
+   - API endpoint added to marp_service/urls.py
+   - Integrated with main URL configuration
+
+4. Testing strategy implemented:
+   - Serializer tests for input validation
+   - View unit tests using mock service
+   - Integration test scripts for full API functionality
+
+5. Swagger documentation integration:
+   - Detailed API documentation including operation descriptions
+   - Request parameter specifications, response formats and examples
+
+Integration tests confirm all conversion formats (PDF, PPTX, HTML, PNG) work correctly with proper error handling. API endpoint meets all design requirements.
+</info added on 2025-07-08T01:55:00.593Z>
+
+## 4. Implement File Conversion and Download Logic [done]
+### Dependencies: 15.3
+### Description: Add logic to convert markdown to the requested format and return the file as a downloadable response.
+### Details:
+Use the Python service layer to execute marp-cli conversions. Implement logic to return the converted file with correct MIME types (e.g., application/pdf for PDF). Ensure temporary files are cleaned up after conversion.
+<info added on 2025-07-08T02:58:17.514Z>
+文件转换和下载功能已完整实现，支持Markdown到PDF/PPTX/HTML/PNG的格式转换。实现包括：MarpConversionView的post方法处理完整转换流程，FileResponse设置正确MIME类型（如application/pdf），配置下载文件名和Content-Disposition头，全面的错误处理（415/500状态码），临时文件清理机制，以及详细的转换日志记录。功能已在Windows和Linux/Mac环境通过测试。
+</info added on 2025-07-08T02:58:17.514Z>
+

@@ -1,0 +1,202 @@
+# Task ID: 16
+# Title: Develop Automated Knowledge Point to PPT Conversion Module
+# Status: pending
+# Dependencies: 13, 15
+# Priority: medium
+# Description: Implement a module to automate the conversion of knowledge points (with hierarchical structure) into PPT presentations by leveraging AI for Markdown generation and marp-cli for conversion, ensuring input simplicity and output quality.
+# Details:
+1. **Input Interface**: Design a user-friendly API endpoint to accept knowledge points with course, title, content, and parent relationships, ensuring the interface is intuitive and well-documented.
+2. **AI Integration**: Utilize the existing AI service (Task 13) to generate hierarchical Markdown content from the structured knowledge points, preserving parent-child relationships in the output.
+3. **Markdown Validation**: Implement validation to ensure the generated Markdown meets marp-cli's specifications while maintaining the knowledge point hierarchy in the presentation structure.
+4. **PPT Conversion**: Use the marp-cli Web API (Task 15) to convert the validated hierarchical Markdown into a PPT presentation, handling file generation and cleanup.
+5. **Visual Enhancements**: Ensure the final PPT properly represents hierarchical relationships through appropriate styling.
+6. **Error Handling**: Implement robust error handling for each step with special attention to hierarchical validation.
+
+# Test Strategy:
+1. **Unit Testing**:
+   - Test the input interface with various knowledge point structures (including hierarchical relationships).
+   - Verify the AI-generated Markdown preserves hierarchy while adhering to marp-cli syntax rules.
+2. **Integration Testing**:
+   - Simulate the full workflow with hierarchical knowledge points to ensure proper conversion through all steps.
+   - Validate the representation of hierarchy in the generated PPT.
+3. **Edge Case Testing**:
+   - Test with incomplete hierarchies.
+   - Verify the system handles deep nesting efficiently without performance degradation.
+
+# Subtasks:
+## 1. Design Input Interface API [done]
+### Dependencies: None
+### Description: Create a user-friendly API endpoint to accept knowledge points with course, title, content, and parent relationships.
+### Details:
+Design an intuitive and well-documented API endpoint that handles the full KnowledgePoint model structure including hierarchical relationships.
+<info added on 2025-07-08T06:46:15.140Z>
+已完成知识点到PPT转换模块的输入接口API设计和实现：
+
+1. 设计并实现了KnowledgePointToPPTSerializer类，用于验证输入参数：
+   - 必需参数：knowledge_point_ids（知识点ID列表）
+   - 可选参数：include_children（是否包含子知识点）、max_depth（包含子知识点的最大深度）、format（输出格式）、theme（主题）等
+
+2. 实现了KnowledgePointToPPTService服务类，提供完整功能：
+   - fetch_knowledge_points_hierarchy：获取知识点层次结构
+   - generate_markdown_from_knowledge_points：生成Markdown
+   - validate_and_convert_markdown：验证并转换Markdown为演示文稿
+   - process_knowledge_points_to_ppt：完整处理流程
+
+3. 实现了KnowledgePointToPPTViewSet视图集：
+   - 处理客户端请求
+   - 验证输入参数
+   - 调用服务类完成转换
+   - 返回带文件URL的标准响应
+
+4. 添加了完整的错误处理机制：
+   - 验证错误（参数无效）
+   - 知识点不存在（ID无效）
+   - 处理/转换错误
+
+5. 实现了综合的测试套件，包括单元测试和集成测试：
+   - 序列化器测试：验证参数验证功能
+   - 服务类测试：验证所有核心功能
+   - API端点测试：验证HTTP请求处理
+   - 真实PPTX生成测试：验证端到端功能，成功生成837KB大小的实际演示文稿
+
+接口API已完全实现，支持通过POST请求到/api/knowledge-points-to-ppt/端点，接收知识点ID列表并返回生成的演示文稿文件URL。
+</info added on 2025-07-08T06:46:15.140Z>
+
+## 2. Integrate AI for Markdown Generation [done]
+### Dependencies: 16.1
+### Description: Utilize the existing AI service to generate hierarchical Markdown content from structured knowledge points.
+### Details:
+Leverage Task 13's AI service to convert structured knowledge points into Markdown, preserving hierarchy in marp-cli syntax.
+<info added on 2025-07-08T07:42:06.713Z>
+Implementation completed with the following details:
+- Added KnowledgeToMarkdownRequestData and KnowledgeToMarkdownResponseData classes in formats.py
+- Implemented generate_markdown_from_knowledge methods in client.py
+- Updated KnowledgePointToPPTSerializer with use_ai option
+- Integrated AI generation in KnowledgePointToPPTService with generate_markdown_using_ai method
+- Added automatic marp-cli syntax detection and repair
+- Developed comprehensive test cases covering normal/AI generation and fallback scenarios
+- Verified functionality maintains hierarchy and produces higher quality output than local generation
+- Confirmed successful end-to-end conversion from knowledge points to PPTX via AI-generated Markdown
+</info added on 2025-07-08T07:42:06.713Z>
+
+## 3. Implement Markdown Validation [done]
+### Dependencies: 16.2
+### Description: Validate the generated Markdown to meet marp-cli specifications while maintaining knowledge structure.
+### Details:
+Check Markdown for proper representation of hierarchy and other marp-cli requirements.
+<info added on 2025-07-08T08:50:23.710Z>
+Markdown验证功能已成功实现并通过完整测试。主要工作包括：开发MarkdownValidator类实现五项核心验证功能（前置元数据验证、幻灯片结构验证、标题层级验证、语法验证及自动修复）；优化知识点转Markdown生成逻辑（分隔符处理、幻灯片内容保证、子知识点处理）；建立完整测试套件（单元测试覆盖所有验证功能，集成测试验证全流程）；开发手动集成测试脚本marp_integration_test.py支持本地/AI双模式、多格式输出及日志记录。测试结果：所有单元测试通过，集成流程验证成功，验证器能有效识别修复常见问题（代码块未闭合、层级跳跃等），对本地和AI生成的Markdown均适用。功能完整实现，可标记为完成。
+</info added on 2025-07-08T08:50:23.710Z>
+
+## 4. Convert Markdown to PPT [done]
+### Dependencies: 16.3
+### Description: Use marp-cli Web API to convert validated hierarchical Markdown into a PPT presentation.
+### Details:
+Handle file generation and cleanup while preserving the knowledge structure in the output.
+<info added on 2025-07-08T09:26:17.794Z>
+KnowledgePointToPPTService implemented with validate_and_convert_markdown method supporting:
+- Markdown validation with auto-fix
+- Conversion to multiple formats (pptx/pdf/html)
+- Custom theme support
+- Error handling and logging
+
+Code improvements include:
+- Robust environment handling
+- Optimized file path and media URL processing
+- Detailed logging system
+
+Testing coverage:
+- Unit tests (test_knowledge_to_ppt_conversion.py)
+- Integration tests (test_knowledge_to_ppt_integration.py)
+- Test cases for valid/invalid markdown, output formats, themes and error scenarios
+
+Performance/stability features:
+- Efficient temp file management
+- Output directory verification
+- Edge case handling (None MEDIA_ROOT/MEDIA_URL)
+
+All tests passed, functionality verified under various conditions.
+</info added on 2025-07-08T09:26:17.794Z>
+
+## 5. Enhance PPT Visuals [done]
+### Dependencies: 16.4
+### Description: Apply visual enhancements that reflect knowledge point hierarchy.
+### Details:
+Configure marp-cli themes and settings to visually represent parent-child relationships.
+<info added on 2025-07-09T01:24:07.136Z>
+Successfully implemented PPT visual enhancement features to better reflect knowledge point hierarchy. Key implementations include:
+
+1. Created three theme styles: default theme, teaching theme, and minimalist theme
+2. Each theme offers multiple color scheme options including green, purple, etc.
+3. Achieved hierarchical visual representation between parent-child knowledge points:
+   - Parent knowledge points use larger, more prominent heading styles
+   - Child knowledge points use indentation and distinct visual styles
+   - Enhanced visual hierarchy through color coding
+4. All themes support multiple output formats: PPTX, PDF, and HTML
+5. Verified all visual enhancements function correctly through API testing
+
+Successfully tested style combinations:
+- Default theme + green scheme
+- Teaching theme + purple scheme
+- Minimalist theme + default color scheme
+
+All generated presentations correctly display knowledge point hierarchy, meeting visual enhancement requirements.
+</info added on 2025-07-09T01:24:07.136Z>
+
+## 6. 测试PPT生成后的直接下载功能 [done]
+### Dependencies: 16.4
+### Description: 实现并测试端到端流程，确保生成的PPT可以被用户直接下载，无需额外步骤
+### Details:
+1. 开发API端点，提供生成的PPT直接下载链接
+2. 实现前端接口调用生成并下载功能
+3. 确保下载URL安全且有效
+4. 添加文件存储与清理机制
+5. 测试不同浏览器下的下载兼容性
+<info added on 2025-07-11T00:43:31.054Z>
+1. 单元测试：
+   - 测试直接下载API端点的功能
+   - 验证生成的下载链接格式和有效性
+   - 测试文件存储和清理机制
+
+2. 集成测试：
+   - 测试完整的知识点选择->生成->下载流程
+   - 验证不同格式(PPTX/PDF/HTML)的下载功能
+   - 测试大型演示文稿的生成和下载性能
+
+3. 端到端测试：
+   - 在不同浏览器中测试下载功能（Chrome, Firefox, Safari, Edge）
+   - 模拟网络延迟情况下的下载性能
+   - 验证下载文件的完整性和可用性
+</info added on 2025-07-11T00:43:31.054Z>
+<info added on 2025-07-11T01:34:38.551Z>
+API端点增强：
+- KnowledgePointToPPTSerializer新增direct_download和filename字段
+- KnowledgePointToPPTViewSet视图集实现直接下载功能
+- 支持内容类型识别和自定义文件名
+
+单元测试开发：
+- 创建test_knowledge_to_ppt_direct_download.py测试文件
+- 实现4个测试用例：直接下载响应、自定义文件名、不同格式内容类型、文件不存在情况
+- 所有测试用例通过率100%
+
+前端测试页面：
+- 开发ppt_download_test.html测试页面
+- 支持多种下载方式选择（URL下载/直接下载/返回内容）
+- 实现自定义文件名和格式选择功能
+
+端到端测试：
+- 开发api_test_runner.py自动化测试脚本
+- 测试直接下载和Base64内容返回功能
+- 支持PPTX/PDF/HTML多种格式测试
+- 所有测试场景通过验证
+
+性能分析：
+- PPTX首次生成约30秒，后续转换1-3秒
+- 文件大小：PPTX 550KB，PDF 150KB，HTML 100KB
+- Base64与直接下载文件大小一致，数据完整性验证通过
+
+安全性：
+- 实现文件路径验证，防止路径遍历攻击
+- 完善错误处理机制，文件不存在时返回适当错误信息
+</info added on 2025-07-11T01:34:38.551Z>
+

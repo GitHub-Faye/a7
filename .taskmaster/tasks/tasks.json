@@ -596,7 +596,7 @@
         "id": 16,
         "title": "Develop Automated Knowledge Point to PPT Conversion Module",
         "description": "Implement a module to automate the conversion of knowledge points (with hierarchical structure) into PPT presentations by leveraging AI for Markdown generation and marp-cli for conversion, ensuring input simplicity and output quality.",
-        "status": "done",
+        "status": "pending",
         "dependencies": [
           13,
           15
@@ -657,13 +657,24 @@
             ],
             "details": "Configure marp-cli themes and settings to visually represent parent-child relationships.\n<info added on 2025-07-09T01:24:07.136Z>\nSuccessfully implemented PPT visual enhancement features to better reflect knowledge point hierarchy. Key implementations include:\n\n1. Created three theme styles: default theme, teaching theme, and minimalist theme\n2. Each theme offers multiple color scheme options including green, purple, etc.\n3. Achieved hierarchical visual representation between parent-child knowledge points:\n   - Parent knowledge points use larger, more prominent heading styles\n   - Child knowledge points use indentation and distinct visual styles\n   - Enhanced visual hierarchy through color coding\n4. All themes support multiple output formats: PPTX, PDF, and HTML\n5. Verified all visual enhancements function correctly through API testing\n\nSuccessfully tested style combinations:\n- Default theme + green scheme\n- Teaching theme + purple scheme\n- Minimalist theme + default color scheme\n\nAll generated presentations correctly display knowledge point hierarchy, meeting visual enhancement requirements.\n</info added on 2025-07-09T01:24:07.136Z>",
             "testStrategy": "Review PPT for proper visual representation of hierarchy."
+          },
+          {
+            "id": 6,
+            "title": "测试PPT生成后的直接下载功能",
+            "description": "实现并测试端到端流程，确保生成的PPT可以被用户直接下载，无需额外步骤",
+            "details": "1. 开发API端点，提供生成的PPT直接下载链接\n2. 实现前端接口调用生成并下载功能\n3. 确保下载URL安全且有效\n4. 添加文件存储与清理机制\n5. 测试不同浏览器下的下载兼容性\n<info added on 2025-07-11T00:43:31.054Z>\n1. 单元测试：\n   - 测试直接下载API端点的功能\n   - 验证生成的下载链接格式和有效性\n   - 测试文件存储和清理机制\n\n2. 集成测试：\n   - 测试完整的知识点选择->生成->下载流程\n   - 验证不同格式(PPTX/PDF/HTML)的下载功能\n   - 测试大型演示文稿的生成和下载性能\n\n3. 端到端测试：\n   - 在不同浏览器中测试下载功能（Chrome, Firefox, Safari, Edge）\n   - 模拟网络延迟情况下的下载性能\n   - 验证下载文件的完整性和可用性\n</info added on 2025-07-11T00:43:31.054Z>\n<info added on 2025-07-11T01:34:38.551Z>\nAPI端点增强：\n- KnowledgePointToPPTSerializer新增direct_download和filename字段\n- KnowledgePointToPPTViewSet视图集实现直接下载功能\n- 支持内容类型识别和自定义文件名\n\n单元测试开发：\n- 创建test_knowledge_to_ppt_direct_download.py测试文件\n- 实现4个测试用例：直接下载响应、自定义文件名、不同格式内容类型、文件不存在情况\n- 所有测试用例通过率100%\n\n前端测试页面：\n- 开发ppt_download_test.html测试页面\n- 支持多种下载方式选择（URL下载/直接下载/返回内容）\n- 实现自定义文件名和格式选择功能\n\n端到端测试：\n- 开发api_test_runner.py自动化测试脚本\n- 测试直接下载和Base64内容返回功能\n- 支持PPTX/PDF/HTML多种格式测试\n- 所有测试场景通过验证\n\n性能分析：\n- PPTX首次生成约30秒，后续转换1-3秒\n- 文件大小：PPTX 550KB，PDF 150KB，HTML 100KB\n- Base64与直接下载文件大小一致，数据完整性验证通过\n\n安全性：\n- 实现文件路径验证，防止路径遍历攻击\n- 完善错误处理机制，文件不存在时返回适当错误信息\n</info added on 2025-07-11T01:34:38.551Z>",
+            "status": "done",
+            "dependencies": [
+              4
+            ],
+            "parentTaskId": 16
           }
         ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-09T01:24:12.056Z",
+      "updated": "2025-07-11T01:34:46.849Z",
       "description": "Tasks for master context"
     }
   }

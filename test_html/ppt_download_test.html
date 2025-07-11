@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>PPT直接下载测试</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .progress {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .progress.visible {
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background-color: #eee;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #2ecc71;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        #result {
+            margin-top: 20px;
+            display: none;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        
+        #result.visible {
+            display: block;
+        }
+        
+        #result-content {
+            white-space: pre-wrap;
+            overflow-x: auto;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        #download-link-container {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        #download-link-container.visible {
+            display: block;
+        }
+        
+        #download-link {
+            display: inline-block;
+            background-color: #27ae60;
+            color: white;
+            padding: 8px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        
+        #download-link:hover {
+            background-color: #2ecc71;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>知识点到PPT下载测试</h1>
+        
+        <div class="form-group">
+            <label for="knowledge-ids">知识点ID（逗号分隔）:</label>
+            <input type="text" id="knowledge-ids" value="1,2,3">
+        </div>
+        
+        <div class="form-group">
+            <label for="format">格式:</label>
+            <select id="format">
+                <option value="pptx">PPTX</option>
+                <option value="pdf">PDF</option>
+                <option value="html">HTML</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="include-children">包含子知识点:</label>
+            <input type="checkbox" id="include-children" checked>
+        </div>
+        
+        <div class="form-group">
+            <label for="filename">文件名 (可选):</label>
+            <input type="text" id="filename" placeholder="知识点演示">
+        </div>
+        
+        <div class="form-group">
+            <label>下载方式:</label>
+            <div class="radio-group">
+                <div>
+                    <input type="radio" id="url-download" name="download-type" checked>
+                    <label for="url-download">URL下载</label>
+                </div>
+                
+                <div>
+                    <input type="radio" id="direct-download" name="download-type">
+                    <label for="direct-download">直接下载</label>
+                </div>
+                
+                <div>
+                    <input type="radio" id="base64-content" name="download-type">
+                    <label for="base64-content">返回内容(Base64)</label>
+                </div>
+            </div>
+        </div>
+        
+        <button id="generate-btn">生成并下载</button>
+        
+        <div id="progress" class="progress">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <div class="progress-text">准备中...</div>
+        </div>
+        
+        <div id="result">
+            <h3>结果:</h3>
+            <pre id="result-content"></pre>
+            <div id="download-link-container">
+                <a id="download-link" href="#" target="_blank">下载文件</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // API端点URL
+        const API_URL = '/api/knowledge-points-to-ppt/';
+        
+        // DOM元素
+        const knowledgeIdsInput = document.getElementById('knowledge-ids');
+        const formatSelect = document.getElementById('format');
+        const includeChildrenCheckbox = document.getElementById('include-children');
+        const filenameInput = document.getElementById('filename');
+        const urlDownloadRadio = document.getElementById('url-download');
+        const directDownloadRadio = document.getElementById('direct-download');
+        const base64ContentRadio = document.getElementById('base64-content');
+        const generateBtn = document.getElementById('generate-btn');
+        const progressElement = document.getElementById('progress');
+        const progressFill = document.querySelector('.progress-fill');
+        const progressText = document.querySelector('.progress-text');
+        const resultElement = document.getElementById('result');
+        const resultContent = document.getElementById('result-content');
+        const downloadLinkContainer = document.getElementById('download-link-container');
+        const downloadLink = document.getElementById('download-link');
+        
+        // 处理生成按钮点击
+        generateBtn.addEventListener('click', async () => {
+            try {
+                // 显示进度
+                showProgress('正在处理...');
+                
+                // 获取表单值
+                const knowledgePointIds = knowledgeIdsInput.value.split(',').map(id => parseInt(id.trim()));
+                const format = formatSelect.value;
+                const includeChildren = includeChildrenCheckbox.checked;
+                const filename = filenameInput.value.trim();
+                
+                // 确定下载模式
+                const directDownload = directDownloadRadio.checked;
+                const returnFileContent = base64ContentRadio.checked;
+                
+                // 准备请求数据
+                const requestData = {
+                    knowledge_point_ids: knowledgePointIds,
+                    format,
+                    include_children: includeChildren
+                };
+                
+                // 添加可选参数
+                if (filename) requestData.filename = filename;
+                if (directDownload) requestData.direct_download = true;
+                if (returnFileContent) requestData.return_file_content = true;
+                
+                // 发送API请求
+                if (directDownload) {
+                    // 直接下载模式 - 使用表单提交
+                    showProgress('正在下载...');
+                    
+                    // 创建表单并提交
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = API_URL;
+                    form.style.display = 'none';
+                    
+                    // 添加CSRF令牌
+                    const csrfToken = getCookie('csrftoken');
+                    if (csrfToken) {
+                        const csrfField = document.createElement('input');
+                        csrfField.type = 'hidden';
+                        csrfField.name = 'csrfmiddlewaretoken';
+                        csrfField.value = csrfToken;
+                        form.appendChild(csrfField);
+                    }
+                    
+                    // 添加数据字段
+                    for (const [key, value] of Object.entries(requestData)) {
+                        const field = document.createElement('input');
+                        field.type = 'hidden';
+                        field.name = key;
+                        field.value = typeof value === 'object' ? JSON.stringify(value) : value;
+                        form.appendChild(field);
+                    }
+                    
+                    // 添加表单到文档并提交
+                    document.body.appendChild(form);
+                    form.submit();
+                    
+                    // 显示结果
+                    setTimeout(() => {
+                        hideProgress();
+                        showResult({
+                            status: 'success',
+                            message: '直接下载已启动，请检查您的下载列表。'
+                        });
+                    }, 1000);
+                } else {
+                    // 常规API请求
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    // 处理响应
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        showProgress('已完成', 100);
+                        
+                        if (returnFileContent && data.data && data.data.file_content) {
+                            // 处理Base64编码的文件内容
+                            const fileContent = data.data.file_content;
+                            const fileName = data.data.filename;
+                            
+                            // 显示下载链接
+                            showResult(data);
+                            downloadLinkContainer.classList.add('visible');
+                            
+                            // 创建Blob并设置下载链接
+                            const contentType = getContentTypeByFormat(format);
+                            const blob = base64ToBlob(fileContent, contentType);
+                            const blobUrl = URL.createObjectURL(blob);
+                            
+                            downloadLink.href = blobUrl;
+                            downloadLink.download = fileName;
+                            downloadLink.textContent = `下载 ${fileName}`;
+                        } else {
+                            // 显示文件URL
+                            showResult(data);
+                            
+                            if (data.status === 'success' && data.data && data.data.file_url) {
+                                downloadLinkContainer.classList.add('visible');
+                                downloadLink.href = data.data.file_url;
+                                downloadLink.textContent = `下载 ${data.data.filename}`;
+                            }
+                        }
+                    } else {
+                        showResult({
+                            status: 'error',
+                            error: data.error || { message: '请求失败' }
+                        });
+                    }
+                    
+                    hideProgress();
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                hideProgress();
+                showResult({
+                    status: 'error',
+                    error: {
+                        message: '请求处理失败: ' + error.message
+                    }
+                });
+            }
+        });
+        
+        // 辅助函数
+        
+        function showProgress(message, percent = null) {
+            progressElement.classList.add('visible');
+            progressText.textContent = message;
+            
+            if (percent !== null) {
+                progressFill.style.width = `${percent}%`;
+            } else {
+                // 模拟进度
+                let width = 0;
+                const interval = setInterval(() => {
+                    if (width >= 90) {
+                        clearInterval(interval);
+                    } else {
+                        width += 5;
+                        progressFill.style.width = `${width}%`;
+                    }
+                }, 300);
+            }
+        }
+        
+        function hideProgress() {
+            setTimeout(() => {
+                progressElement.classList.remove('visible');
+                progressFill.style.width = '0%';
+            }, 1000);
+        }
+        
+        function showResult(data) {
+            resultElement.classList.add('visible');
+            resultContent.textContent = JSON.stringify(data, null, 2);
+            downloadLinkContainer.classList.remove('visible');
+        }
+        
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        
+        function base64ToBlob(base64, contentType) {
+            const byteCharacters = atob(base64);
+            const byteArrays = [];
+            
+            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                const slice = byteCharacters.slice(offset, offset + 512);
+                
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            
+            return new Blob(byteArrays, { type: contentType });
+        }
+        
+        function getContentTypeByFormat(format) {
+            const contentTypes = {
+                'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'pdf': 'application/pdf',
+                'html': 'text/html'
+            };
+            
+            return contentTypes[format] || 'application/octet-stream';
+        }
+    </script>
+</body>
+</html> 

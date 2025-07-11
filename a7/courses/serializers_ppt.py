@@ -80,6 +80,21 @@ class KnowledgePointToPPTSerializer(serializers.Serializer):
         help_text="是否直接返回文件内容（Base64编码），而不是URL，默认为false"
     )
     
+    # 新增字段：direct_download
+    direct_download = serializers.BooleanField(
+        default=False,
+        required=False,
+        help_text="是否直接下载文件而非返回URL，默认为false"
+    )
+    
+    # 新增字段：filename
+    filename = serializers.CharField(
+        max_length=255,
+        required=False,
+        allow_blank=True,
+        help_text="自定义下载文件名（不含扩展名），可选"
+    )
+    
     def validate_knowledge_point_ids(self, value):
         """
         验证知识点ID列表，检查ID是否有重复

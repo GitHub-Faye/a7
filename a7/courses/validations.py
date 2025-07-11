@@ -1,5 +1,49 @@
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
+from rest_framework.response import Response
+from rest_framework import status
+
+def validate_text_field(request, required_fields):
+    """
+    验证请求中是否包含所有必需的文本字段
+    
+    参数:
+    - request: HTTP请求对象
+    - required_fields: 必需字段名称列表
+    
+    返回:
+    - 如果验证失败，返回Response对象
+    - 如果验证成功，返回None
+    """
+    missing_fields = []
+    
+    # 检查query_params或data中是否包含所有必需字段
+    for field in required_fields:
+        # 先检查query_params（GET请求）
+        if hasattr(request, 'query_params') and field in request.query_params:
+            value = request.query_params.get(field)
+            if value and value.strip():
+                continue
+        
+        # 再检查data（POST请求）
+        if hasattr(request, 'data') and field in request.data:
+            value = request.data.get(field)
+            if value and (not isinstance(value, str) or value.strip()):
+                continue
+        
+        # 字段缺失或为空
+        missing_fields.append(field)
+    
+    # 如果有缺失字段，返回错误响应
+    if missing_fields:
+        return Response({
+            "success": False,
+            "message": "缺少必需参数",
+            "errors": [f"参数 '{field}' 是必需的" for field in missing_fields]
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 验证通过
+    return None
 
 class ValidationUtils:
     """通用验证工具类"""

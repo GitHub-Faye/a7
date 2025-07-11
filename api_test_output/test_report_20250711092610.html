@@ -1,0 +1,304 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>API测试报告</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    margin: 0;
+                    padding: 20px;
+                    color: #333;
+                }
+                h1, h2, h3 {
+                    color: #2c3e50;
+                }
+                .container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+                .summary {
+                    background-color: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 5px;
+                    margin-bottom: 20px;
+                }
+                .success {
+                    color: #28a745;
+                }
+                .failure {
+                    color: #dc3545;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                }
+                th, td {
+                    padding: 12px 15px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f2f2f2;
+                }
+                tr:nth-child(even) {
+                    background-color: #f8f8f8;
+                }
+                .test-details {
+                    margin-bottom: 30px;
+                }
+                pre {
+                    background-color: #f5f5f5;
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>知识点到PPT API测试报告</h1>
+                <div class="summary">
+                    <h2>测试摘要</h2>
+                    <p>测试时间: 2025-07-11 09:26:10</p>
+                    <p>测试总数: 5</p>
+                    <p>成功测试: <span class="success">5</span></p>
+                    <p>失败测试: <span class="failure">0</span></p>
+                    <p>成功率: <strong>100.00%</strong></p>
+                </div>
+                
+                <h2>测试结果详情</h2>
+        
+                <div class="test-details">
+                    <h3>direct_download_pptx - <span class="success">成功</span></h3>
+                    <table>
+                        <tr>
+                            <th>属性</th>
+                            <th>值</th>
+                        </tr>
+            
+                        <tr>
+                            <td>success</td>
+                            <td>True</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>status_code</td>
+                            <td>200</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>response_time</td>
+                            <td>31.59926176071167</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_path</td>
+                            <td>api_test_output\test_download_20250711092530.pptx</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_size</td>
+                            <td>562768</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>content_type</td>
+                            <td>application/vnd.openxmlformats-officedocument.presentationml.presentation</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>filename</td>
+                            <td>test_download_20250711092530.pptx</td>
+                        </tr>
+                    
+                    </table>
+            
+                </div>
+            
+                <div class="test-details">
+                    <h3>direct_download_pdf - <span class="success">成功</span></h3>
+                    <table>
+                        <tr>
+                            <th>属性</th>
+                            <th>值</th>
+                        </tr>
+            
+                        <tr>
+                            <td>success</td>
+                            <td>True</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>status_code</td>
+                            <td>200</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>response_time</td>
+                            <td>2.610267400741577</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_path</td>
+                            <td>api_test_output\test_download_20250711092602.pdf</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_size</td>
+                            <td>149369</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>content_type</td>
+                            <td>application/pdf</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>filename</td>
+                            <td>test_download_20250711092602.pdf</td>
+                        </tr>
+                    
+                    </table>
+            
+                </div>
+            
+                <div class="test-details">
+                    <h3>direct_download_html - <span class="success">成功</span></h3>
+                    <table>
+                        <tr>
+                            <th>属性</th>
+                            <th>值</th>
+                        </tr>
+            
+                        <tr>
+                            <td>success</td>
+                            <td>True</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>status_code</td>
+                            <td>200</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>response_time</td>
+                            <td>0.7508354187011719</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_path</td>
+                            <td>api_test_output\test_download_20250711092605.html</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_size</td>
+                            <td>106266</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>content_type</td>
+                            <td>text/html</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>filename</td>
+                            <td>test_download_20250711092605.html</td>
+                        </tr>
+                    
+                    </table>
+            
+                </div>
+            
+                <div class="test-details">
+                    <h3>base64_content_pptx - <span class="success">成功</span></h3>
+                    <table>
+                        <tr>
+                            <th>属性</th>
+                            <th>值</th>
+                        </tr>
+            
+                        <tr>
+                            <td>success</td>
+                            <td>True</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>status_code</td>
+                            <td>200</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>response_time</td>
+                            <td>2.685534954071045</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_path</td>
+                            <td>api_test_output\presentation_266ff903-2d0d-4e5b-8be8-f786788b3317.pptx</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_size</td>
+                            <td>562768</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>filename</td>
+                            <td>presentation_266ff903-2d0d-4e5b-8be8-f786788b3317.pptx</td>
+                        </tr>
+                    
+                    </table>
+            
+                </div>
+            
+                <div class="test-details">
+                    <h3>base64_content_pdf - <span class="success">成功</span></h3>
+                    <table>
+                        <tr>
+                            <th>属性</th>
+                            <th>值</th>
+                        </tr>
+            
+                        <tr>
+                            <td>success</td>
+                            <td>True</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>status_code</td>
+                            <td>200</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>response_time</td>
+                            <td>2.3815267086029053</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_path</td>
+                            <td>api_test_output\presentation_1bcf52b0-bdcd-4822-8682-ecd87799da4f.pdf</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>file_size</td>
+                            <td>149369</td>
+                        </tr>
+                    
+                        <tr>
+                            <td>filename</td>
+                            <td>presentation_1bcf52b0-bdcd-4822-8682-ecd87799da4f.pdf</td>
+                        </tr>
+                    
+                    </table>
+            
+                </div>
+            
+            </div>
+        </body>
+        </html>
+        

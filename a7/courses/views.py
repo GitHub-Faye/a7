@@ -1,56 +1,38 @@
-from django.shortcuts import render
-from rest_framework import viewsets, permissions, status, filters
+import os
+import json
+import base64
+from django.http import HttpResponse
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
+
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_yasg.utils import swagger_auto_schema
+from rest_framework import permissions
 from django_filters.rest_framework import DjangoFilterBackend
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer
 from .serializers import (
-    CourseSerializer, 
-    CourseCreateSerializer, 
-    CourseUpdateSerializer,
-    KnowledgePointSerializer,
-    KnowledgePointCreateSerializer,
-    KnowledgePointUpdateSerializer,
-    CoursewareSerializer,
-    CoursewareCreateSerializer,
-    CoursewareUpdateSerializer,
-    CourseGenerationSerializer,
-    QuestionGenerationSerializer,
-    ExerciseSerializer,
-    ExerciseCreateSerializer,
-    ExerciseUpdateSerializer,
-    StudentAnswerSerializer,
-    StudentAnswerCreateSerializer,
-    StudentAnswerUpdateSerializer
+    CourseSerializer, CourseCreateSerializer, CourseUpdateSerializer, CourseGenerationSerializer,
+    KnowledgePointSerializer, KnowledgePointCreateSerializer, KnowledgePointUpdateSerializer,
+    CoursewareSerializer, CoursewareCreateSerializer, CoursewareUpdateSerializer,
+    QuestionGenerationSerializer, ExerciseSerializer, ExerciseCreateSerializer, ExerciseUpdateSerializer,
+    StudentAnswerSerializer, StudentAnswerCreateSerializer, StudentAnswerUpdateSerializer
 )
-from .permissions import (
-    IsTeacherOrAdmin, 
-    IsCourseTeacherOrAdmin, 
-    IsKnowledgePointCourseTeacherOrAdmin,
-    IsCoursewareCreatorOrAdmin
-)
-from .utils import validate_required_params
-
-# AI服务集成
+from .serializers_ppt import KnowledgePointToPPTSerializer
+from .permissions import IsTeacherOrAdmin, IsCourseTeacherOrAdmin, IsKnowledgePointCourseTeacherOrAdmin
+from .validations import validate_text_field
+from .services.knowledge_to_ppt import KnowledgePointToPPTService
 from ai_services.services.n8n_webhook.client import N8nWebhookClient
-from ai_services.services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
 from ai_services.api_response import create_api_response
-from django.db import transaction
-from rest_framework.views import APIView
-import json
+from ai_services.services.question_export import QuestionExporter
+
 import uuid
 from datetime import datetime
-from drf_yasg import openapi
-
-from django.http import FileResponse, HttpResponse
-from django.conf import settings
-import os
-import base64
-
-from .serializers_ppt import KnowledgePointToPPTSerializer
-from .services.knowledge_to_ppt import KnowledgePointToPPTService
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -314,7 +296,7 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         必须参数: course - 课程ID
         """
         # 验证必要参数
-        validation_error = validate_required_params(request, ['course'])
+        validation_error = validate_text_field(request, ['course'])
         if validation_error:
             return validation_error
         
@@ -1073,12 +1055,65 @@ class KnowledgePointToPPTViewSet(viewsets.ViewSet):
         
         # 根据结果返回响应
         if result["status"] == "success":
-            # 检查是否请求直接返回文件内容
-            if serializer.validated_data.get("return_file_content", False):
-                # 获取文件路径
-                file_url = result["data"]["file_url"]
-                filename = result["data"]["filename"]
+            # 获取文件信息
+            file_url = result["data"]["file_url"]
+            filename = result["data"]["filename"]
+            
+            # 检查是否请求直接下载
+            if serializer.validated_data.get("direct_download", False):
+                # 构建完整的文件路径
+                if file_url.startswith('/'):
+                    file_url = file_url[1:]  # 去掉开头的斜杠
                 
+                # 处理自定义文件名
+                custom_filename = serializer.validated_data.get("filename")
+                if custom_filename:
+                    # 获取文件扩展名
+                    file_format = serializer.validated_data.get("format", "pptx")
+                    download_filename = f"{custom_filename}.{file_format}"
+                else:
+                    download_filename = filename
+                
+                # 尝试多种路径组合找到文件
+                media_root = settings.MEDIA_ROOT
+                possible_paths = [
+                    os.path.join(media_root, file_url),
+                    os.path.join(media_root, filename),
+                    os.path.join(media_root, 'presentations', filename),
+                    file_url
+                ]
+                
+                file_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        file_path = path
+                        break
+                
+                if file_path and os.path.exists(file_path):
+                    # 确定内容类型
+                    file_format = serializer.validated_data.get("format", "pptx")
+                    content_type = self._get_content_type(file_format)
+                    
+                    # 创建文件响应
+                    with open(file_path, 'rb') as f:
+                        response = HttpResponse(f.read(), content_type=content_type)
+                    
+                    # 设置下载头
+                    response['Content-Disposition'] = f'attachment; filename="{download_filename}"'
+                    
+                    return response
+                else:
+                    # 文件不存在，返回错误
+                    return Response({
+                        "status": "error",
+                        "error": {
+                            "code": "file_not_found",
+                            "message": "无法找到生成的文件",
+                            "details": f"文件路径: {file_url}"
+                        }
+                    }, status=404)
+            # 检查是否请求返回文件内容
+            elif serializer.validated_data.get("return_file_content", False):
                 # 构建完整的文件路径
                 if file_url.startswith('/'):
                     file_url = file_url[1:]  # 去掉开头的斜杠
@@ -1137,3 +1172,14 @@ class KnowledgePointToPPTViewSet(viewsets.ViewSet):
                 status_code = 500
             
             return Response(result, status=status_code)
+            
+    def _get_content_type(self, format):
+        """
+        根据文件格式返回对应的Content-Type
+        """
+        content_types = {
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'pdf': 'application/pdf',
+            'html': 'text/html',
+        }
+        return content_types.get(format, 'application/octet-stream')

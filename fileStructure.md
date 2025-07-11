@@ -114,7 +114,8 @@ a7/                           # 项目根目录
 │   │   │   ├── test_knowledge_to_ppt_api.py  # 知识点到PPT转换API测试
 │   │   │   ├── test_knowledge_to_ppt_real.py # 知识点到PPT转换真实场景测试
 │   │   │   ├── test_knowledge_to_ppt_conversion.py # 知识点到PPT转换服务单元测试
-│   │   │   └── test_knowledge_to_ppt_integration.py # 知识点到PPT转换完整流程集成测试
+│   │   │   ├── test_knowledge_to_ppt_integration.py # 知识点到PPT转换完整流程集成测试
+│   │   │   └── test_knowledge_to_ppt_direct_download.py # 知识点到PPT直接下载功能测试
 │   │   ├── services/         # 服务实现目录
 │   │   │   ├── __init__.py   # Python包初始化文件 
 │   │   │   └── knowledge_to_ppt.py # 知识点到PPT转换服务实现
@@ -160,12 +161,15 @@ a7/                           # 项目根目录
 ├── tasks/                    # 任务文件目录（Task Master生成的任务）
 ├── test_html/                # 测试HTML文件目录
 │   ├── auth_test.html        # 登录/登出/密码更改功能测试页面
-│   └── permissions_test.html # 角色权限测试页面
+│   ├── permissions_test.html # 角色权限测试页面
+│   └── ppt_direct_download_test.html # 知识点到PPT直接下载功能测试页面
 ├── pptx_output/              # 知识点到PPT转换输出目录，存储生成的PPTX文件
 ├── marp_test_output/         # Marp集成测试输出目录，存储测试生成的文件
+├── api_test_output/          # API测试输出目录，存储测试结果报告
 ├── test_api.py               # API测试脚本，用于测试中间件功能
 ├── test_api_question.py      # API测试脚本，用于测试问题生成API
 ├── marp_integration_test.py  # 手动集成测试脚本，测试知识点到PPT的完整流程
+├── api_test_runner.py        # API端到端测试运行脚本，测试各种格式的直接下载功能
 ├── .env.example              # 环境变量示例文件
 ├── .gitignore                # Git忽略配置文件
 ├── .roomodes                 # Roo模式配置文件
@@ -254,7 +258,7 @@ a7/                           # 项目根目录
 - **a7/courses/tests/test_question_export_integration.py**: 问题导出功能的集成测试，验证从问题生成到导出的完整流程。使用模拟技术测试API响应、会话存储和多种格式导出。
 - **a7/courses/tests/test_api_exercises.py**: 练习题和学生答案API的CRUD功能测试，包括对过滤、排序和搜索功能的全面测试用例，验证按知识点过滤、按创建时间排序、按内容搜索等功能的正确性。
 - **a7/courses/tests/test_api_exercises_additional.py**: 练习题和学生答案API的补充测试文件，包含ExerciseValidationTests（字段验证和边缘情况测试）、StudentAnswerValidationTests（学生答案约束测试）、CombinedFilteringTests（组合过滤和排序测试）、PaginationAndEdgeCaseTests（分页和边缘情况测试）和APIResponseFormatTests（API响应格式测试）五个测试类，共18个测试用例。验证了字段验证、学生答案约束、组合过滤排序、分页功能、特殊字符处理和API响应格式等方面。
-- **a7/courses/serializers_ppt.py**: 知识点到PPT转换序列化器定义，包含KnowledgePointToPPTSerializer类，负责验证知识点转PPT所需的各项参数，包括必填的knowledge_point_ids（知识点ID列表）和可选参数如include_children（是否包含子知识点）、max_depth（包含子知识点的最大深度）、format（输出格式，支持pptx/pdf/html）、theme（演示主题）等。实现了validate_knowledge_point_ids方法检查ID重复，以及validate方法进行整体数据验证。新增return_file_content字段，用于控制API返回方式，设为true时将返回Base64编码的文件内容而非文件URL。
+- **a7/courses/serializers_ppt.py**: 知识点到PPT转换序列化器定义，包含KnowledgePointToPPTSerializer类，负责验证知识点转PPT所需的各项参数，包括必填的knowledge_point_ids（知识点ID列表）和可选参数如include_children（是否包含子知识点）、max_depth（包含子知识点的最大深度）、format（输出格式，支持pptx/pdf/html）、theme（演示主题）等。实现了validate_knowledge_point_ids方法检查ID重复，以及validate方法进行整体数据验证。新增direct_download和filename字段，支持直接下载功能，启用后将文件直接作为响应返回，并使用指定的文件名。
 
 ### AI服务应用文件
 
@@ -304,6 +308,9 @@ a7/                           # 项目根目录
 - **a7/apps/core/tests/test_middleware.py**: 核心中间件测试文件，包含对RequestLoggingMiddleware和RequestProcessorMiddleware的单元测试，验证路径排除、日志记录、请求验证、响应处理和请求大小限制功能。
 - **test_api.py**: API测试脚本，用于集成测试中间件功能，包括JWT认证、请求日志和请求处理。提供实际HTTP请求测试，验证中间件在真实环境中的表现。
 - **marp_integration_test.py**: 手动集成测试脚本，用于测试知识点到PPT的完整流程，包括知识点数据准备、Markdown生成（支持本地和AI两种模式）、Markdown验证和修复、以及转换为演示文稿（支持pptx/pdf/html格式）。脚本设计为可通过命令行参数配置，提供详细的日志记录，并保存所有中间文件用于分析和调试。
+- **test_html/ppt_direct_download_test.html**: 知识点到PPT直接下载功能测试页面，提供基本UI和JavaScript测试代码，通过浏览器直接测试知识点到PPT转换API的直接下载功能，支持PPTX、PDF和HTML格式的直接下载测试。
+- **api_test_runner.py**: API端到端测试运行脚本，用于测试知识点到PPT转换API的直接下载功能和Base64内容返回功能。支持多种格式(PPTX/PDF/HTML)的转换测试，并生成详细的HTML格式测试报告。测量各种格式转换的性能指标，包括响应时间和文件大小，提供测试结果的可视化展示，并支持批量测试多种格式和多种主题的组合。
+- **api_test_output/**: API测试输出目录，存储API测试运行脚本生成的测试报告，包括HTML格式的测试结果报告和性能指标图表。
 
 ### 配置文件
 
@@ -563,9 +570,9 @@ a7/                           # 项目根目录
     - REST API端点(/api/marp/convert)提供了完整的Markdown到演示文档的转换功能，支持多种输出格式和主题选项，返回适当的MIME类型和文件名，集成了Swagger文档，便于API使用者理解和调用。
 
 18. **知识点到PPT转换系统**:
-   - `a7/courses/serializers_ppt.py`定义KnowledgePointToPPTSerializer类，验证知识点转PPT的输入参数。新增return_file_content参数支持直接返回文件内容，避免URL路径问题。
+   - `a7/courses/serializers_ppt.py`定义KnowledgePointToPPTSerializer类，验证知识点转PPT的输入参数。新增direct_download和filename参数，支持直接下载功能，使API能够根据客户端需求返回文件内容或文件URL。
    - `a7/courses/services/knowledge_to_ppt.py`实现KnowledgePointToPPTService类，提供知识点层次结构获取、Markdown生成和文件转换功能。集成了MarkdownValidator进行内容验证和修复，确保生成的Markdown符合marp规范。
-   - `a7/courses/views.py`中的KnowledgePointToPPTViewSet处理API请求，验证输入并调用服务完成转换。增强了响应处理，支持返回Base64编码的文件内容或文件URL。
+   - `a7/courses/views.py`中的KnowledgePointToPPTViewSet处理API请求，验证输入并调用服务完成转换。增强了响应处理，支持基于direct_download参数的响应模式选择：当设置为true时，将文件直接作为响应返回，带有适当的Content-Type和Content-Disposition头信息；否则返回文件URL或Base64编码的文件内容。
    - `a7/courses/urls.py`注册KnowledgePointToPPTViewSet，提供'/api/knowledge-points-to-ppt/'端点。
    - `a7/courses/tests/test_knowledge_to_ppt_api.py`和`a7/courses/tests/test_knowledge_to_ppt_real.py`验证API功能和实际文件生成。
    - `a7/courses/tests/test_knowledge_to_ppt_conversion.py`提供针对validate_and_convert_markdown方法的单元测试，验证Markdown验证、修复和转换功能，包括有效内容处理、无效内容修复、不同输出格式、主题和异常处理等测试场景。
@@ -583,6 +590,11 @@ a7/                           # 项目根目录
    - 实现了详细的测试套件，包括单元测试和集成测试，覆盖各种正常和异常场景，确保功能的稳定性和可靠性。
    - 提供了三种视觉主题样式（默认主题、教学主题、极简主题），每种主题都有多种颜色方案选项（如绿色、紫色等）。
    - 视觉增强功能通过样式设计反映知识点的层次结构：父知识点使用更大、更突出的标题样式，子知识点使用缩进和不同的视觉样式，通过颜色编码增强层次关系的视觉表现。
+   - `a7/courses/tests/test_knowledge_to_ppt_direct_download.py`提供直接下载功能的专门测试，验证Content-Type设置、Content-Disposition头信息和文件内容的正确性。
+   - `test_html/ppt_direct_download_test.html`前端测试页面，提供浏览器环境下的直接下载功能测试界面。
+   - `api_test_runner.py`端到端测试脚本，提供自动化测试流程，验证直接下载功能在不同格式(PPTX/PDF/HTML)下的正确性和性能表现。
+   - 系统支持根据客户端需求选择两种不同的响应模式：直接下载（适合浏览器端使用）和文件URL/Base64内容返回（适合程序化调用）。
+   - 直接下载功能在性能测试中表现良好，PPTX格式初始生成约需30秒，而PDF和HTML格式通常在2秒内完成，文件大小分别约为560KB(PPTX)、150KB(PDF)和106KB(HTML)。
 
 ## 目录组织逻辑
 

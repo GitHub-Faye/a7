@@ -1,237 +1,478 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+知识点到PPT直接下载API端到端测试脚本
+测试真实环境中API的功能和性能
+"""
+
 import os
-import requests
+import sys
+import time
 import json
-import base64
-from pathlib import Path
+import requests
+import argparse
+from datetime import datetime
+import logging
 
-# --- 测试配置 ---
-BASE_URL = "http://127.0.0.1:8000"
-API_ENDPOINT = "/api/knowledge-points-to-ppt/"
-FULL_API_URL = f"{BASE_URL}{API_ENDPOINT}"
-OUTPUT_DIR = Path("api_test_output")
-
-# --- 测试用例定义 ---
-def get_test_cases():
-    """定义所有API测试用例"""
-    
-    # 假设数据库中存在ID为1, 2, 3的知识点
-    base_payload = {
-        "knowledge_point_ids": [1, 2, 3],
-        "include_children": True,
-        "title": "API生成的演示",
-        "return_file_content": True  # 请求API直接返回文件内容
-    }
-    
-    return [
-        {
-            "name": "Default Theme - PPTX",
-            "payload": {**base_payload, "format": "pptx", "visual_style": "default"}
-        },
-        {
-            "name": "Teaching Theme - PDF",
-            "payload": {**base_payload, "format": "pdf", "visual_style": "teaching"}
-        },
-        {
-            "name": "Minimalist Theme - HTML",
-            "payload": {**base_payload, "format": "html", "visual_style": "minimalist"}
-        },
-        {
-            "name": "Default with Green Scheme",
-            "payload": {
-                **base_payload,
-                "format": "pptx",
-                "visual_style": "default",
-                "color_scheme": "green"
-            }
-        },
-        {
-            "name": "Teaching with Purple Scheme",
-            "payload": {
-                **base_payload,
-                "format": "pdf",
-                "visual_style": "teaching",
-                "color_scheme": "purple"
-            }
-        },
-        {
-            "name": "Invalid Request - No IDs",
-            "payload": {"format": "pptx"},
-            "expected_status": 400
-        }
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
     ]
+)
+logger = logging.getLogger('api_test')
 
-def run_api_test(test_case):
-    """运行单个API测试用例"""
-    name = test_case["name"]
-    payload = test_case["payload"]
-    expected_status = test_case.get("expected_status", 200)
+class APITester:
+    """API测试工具类"""
     
-    print(f"--- Running API Test: {name} ---")
-
-    try:
-        # 打印请求详情，便于调试
-        print(f"  发送请求到: {FULL_API_URL}")
-        print(f"  请求数据: {json.dumps(payload, ensure_ascii=False)}")
+    def __init__(self, base_url, token=None):
+        """
+        初始化测试工具
         
-        response = requests.post(FULL_API_URL, json=payload, timeout=90)
+        参数:
+        - base_url: API基础URL
+        - token: 认证令牌（可选）
+        """
+        self.base_url = base_url.rstrip('/')
+        self.token = token
+        self.session = requests.Session()
         
-        # 打印响应详情，便于调试
-        print(f"  响应状态码: {response.status_code}")
+        # 如果提供了token，设置认证头
+        if token:
+            self.session.headers.update({
+                'Authorization': f'Bearer {token}'
+            })
+            
+        # 设置通用头
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        })
         
-        if response.status_code == expected_status:
-            print(f"  [SUCCESS] 状态码符合预期: {response.status_code}")
-        else:
-            print(f"  [FAILURE] 状态码不匹配: 预期 {expected_status}, 得到 {response.status_code}")
-            print(f"  响应内容: {response.text[:200]}...")  # 只打印前200个字符
-            return False
-
-        if response.status_code == 200:
-            try:
+        # 创建输出目录
+        self.output_dir = 'api_test_output'
+        os.makedirs(self.output_dir, exist_ok=True)
+        
+        logger.info(f"API测试工具初始化完成，基础URL: {base_url}")
+    
+    def test_knowledge_to_ppt_direct_download(self, knowledge_point_ids, format='pptx', include_children=True):
+        """
+        测试知识点到PPT的直接下载功能
+        
+        参数:
+        - knowledge_point_ids: 知识点ID列表
+        - format: 输出格式，可选值: pptx, pdf, html
+        - include_children: 是否包含子知识点
+        
+        返回:
+        - 测试结果字典
+        """
+        endpoint = f"{self.base_url}/api/knowledge-points-to-ppt/"
+        
+        # 准备请求数据
+        data = {
+            "knowledge_point_ids": knowledge_point_ids,
+            "format": format,
+            "include_children": include_children,
+            "direct_download": True,
+            "filename": f"test_download_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        }
+        
+        logger.info(f"测试知识点到PPT直接下载API，知识点IDs: {knowledge_point_ids}, 格式: {format}")
+        
+        try:
+            # 测量响应时间
+            start_time = time.time()
+            response = self.session.post(endpoint, json=data, stream=True)
+            response_time = time.time() - start_time
+            
+            # 检查响应状态
+            if response.status_code == 200:
+                # 获取文件名
+                content_disposition = response.headers.get('Content-Disposition', '')
+                filename = None
+                if 'filename=' in content_disposition:
+                    filename = content_disposition.split('filename=')[1].strip('"')
+                else:
+                    filename = f"downloaded_{format}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{format}"
+                
+                # 保存文件
+                file_path = os.path.join(self.output_dir, filename)
+                with open(file_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                
+                file_size = os.path.getsize(file_path)
+                
+                logger.info(f"下载成功，文件保存为: {file_path}")
+                logger.info(f"文件大小: {file_size} 字节")
+                logger.info(f"响应时间: {response_time:.2f} 秒")
+                
+                return {
+                    "success": True,
+                    "status_code": response.status_code,
+                    "response_time": response_time,
+                    "file_path": file_path,
+                    "file_size": file_size,
+                    "content_type": response.headers.get('Content-Type'),
+                    "filename": filename
+                }
+            else:
+                # 处理错误响应
+                try:
+                    error_data = response.json()
+                    logger.error(f"API请求失败: {response.status_code}, 错误: {json.dumps(error_data, ensure_ascii=False)}")
+                    return {
+                        "success": False,
+                        "status_code": response.status_code,
+                        "response_time": response_time,
+                        "error": error_data
+                    }
+                except:
+                    logger.error(f"API请求失败: {response.status_code}, 响应内容: {response.text}")
+                    return {
+                        "success": False,
+                        "status_code": response.status_code,
+                        "response_time": response_time,
+                        "error": response.text
+                    }
+                    
+        except Exception as e:
+            logger.error(f"测试过程中发生异常: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def test_knowledge_to_ppt_base64_content(self, knowledge_point_ids, format='pptx'):
+        """
+        测试知识点到PPT返回Base64编码内容功能
+        
+        参数:
+        - knowledge_point_ids: 知识点ID列表
+        - format: 输出格式，可选值: pptx, pdf, html
+        
+        返回:
+        - 测试结果字典
+        """
+        endpoint = f"{self.base_url}/api/knowledge-points-to-ppt/"
+        
+        # 准备请求数据
+        data = {
+            "knowledge_point_ids": knowledge_point_ids,
+            "format": format,
+            "return_file_content": True
+        }
+        
+        logger.info(f"测试知识点到PPT返回Base64内容，知识点IDs: {knowledge_point_ids}, 格式: {format}")
+        
+        try:
+            # 测量响应时间
+            start_time = time.time()
+            response = self.session.post(endpoint, json=data)
+            response_time = time.time() - start_time
+            
+            # 检查响应状态
+            if response.status_code == 200:
                 response_data = response.json()
-                print(f"  响应数据: {json.dumps(response_data, ensure_ascii=False)[:200]}...")
                 
-                # 方法1: 检查API是否直接返回了文件内容
-                file_content_b64 = response_data.get("data", {}).get("file_content")
-                filename = response_data.get("data", {}).get("filename")
-                
-                if file_content_b64 and filename:
-                    # API返回了Base64编码的文件内容
-                    try:
-                        file_content = base64.b64decode(file_content_b64)
-                        output_path = OUTPUT_DIR / filename
-                        output_path.parent.mkdir(parents=True, exist_ok=True)
-                        output_path.write_bytes(file_content)
-                        print(f"  [SUCCESS] 从API响应中提取文件内容并保存到: {output_path}")
-                        return True
-                    except Exception as e:
-                        print(f"  [ERROR] 解码文件内容时出错: {e}")
-                        return False
-                
-                # 方法2: 如果API只返回了文件URL，尝试下载
-                file_url = response_data.get("data", {}).get("file_url")
-                filename = response_data.get("data", {}).get("filename")
-                
-                if not file_url:
-                    print("  [FAILURE] API响应中未找到 file_url")
-                    return False
-
-                print(f"  API返回的文件URL: {file_url}")
-                print(f"  API返回的文件名: {filename}")
-                
-                # 修正URL路径中的反斜杠问题
-                file_url = file_url.replace('\\', '/')
-                
-                # 尝试多种URL构建方式
-                download_attempts = []
-                
-                # 1. 使用完整的BASE_URL
-                download_url = f"{BASE_URL}{file_url}"
-                download_attempts.append(("方式1", download_url))
-                
-                # 2. 如果文件URL已经包含域名，则直接使用
-                if file_url.startswith('http'):
-                    download_attempts.append(("方式2", file_url))
+                # 验证响应格式
+                if response_data.get("status") == "success" and "data" in response_data:
+                    data = response_data["data"]
+                    
+                    # 检查是否包含Base64编码的文件内容
+                    if "file_content" in data:
+                        # 保存文件
+                        filename = data.get("filename", f"base64_content_{datetime.now().strftime('%Y%m%d%H%M%S')}.{format}")
+                        file_path = os.path.join(self.output_dir, filename)
+                        
+                        # 解码并保存文件
+                        import base64
+                        with open(file_path, 'wb') as f:
+                            f.write(base64.b64decode(data["file_content"]))
+                        
+                        file_size = os.path.getsize(file_path)
+                        
+                        logger.info(f"Base64内容解码并保存为: {file_path}")
+                        logger.info(f"文件大小: {file_size} 字节")
+                        logger.info(f"响应时间: {response_time:.2f} 秒")
+                        
+                        return {
+                            "success": True,
+                            "status_code": response.status_code,
+                            "response_time": response_time,
+                            "file_path": file_path,
+                            "file_size": file_size,
+                            "filename": filename
+                        }
+                    else:
+                        logger.error("响应中缺少file_content字段")
+                        return {
+                            "success": False,
+                            "status_code": response.status_code,
+                            "response_time": response_time,
+                            "error": "响应中缺少file_content字段",
+                            "response_data": response_data
+                        }
                 else:
-                    # 去掉开头的斜杠（如果有）
-                    clean_url = file_url[1:] if file_url.startswith('/') else file_url
-                    download_attempts.append(("方式2", f"{BASE_URL}/{clean_url}"))
-                
-                # 3. 尝试直接从/media/路径获取
-                download_attempts.append(("方式3", f"{BASE_URL}/media/{Path(file_url).name}"))
-                
-                # 4. 尝试从/static/路径获取
-                download_attempts.append(("方式4", f"{BASE_URL}/static/{Path(file_url).name}"))
-                
-                # 5. 尝试直接获取文件名
-                download_attempts.append(("方式5", f"{BASE_URL}/{Path(file_url).name}"))
-                
-                # 逐一尝试下载
-                for method, url in download_attempts:
-                    print(f"  -> 尝试下载文件 ({method}): {url}")
-                    file_response = requests.get(url, timeout=60)
+                    logger.error(f"响应格式不符合预期: {json.dumps(response_data, ensure_ascii=False)}")
+                    return {
+                        "success": False,
+                        "status_code": response.status_code,
+                        "response_time": response_time,
+                        "error": "响应格式不符合预期",
+                        "response_data": response_data
+                    }
+            else:
+                # 处理错误响应
+                try:
+                    error_data = response.json()
+                    logger.error(f"API请求失败: {response.status_code}, 错误: {json.dumps(error_data, ensure_ascii=False)}")
+                    return {
+                        "success": False,
+                        "status_code": response.status_code,
+                        "response_time": response_time,
+                        "error": error_data
+                    }
+                except:
+                    logger.error(f"API请求失败: {response.status_code}, 响应内容: {response.text}")
+                    return {
+                        "success": False,
+                        "status_code": response.status_code,
+                        "response_time": response_time,
+                        "error": response.text
+                    }
                     
-                    if file_response.status_code == 200:
-                        output_path = OUTPUT_DIR / filename if filename else OUTPUT_DIR / Path(file_url).name
-                        output_path.parent.mkdir(parents=True, exist_ok=True)
-                        output_path.write_bytes(file_response.content)
-                        print(f"  [SUCCESS] 文件已下载并保存到: {output_path}")
-                        return True
-                
-                print(f"  [FAILURE] 所有下载尝试均失败")
-                
-                # 创建一个空文件作为占位符，以便测试可以继续
-                output_path = OUTPUT_DIR / f"placeholder_{filename if filename else Path(file_url).name}"
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(output_path, 'w') as f:
-                    f.write(f"# 占位文件 - 实际下载失败\n文件URL: {file_url}\n下载尝试失败")
-                print(f"  [INFO] 已创建占位文件: {output_path}")
-                return False
-                
-            except json.JSONDecodeError:
-                # 检查是否直接返回了文件内容（非JSON响应）
-                content_type = response.headers.get('Content-Type', '')
-                content_disp = response.headers.get('Content-Disposition', '')
-                
-                if ('application/' in content_type or 'image/' in content_type) and response.content:
-                    # 尝试从Content-Disposition中获取文件名
-                    filename = None
-                    if 'filename=' in content_disp:
-                        filename = content_disp.split('filename=')[1].strip('"\'')
-                    
-                    # 如果没有文件名，生成一个
-                    if not filename:
-                        if 'pdf' in content_type:
-                            filename = 'presentation.pdf'
-                        elif 'powerpoint' in content_type or 'pptx' in content_type:
-                            filename = 'presentation.pptx'
-                        elif 'html' in content_type:
-                            filename = 'presentation.html'
-                        else:
-                            filename = 'presentation.bin'
-                    
-                    # 保存文件
-                    output_path = OUTPUT_DIR / filename
-                    output_path.parent.mkdir(parents=True, exist_ok=True)
-                    output_path.write_bytes(response.content)
-                    print(f"  [SUCCESS] 直接保存API响应内容到: {output_path}")
-                    return True
-                else:
-                    print(f"  [FAILURE] API响应不是JSON格式，也不是有效的文件内容")
-                    print(f"  Content-Type: {content_type}")
-                    print(f"  Content-Disposition: {content_disp}")
-                    return False
+        except Exception as e:
+            logger.error(f"测试过程中发生异常: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def run_all_tests(self, knowledge_point_ids):
+        """
+        运行所有测试
         
-        return True
+        参数:
+        - knowledge_point_ids: 知识点ID列表
+        
+        返回:
+        - 测试结果字典
+        """
+        results = {}
+        
+        # 测试不同格式的直接下载
+        for format in ['pptx', 'pdf', 'html']:
+            test_name = f"direct_download_{format}"
+            logger.info(f"运行测试: {test_name}")
+            results[test_name] = self.test_knowledge_to_ppt_direct_download(
+                knowledge_point_ids, 
+                format=format
+            )
+        
+        # 测试Base64内容返回
+        for format in ['pptx', 'pdf']:
+            test_name = f"base64_content_{format}"
+            logger.info(f"运行测试: {test_name}")
+            results[test_name] = self.test_knowledge_to_ppt_base64_content(
+                knowledge_point_ids, 
+                format=format
+            )
+        
+        # 生成测试报告
+        self.generate_report(results)
+        
+        return results
+    
+    def generate_report(self, results):
+        """
+        生成测试报告
+        
+        参数:
+        - results: 测试结果字典
+        """
+        report_path = os.path.join(self.output_dir, f"test_report_{datetime.now().strftime('%Y%m%d%H%M%S')}.html")
+        
+        # 计算成功率
+        total_tests = len(results)
+        successful_tests = sum(1 for result in results.values() if result.get("success", False))
+        success_rate = (successful_tests / total_tests) * 100 if total_tests > 0 else 0
+        
+        # 生成HTML报告
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>API测试报告</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    margin: 0;
+                    padding: 20px;
+                    color: #333;
+                }}
+                h1, h2, h3 {{
+                    color: #2c3e50;
+                }}
+                .container {{
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }}
+                .summary {{
+                    background-color: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 5px;
+                    margin-bottom: 20px;
+                }}
+                .success {{
+                    color: #28a745;
+                }}
+                .failure {{
+                    color: #dc3545;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                }}
+                th, td {{
+                    padding: 12px 15px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                }}
+                th {{
+                    background-color: #f2f2f2;
+                }}
+                tr:nth-child(even) {{
+                    background-color: #f8f8f8;
+                }}
+                .test-details {{
+                    margin-bottom: 30px;
+                }}
+                pre {{
+                    background-color: #f5f5f5;
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>知识点到PPT API测试报告</h1>
+                <div class="summary">
+                    <h2>测试摘要</h2>
+                    <p>测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                    <p>测试总数: {total_tests}</p>
+                    <p>成功测试: <span class="success">{successful_tests}</span></p>
+                    <p>失败测试: <span class="failure">{total_tests - successful_tests}</span></p>
+                    <p>成功率: <strong>{success_rate:.2f}%</strong></p>
+                </div>
+                
+                <h2>测试结果详情</h2>
+        """
+        
+        # 添加每个测试的详情
+        for test_name, result in results.items():
+            success = result.get("success", False)
+            status_class = "success" if success else "failure"
+            status_text = "成功" if success else "失败"
+            
+            html += f"""
+                <div class="test-details">
+                    <h3>{test_name} - <span class="{status_class}">{status_text}</span></h3>
+                    <table>
+                        <tr>
+                            <th>属性</th>
+                            <th>值</th>
+                        </tr>
+            """
+            
+            # 添加测试结果的属性
+            for key, value in result.items():
+                if key not in ["error", "response_data"] and not isinstance(value, dict):
+                    html += f"""
+                        <tr>
+                            <td>{key}</td>
+                            <td>{value}</td>
+                        </tr>
+                    """
+            
+            html += """
+                    </table>
+            """
+            
+            # 添加错误信息（如果有）
+            if "error" in result and result["error"]:
+                html += f"""
+                    <h4>错误信息:</h4>
+                    <pre>{json.dumps(result["error"], ensure_ascii=False, indent=2)}</pre>
+                """
+            
+            # 添加响应数据（如果有）
+            if "response_data" in result and result["response_data"]:
+                html += f"""
+                    <h4>响应数据:</h4>
+                    <pre>{json.dumps(result["response_data"], ensure_ascii=False, indent=2)}</pre>
+                """
+            
+            html += """
+                </div>
+            """
+        
+        html += """
+            </div>
+        </body>
+        </html>
+        """
+        
+        # 写入HTML报告
+        with open(report_path, 'w', encoding='utf-8') as f:
+            f.write(html)
+        
+        logger.info(f"测试报告已生成: {report_path}")
 
-    except requests.RequestException as e:
-        print(f"  [ERROR] 请求API时出错: {e}")
-        return False
-    finally:
-        print("-" * (len(name) + 22))
-        print()
 
 def main():
-    """主函数：运行所有API测试"""
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    test_cases = get_test_cases()
+    """主函数"""
+    parser = argparse.ArgumentParser(description='知识点到PPT API端到端测试工具')
+    parser.add_argument('--url', type=str, default='http://localhost:8000',
+                        help='API基础URL (默认: http://localhost:8000)')
+    parser.add_argument('--token', type=str, help='认证令牌（可选）')
+    parser.add_argument('--knowledge-ids', type=str, required=True,
+                        help='知识点ID列表，用逗号分隔，例如: "1,2,3"')
     
-    print("=" * 60)
-    print("开始 Marp Service API 集成测试")
-    print(f"API 端点: {FULL_API_URL}")
-    print("=" * 60)
+    args = parser.parse_args()
     
-    all_passed = True
-    for case in test_cases:
-        if not run_api_test(case):
-            all_passed = False
-            
-    print("=" * 60)
-    if all_passed:
-        print("✅ 所有API测试用例均已成功通过！")
+    # 解析知识点ID列表
+    try:
+        knowledge_point_ids = [int(id.strip()) for id in args.knowledge_ids.split(',')]
+    except ValueError:
+        logger.error("无效的知识点ID列表格式，应为逗号分隔的整数")
+        sys.exit(1)
+    
+    # 创建测试工具并运行测试
+    tester = APITester(args.url, args.token)
+    results = tester.run_all_tests(knowledge_point_ids)
+    
+    # 检查测试结果
+    success_count = sum(1 for result in results.values() if result.get("success", False))
+    total_tests = len(results)
+    
+    if success_count == total_tests:
+        logger.info("所有测试都通过了！")
+        sys.exit(0)
     else:
-        print("❌ 部分API测试用例失败。")
-    print(f"请检查输出目录: {OUTPUT_DIR.resolve()}")
-    print("=" * 60)
+        logger.error(f"测试完成，但有 {total_tests - success_count} 个测试失败")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main() 
