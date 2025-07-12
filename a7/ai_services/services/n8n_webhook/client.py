@@ -344,3 +344,27 @@ class N8nWebhookClient:
             Dict[str, Any]: 包含AI助手回答的响应数据
         """
         return asyncio.run(self.dialogue_with_student(request_data)) 
+        
+    async def generate_exercises(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        生成练习题（异步方法）
+        
+        Args:
+            request_data: 请求数据，包含查询和生成参数
+            
+        Returns:
+            Dict[str, Any]: 生成的练习题数据
+        """
+        return await self.process_ai_task("exerciseGeneration", request_data)
+
+    def generate_exercises_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        生成练习题（同步方法）
+        
+        Args:
+            request_data: 请求数据，包含查询和生成参数
+            
+        Returns:
+            Dict[str, Any]: 生成的练习题数据
+        """
+        return asyncio.run(self.generate_exercises(request_data)) 

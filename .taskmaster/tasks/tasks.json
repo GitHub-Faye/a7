@@ -698,8 +698,8 @@
             "title": "Develop Exercise Generation Logic",
             "description": "Implement functionality to dynamically generate exercises based on student requests using the AI-powered question generation module.",
             "dependencies": [],
-            "details": "Leverage Task 13's module to create exercises on demand, ensuring they are not persisted in the database.",
-            "status": "pending",
+            "details": "Leverage Task 13's module to create exercises on demand, ensuring they are not persisted in the database.\n<info added on 2025-07-12T02:22:37.275Z>\nThe exercise generation API has been successfully implemented without database persistence. Key implementation details include:\n\n1. Added generate_exercises and generate_exercises_sync methods in N8nWebhookClient for AI service interaction\n2. Created ExerciseGenerationSerializer for API request parameter validation\n3. Implemented ExerciseGenerationViewSet with permissions.AllowAny for student access without authentication\n4. Registered route in urls.py accessible via /api/ai/generate-exercises/\n5. Added comprehensive unit tests covering success cases, error handling, and anonymous access\n\nAPI features:\n- Accepts query text with optional parameters (knowledge point ID, question type, quantity, difficulty)\n- Generates various exercise types (single/multiple choice, fill-in, short answer)\n- Returns standardized API response with exercise data and session ID\n- Maintains temporary generation without database storage\n- Supports anonymous access for student convenience\n</info added on 2025-07-12T02:22:37.275Z>\n<info added on 2025-07-12T02:56:31.296Z>\n在实现过程中发现并修复了格式不一致问题：\n\n1. 问题：formats.py中的parse_single_exercise函数使用连字符格式（如\"single-choice\"），而系统其他部分期望下划线格式（如\"single_choice\"），导致集成测试失败。\n\n2. 解决方案：修改formats.py中的parse_single_exercise函数，统一使用下划线格式：\n   - \"single-choice\" → \"single_choice\"\n   - \"multiple-choice\" → \"multiple_choice\"\n   - \"fill-in\" → \"fill_in\"\n   - \"short-answer\" → \"short_answer\"\n\n3. 测试结果：修改后所有单元测试和集成测试均通过，确保API返回数据格式与系统其他部分一致。\n\n4. 总结：练习题生成API已完全实现并通过测试，能够生成不同类型的练习题，支持匿名访问且不保存到数据库，符合需求规格。\n</info added on 2025-07-12T02:56:31.296Z>",
+            "status": "done",
             "testStrategy": "Validate exercise generation with different topics and difficulty levels to ensure correctness and variety."
           },
           {
@@ -745,7 +745,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-11T03:18:18.756Z",
+      "updated": "2025-07-12T02:22:42.792Z",
       "description": "Tasks for master context"
     }
   }

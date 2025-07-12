@@ -6,15 +6,13 @@ n8n Webhook 请求/响应格式定义模块
 
 import json
 import re
+import uuid
 import logging
 from pydantic import BaseModel, Field, ValidationError
 from typing import Dict, Any, List, Optional, Union
 
 from .exceptions import N8nInvalidRequestError, N8nResponseError
-
-
-logger = logging.getLogger(__name__)
-
+from .logger import logger
 
 # ==============================================================================
 # 基础模型 (Base Models)
@@ -127,6 +125,7 @@ class QuestionGenerationRequestData(BaseRequest):
     chatInput: str = Field(..., description="生成问题的提示文本")
     sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
 
+
 class QuestionData(BaseResponse):
     """问题数据模型"""
     title: str = Field(..., description="问题标题")
@@ -134,7 +133,8 @@ class QuestionData(BaseResponse):
     type: str = Field(..., description="问题类型")
     difficulty: int = Field(..., ge=1, le=5, description="难度等级(1-5)")
     answer_template: Optional[Union[str, List[str]]] = Field(None, description="答案模板或选项列表")
-    knowledge_point_id: int = Field(..., description="关联知识点ID")
+    knowledge_point_id: Optional[int] = Field(None, description="关联知识点ID")
+
 
 class QuestionGenerationResponseData(BaseResponse):
     """问题生成任务的响应数据模型"""
@@ -142,7 +142,7 @@ class QuestionGenerationResponseData(BaseResponse):
 
 
 # ==============================================================================
-# 知识点到Markdown转换任务格式 (Knowledge to Markdown Conversion Task Formats)
+# 知识点到Markdown转换任务格式 (Knowledge to Markdown Task Formats)
 # ==============================================================================
 
 class KnowledgeToMarkdownRequestData(BaseRequest):
@@ -154,55 +154,156 @@ class KnowledgeToMarkdownRequestData(BaseRequest):
     chatInput: str = Field(..., description="生成Markdown的提示文本")
     sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
 
+
 class KnowledgeToMarkdownResponseData(BaseResponse):
     """知识点到Markdown转换任务的响应数据模型"""
     markdown: str = Field(..., description="生成的Markdown内容")
 
 
 # ==============================================================================
-# 响应格式化和转换 (Response Formatting and Conversion)
+# 练习题生成任务格式 (Exercise Generation Task Formats)
 # ==============================================================================
+
+class ExerciseGenerationRequestData(BaseRequest):
+    """练习题生成任务的请求数据模型"""
+    chatInput: str = Field(..., description="生成练习题的提示文本")
+    sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
+
+
+class ExerciseGenerationResponseData(BaseResponse):
+    """练习题生成任务的响应数据模型"""
+    questions: List[QuestionData] = Field(..., description="生成的练习题列表")
+    session_id: str = Field(..., description="会话ID，用于后续答案提交和评估")
+
+
+# ==============================================================================
+# 任务格式注册与管理 (Task Format Registry)
+# ==============================================================================
+
+# 定义一个任务格式注册表，用于存储不同任务类型的请求和响应模型
+TASK_FORMATS: Dict[str, Dict[str, Any]] = {
+    "ragAI": {
+        "request": RagAIRequestData,
+        "response": RagAIResponseData,
+    },
+    "courseGeneration": {
+        "request": CourseGenerationRequestData,
+        "response": CourseGenerationResponseData,
+    },
+    "questionGeneration": {
+        "request": QuestionGenerationRequestData,
+        "response": QuestionGenerationResponseData,
+    },
+    "knowledgeToMarkdown": {
+        "request": KnowledgeToMarkdownRequestData,
+        "response": KnowledgeToMarkdownResponseData,
+    },
+    "studentDialogue": {
+        "request": DialogueRequestData,
+        "response": DialogueResponseData,
+    },
+    "exerciseGeneration": {
+        "request": ExerciseGenerationRequestData,
+        "response": ExerciseGenerationResponseData,
+    },
+    # 在这里可以添加其他任务类型的格式定义
+    # "another_task": {
+    #     "request": AnotherTaskRequest,
+    #     "response": AnotherTaskResponse,
+    # },
+}
+
+
+def get_task_format(task_type: str) -> Optional[Dict[str, Any]]:
+    """
+    根据任务类型获取对应的请求和响应模型
+    
+    Args:
+        task_type: 任务类型字符串
+        
+    Returns:
+        一个包含'request'和'response'模型的字典，如果未找到则返回None
+    """
+    return TASK_FORMATS.get(task_type)
+
+
+def validate_request_data(task_type: str, data: Dict[str, Any]) -> BaseModel:
+    """
+    验证给定任务类型的请求数据
+    
+    Args:
+        task_type: 任务类型字符串
+        data: 要验证的请求数据
+        
+    Returns:
+        一个已验证的Pydantic模型实例
+        
+    Raises:
+        N8nInvalidRequestError: 如果任务类型无效或数据验证失败
+    """
+    task_format = get_task_format(task_type)
+    if not task_format:
+        raise N8nInvalidRequestError(f"不支持的任务类型: {task_type}")
+        
+    request_model = task_format.get("request")
+    if not request_model:
+        raise N8nInvalidRequestError(f"任务类型 '{task_type}' 未定义请求模型")
+        
+    try:
+        validated_model = request_model(**data)
+        return validated_model
+    except ValidationError as e:
+        # 将Pydantic的验证错误包装为自定义异常
+        raise N8nInvalidRequestError(
+            message=f"任务 '{task_type}' 的请求数据验证失败",
+            validation_errors=e.errors()
+        )
+
 
 def extract_json_from_text(text: str) -> Optional[Dict[str, Any]]:
     """
-    尝试从文本中提取JSON对象
+    从文本中提取JSON对象
     
     Args:
         text: 可能包含JSON的文本
         
     Returns:
-        提取的JSON对象或None（如果无法提取）
+        提取的JSON对象，如果未找到则返回None
     """
-    # 首先尝试解析整个文本作为JSON
+    # 尝试直接解析整个文本
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
     
-    # 尝试使用正则表达式查找JSON格式的文本
-    json_pattern = r'```(?:json)?\s*({[\s\S]*?})```'
-    matches = re.findall(json_pattern, text)
-    
-    if matches:
-        for match in matches:
-            try:
-                return json.loads(match)
-            except json.JSONDecodeError:
-                continue
-    
-    # 最后尝试查找 { 和 } 之间的内容
+    # 尝试查找JSON对象的开始和结束位置
     start_idx = text.find('{')
-    end_idx = text.rfind('}')
+    if start_idx == -1:
+        return None
     
-    if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
-        json_str = text[start_idx:end_idx+1]
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            pass
+    # 找到可能的JSON对象
+    brace_count = 0
+    for i in range(start_idx, len(text)):
+        if text[i] == '{':
+            brace_count += 1
+        elif text[i] == '}':
+            brace_count -= 1
+            if brace_count == 0:
+                # 找到完整的JSON对象
+                try:
+                    json_text = text[start_idx:i+1]
+                    return json.loads(json_text)
+                except json.JSONDecodeError:
+                    # 继续查找下一个可能的JSON对象
+                    continue
     
+    # 如果没有找到有效的JSON对象，返回None
     return None
 
+
+# ==============================================================================
+# 响应格式化和转换 (Response Formatting and Conversion)
+# ==============================================================================
 
 def format_course_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -596,86 +697,255 @@ def format_student_dialogue_response(data: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-# ==============================================================================
-# 任务格式注册与管理 (Task Format Registry)
-# ==============================================================================
-
-# 定义一个任务格式注册表，用于存储不同任务类型的请求和响应模型
-TASK_FORMATS: Dict[str, Dict[str, Any]] = {
-    "ragAI": {
-        "request": RagAIRequestData,
-        "response": RagAIResponseData,
-    },
-    "courseGeneration": {
-        "request": CourseGenerationRequestData,
-        "response": CourseGenerationResponseData,
-    },
-    "questionGeneration": {
-        "request": QuestionGenerationRequestData,
-        "response": QuestionGenerationResponseData,
-    },
-    "knowledgeToMarkdown": {
-        "request": KnowledgeToMarkdownRequestData,
-        "response": KnowledgeToMarkdownResponseData,
-    },
-    "studentDialogue": {
-        "request": DialogueRequestData,
-        "response": DialogueResponseData,
-    },
-    # 在这里可以添加其他任务类型的格式定义
-    # "another_task": {
-    #     "request": AnotherTaskRequest,
-    #     "response": AnotherTaskResponse,
-    # },
-}
-
-
-def get_task_format(task_type: str) -> Optional[Dict[str, Any]]:
+def format_exercise_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    根据任务类型获取对应的请求和响应模型
+    尝试将n8n返回的练习题生成数据格式化为符合ExerciseGenerationResponseData要求的结构
     
     Args:
-        task_type: 任务类型字符串
+        data: n8n返回的原始数据
         
     Returns:
-        一个包含'request'和'response'模型的字典，如果未找到则返回None
-    """
-    return TASK_FORMATS.get(task_type)
-
-
-def validate_request_data(task_type: str, data: Dict[str, Any]) -> BaseModel:
-    """
-    验证给定任务类型的请求数据
+        格式化后的数据，符合ExerciseGenerationResponseData结构
     
-    Args:
-        task_type: 任务类型字符串
-        data: 要验证的请求数据
-        
-    Returns:
-        一个已验证的Pydantic模型实例
-        
     Raises:
-        N8nInvalidRequestError: 如果任务类型无效或数据验证失败
+        N8nResponseError: 如果无法格式化数据
     """
-    task_format = get_task_format(task_type)
-    if not task_format:
-        raise N8nInvalidRequestError(f"不支持的任务类型: {task_type}")
+    logger.info("正在格式化练习题生成响应数据")
+    
+    # 提取会话ID，如果存在的话
+    session_id = None
+    if isinstance(data, dict) and 'sessionId' in data:
+        session_id = data['sessionId']
+    
+    # 情况1: 如果n8n返回的是带有answer字段的对象（常见于某些模型的返回格式）
+    if isinstance(data, dict) and 'answer' in data and isinstance(data['answer'], str):
+        answer_text = data['answer']
+        logger.info(f"检测到带有answer字段的响应，尝试解析练习题。文本长度: {len(answer_text)}")
         
-    request_model = task_format.get("request")
-    if not request_model:
-        raise N8nInvalidRequestError(f"任务类型 '{task_type}' 未定义请求模型")
+        # 尝试从answer中提取JSON
+        extracted_json = extract_json_from_text(answer_text)
+        if extracted_json and 'questions' in extracted_json:
+            logger.info("成功从answer字段中提取JSON结构")
+            # 确保包含session_id
+            if session_id and 'session_id' not in extracted_json:
+                extracted_json['session_id'] = session_id
+            return extracted_json
         
-    try:
-        validated_model = request_model(**data)
-        return validated_model
-    except ValidationError as e:
-        # 将Pydantic的验证错误包装为自定义异常
-        raise N8nInvalidRequestError(
-            message=f"任务 '{task_type}' 的请求数据验证失败",
-            validation_errors=e.errors()
-        )
+        # 如果不是JSON格式，尝试解析文本格式的练习题
+        try:
+            # 解析文本格式的练习题
+            questions = parse_exercise_text(answer_text)
+            logger.info(f"成功从文本中解析出 {len(questions)} 道练习题")
+            
+            result = {
+                "questions": questions,
+                "session_id": session_id or str(uuid.uuid4())  # 如果没有会话ID，生成一个新的
+            }
+            return result
+        except Exception as e:
+            logger.warning(f"解析练习题文本时出错: {str(e)}")
+            # 继续尝试其他格式
+    
+    # 情况2: 如果收到的是包含output字段的响应
+    if isinstance(data, dict) and 'output' in data and isinstance(data['output'], str):
+        text_output = data['output']
+        logger.info(f"收到包含output字段的响应，尝试解析练习题。文本长度: {len(text_output)}")
+        
+        # 尝试从文本中提取JSON
+        extracted_json = extract_json_from_text(text_output)
+        if extracted_json and 'questions' in extracted_json:
+            logger.info("成功从output字段中提取JSON结构")
+            # 确保包含session_id
+            if session_id and 'session_id' not in extracted_json:
+                extracted_json['session_id'] = session_id
+            return extracted_json
+        
+        # 如果不是JSON格式，尝试解析文本格式的练习题
+        try:
+            # 解析文本格式的练习题
+            questions = parse_exercise_text(text_output)
+            logger.info(f"成功从文本中解析出 {len(questions)} 道练习题")
+            
+            result = {
+                "questions": questions,
+                "session_id": session_id or str(uuid.uuid4())  # 如果没有会话ID，生成一个新的
+            }
+            return result
+        except Exception as e:
+            logger.warning(f"解析练习题文本时出错: {str(e)}")
+            # 继续尝试其他格式
+    
+    # 情况3: 检查数据是否已经符合期望的结构
+    if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
+        logger.info("数据结构已符合期望格式")
+        
+        # 确保包含session_id
+        if 'session_id' not in data:
+            data['session_id'] = session_id or str(uuid.uuid4())
+        
+        return data
+    
+    # 情况4: 如果数据是字符串
+    if isinstance(data, str):
+        logger.info(f"收到的是纯文本响应，尝试解析练习题。长度: {len(data)}")
+        
+        # 尝试从字符串中提取JSON
+        extracted_json = extract_json_from_text(data)
+        if extracted_json and 'questions' in extracted_json:
+            logger.info("成功从文本响应中提取完整JSON结构")
+            # 确保包含session_id
+            if session_id and 'session_id' not in extracted_json:
+                extracted_json['session_id'] = session_id
+            return extracted_json
+        
+        # 如果不是JSON格式，尝试解析文本格式的练习题
+        try:
+            # 解析文本格式的练习题
+            questions = parse_exercise_text(data)
+            logger.info(f"成功从文本中解析出 {len(questions)} 道练习题")
+            
+            result = {
+                "questions": questions,
+                "session_id": session_id or str(uuid.uuid4())  # 如果没有会话ID，生成一个新的
+            }
+            return result
+        except Exception as e:
+            logger.warning(f"解析练习题文本时出错: {str(e)}")
+            # 继续尝试其他格式
+    
+    # 如果无法识别格式，抛出异常
+    error_msg = f"无法格式化练习题生成响应: {str(data)[:200]}..."
+    logger.error(error_msg)
+    raise N8nResponseError(
+        message="无法解析AI服务返回的练习题数据",
+        error_data=data
+    )
 
+def parse_exercise_text(text: str) -> List[Dict[str, Any]]:
+    """
+    从文本中解析练习题
+    
+    Args:
+        text: 包含练习题的文本
+        
+    Returns:
+        解析后的练习题列表
+    """
+    questions = []
+    
+    # 检查文本是否包含练习题的关键词
+    if "题目" not in text and "选项" not in text and "答案" not in text:
+        raise ValueError("文本不包含练习题")
+    
+    # 尝试识别题目分隔符
+    separators = ["---", "===", "###", "\n\n", "\n"]
+    separator = None
+    for sep in separators:
+        if sep in text:
+            separator = sep
+            break
+    
+    if not separator:
+        # 如果没有明显的分隔符，假设只有一道题目
+        questions.append(parse_single_exercise(text))
+    else:
+        # 按分隔符拆分文本
+        sections = text.split(separator)
+        for section in sections:
+            section = section.strip()
+            if not section:
+                continue
+                
+            # 检查这个部分是否包含练习题的关键词
+            if ("题目" in section or "问题" in section) and ("选项" in section or "答案" in section):
+                try:
+                    question = parse_single_exercise(section)
+                    questions.append(question)
+                except Exception as e:
+                    logger.warning(f"解析题目时出错: {str(e)}, 部分文本: {section[:100]}...")
+    
+    # 如果没有解析出任何题目，尝试作为一个整体解析
+    if not questions:
+        try:
+            questions.append(parse_single_exercise(text))
+        except Exception as e:
+            logger.warning(f"作为整体解析题目时出错: {str(e)}")
+            raise ValueError("无法从文本中解析出练习题")
+    
+    return questions
 
+def parse_single_exercise(text: str) -> Dict[str, Any]:
+    """
+    解析单个练习题
+    
+    Args:
+        text: 包含单个练习题的文本
+        
+    Returns:
+        解析后的练习题
+    """
+    # 默认值
+    question = {
+        "title": "练习题",
+        "content": "",
+        "type": "single_choice",  # 修改为下划线格式
+        "difficulty": 3,
+        "answer_template": [],
+        "knowledge_point_id": None
+    }
+    
+    # 提取题目内容
+    content_match = re.search(r"题目[:：]?\s*(.*?)(?=选项|标准答案|答案|解析|$)", text, re.DOTALL)
+    if content_match:
+        question["content"] = content_match.group(1).strip()
+        # 从内容中提取一个简短的标题
+        title_text = question["content"].split("\n")[0][:50]
+        question["title"] = title_text
+    else:
+        # 尝试其他可能的格式
+        content_match = re.search(r"(?:^|\n)([^选项|标准答案|答案|解析]*?)(?=选项|标准答案|答案|解析|$)", text, re.DOTALL)
+        if content_match:
+            question["content"] = content_match.group(1).strip()
+            title_text = question["content"].split("\n")[0][:50]
+            question["title"] = title_text
+    
+    # 确定题目类型
+    if "单选" in text or "选择一项" in text:
+        question["type"] = "single_choice"  # 修改为下划线格式
+    elif "多选" in text or "选择多项" in text:
+        question["type"] = "multiple_choice"  # 修改为下划线格式
+    elif "填空" in text:
+        question["type"] = "fill_in"  # 修改为下划线格式
+    elif "简答" in text or "解答" in text:
+        question["type"] = "short_answer"  # 修改为下划线格式
+    elif "编程" in text or "代码" in text:
+        question["type"] = "programming"  # 保持一致性
+    
+    # 提取选项
+    options_match = re.search(r"选项[:：]?\s*(.*?)(?=标准答案|答案|解析|$)", text, re.DOTALL)
+    if options_match:
+        options_text = options_match.group(1).strip()
+        # 尝试匹配常见的选项格式: A. 选项内容 或 A) 选项内容 或 A、选项内容
+        options = re.findall(r"([A-Z][\.、\)]\s*)(.*?)(?=[A-Z][\.、\)]|$)", options_text, re.DOTALL)
+        if options:
+            question["answer_template"] = [option[1].strip() for option in options]
+        else:
+            # 如果无法识别选项格式，直接使用整个选项文本
+            question["answer_template"] = [options_text]
+    
+    # 提取难度
+    difficulty_match = re.search(r"难度[:：]?\s*(\d+)", text)
+    if difficulty_match:
+        try:
+            difficulty = int(difficulty_match.group(1))
+            if 1 <= difficulty <= 5:
+                question["difficulty"] = difficulty
+        except ValueError:
+            pass
+    
+    return question
+
+# 修改parse_response函数，添加对exerciseGeneration任务类型的特殊处理
 def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
     """
     解析和验证给定任务类型的响应数据
@@ -708,6 +978,8 @@ def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
         data = format_knowledge_to_markdown_response(data)
     elif task_type == "studentDialogue":
         data = format_student_dialogue_response(data)
+    elif task_type == "exerciseGeneration":
+        data = format_exercise_generation_response(data)
 
     try:
         validated_model = response_model.model_validate(data)
