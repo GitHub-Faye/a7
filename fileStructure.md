@@ -42,7 +42,6 @@ a7/                           # 项目根目录
 │   │   ├── models.py         # WebhookConfig和WebhookCallLog模型定义
 │   │   ├── urls.py           # AI服务路由配置，包含StudentDialogueViewSet路由注册
 │   │   ├── views.py          # AI服务视图和API实现，包含N8nWebhookAPIView和StudentDialogueViewSet
-│   │   ├── README.md         # AI服务应用文档，包含学生助手对话API的使用说明
 │   │   ├── services/         # 服务实现目录
 │   │   │   ├── __init__.py              # Python包初始化文件
 │   │   │   ├── base.py                  # 服务基类定义
@@ -180,7 +179,6 @@ a7/                           # 项目根目录
 - **a7/ai_services/models.py**: 模型定义，包含WebhookConfig（webhook配置）和WebhookCallLog（调用日志）模型，实现与外部服务集成和调用记录功能。
 - **a7/ai_services/urls.py**: URL路由配置，定义AI服务的API端点路径，包含StudentDialogueViewSet的路由注册。
 - **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类和StudentDialogueViewSet视图集，处理webhook请求、学生对话请求，并转发至n8n服务，使用标准化的响应格式。
-- **a7/ai_services/README.md**: AI服务应用文档，包含服务概述、配置说明、API使用示例、Webhook配置管理、错误处理和学生助手对话API的详细使用说明。
 - **a7/ai_services/services/knowledge_converter.py**: 负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
 - **a7/ai_services/services/question_export.py**: 问题导出工具类，提供将AI生成的问题导出为JSON和CSV格式的功能。实现了优雅的文件名生成、Unicode字符处理和大型数据集优化。包含QuestionExporter类，提供export_as_json、export_as_csv和通用export_questions方法。
 - **a7/ai_services/services/base.py**: 服务基类定义，提供共享的服务功能和接口。
@@ -271,7 +269,6 @@ a7/                           # 项目根目录
 ### 文档文件
 
 - **fileStructure.md**: 本文档，提供项目文件和目录的完整映射及其用途。
-- **library.md**: 项目使用的库、框架和工具的文档。
 - **prd.txt**: 产品需求文档(PRD)，描述项目功能、技术架构、开发路线图和系统需求，用于Task Master生成任务。
 
 ## 关键文件之间的关系
@@ -427,7 +424,6 @@ a7/                           # 项目根目录
     - `a7/courses/tests_api_questions.py`提供问题生成API的全面测试，验证功能完整性、参数验证和权限控制。
     - `a7/ai_services/tests/conftest.py`配置异步测试环境，提供共享事件循环和测试固件。
     - `a7/ai_services/api_response.py`提供标准化API响应的辅助函数。
-    - `a7/ai_services/README.md`提供AI服务的详细文档，包括学生助手对话API的使用说明、请求/响应格式和测试方法。
     - `a7/ai_services/tests/test_student_dialogue.py`和`a7/ai_services/tests/test_student_dialogue_integration.py`提供学生对话API的单元测试和集成测试，验证功能完整性、错误处理和与真实n8n服务的集成。
 
 15. **问题生成系统**:
@@ -519,7 +515,6 @@ a7/                           # 项目根目录
     - `a7/ai_services/urls.py`注册StudentDialogueViewSet，提供'/api/student-dialogue/'端点，实现RESTful API接口。
     - `a7/ai_services/tests/test_student_dialogue.py`包含全面的单元测试用例，验证学生对话API的功能完整性、参数验证和错误处理。
     - `a7/ai_services/tests/test_student_dialogue_integration.py`提供与真实n8n服务的集成测试，验证单轮对话和多轮对话功能。
-    - `a7/ai_services/README.md`提供学生助手对话API的详细文档，包括请求/响应格式、多轮对话使用方法和测试说明。
     - 学生对话系统与n8n服务集成，通过AI模型提供智能回答，支持教育场景中的学生辅助功能。
     - 系统设计支持多轮对话，通过会话ID跟踪对话上下文，提供连贯的交互体验。
     - 响应数据结构包含主要答案、相关资源和后续问题建议，丰富学生的学习体验。
