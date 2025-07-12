@@ -714,27 +714,13 @@
             "testStrategy": "Test with various correct and incorrect answers to verify feedback accuracy."
           },
           {
-            "id": 5,
-            "title": "Integrate Robust Error Handling",
-            "description": "Ensure the module handles errors gracefully, including AI service failures and invalid inputs.",
-            "dependencies": [
-              1,
-              2,
-              3
-            ],
-            "details": "Implement error handling for API failures, invalid student interactions, and unexpected scenarios.",
-            "status": "pending",
-            "testStrategy": "Simulate errors to ensure the system responds appropriately and provides useful feedback."
-          },
-          {
             "id": 6,
             "title": "Test and Validate Full Module Integration",
             "description": "Conduct comprehensive testing of the entire student assistant module to ensure all components work together seamlessly.",
             "dependencies": [
               1,
               2,
-              3,
-              5
+              3
             ],
             "details": "Test dialogue integration, exercise generation, answer correction, and error handling as a unified system.",
             "status": "pending",
