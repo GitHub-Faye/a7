@@ -1,6 +1,6 @@
 # Task ID: 16
 # Title: Develop Automated Knowledge Point to PPT Conversion Module
-# Status: pending
+# Status: done
 # Dependencies: 13, 15
 # Priority: medium
 # Description: Implement a module to automate the conversion of knowledge points (with hierarchical structure) into PPT presentations by leveraging AI for Markdown generation and marp-cli for conversion, ensuring input simplicity and output quality.

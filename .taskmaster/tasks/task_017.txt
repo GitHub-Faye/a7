@@ -1,0 +1,107 @@
+# Task ID: 17
+# Title: Create Student Assistant Module with AI Dialogue and Exercise Generation
+# Status: done
+# Dependencies: 13, 14
+# Priority: medium
+# Description: Develop a student assistant module that leverages n8n's AI service for dialogue and generates exercises on demand without database persistence, including answer correction functionality.
+# Details:
+1. **AI Dialogue Integration**: Utilize n8n's AI service to enable conversational interactions with students. Implement an API endpoint to handle student queries and forward them to the AI service, ensuring responses are contextually relevant and formatted appropriately.
+2. **Exercise Generation**: Develop functionality to generate exercises based on student requests (e.g., topic, difficulty). Use the AI-powered question generation module (Task 13) to create exercises dynamically, ensuring they are not persisted in the database.
+3. **Answer Correction**: Implement logic to evaluate student-submitted answers against the generated exercises. Leverage the AI service to provide feedback or corrections, ensuring accuracy and helpfulness.
+4. **Temporary Data Handling**: Design the module to manage temporary data (e.g., generated exercises, student answers) in memory or transient storage, avoiding database persistence.
+5. **Error Handling**: Ensure robust error handling for AI service failures, invalid inputs, or unexpected student interactions.
+
+# Test Strategy:
+1. **Unit Testing**:
+   - Test the AI dialogue endpoint with various student queries to verify correct forwarding and response handling.
+   - Validate exercise generation logic with different parameters (e.g., topics, difficulty levels).
+   - Test answer correction functionality with correct and incorrect student submissions.
+2. **Integration Testing**:
+   - Simulate a full student interaction flow, including querying the assistant, generating exercises, and submitting answers for correction.
+   - Verify temporary data is not persisted in the database.
+3. **Error Testing**:
+   - Test error handling for scenarios like AI service downtime or invalid student inputs.
+
+# Subtasks:
+## 1. Set Up AI Dialogue API Endpoint [done]
+### Dependencies: None
+### Description: Create an API endpoint to handle student queries and integrate with n8n's AI service for conversational responses.
+### Details:
+Implement the endpoint to receive student queries, forward them to the AI service, and return contextually relevant responses.
+<info added on 2025-07-11T03:00:04.844Z>
+Added integration tests with real AI service:
+1. Created test_student_dialogue_integration.py containing:
+   - test_real_dialogue_integration for basic dialogue functionality
+   - test_real_dialogue_without_session_id for auto-generated session IDs
+   - test_real_dialogue_multi_turn for multi-turn conversation testing
+   - test_direct_client_dialogue using N8nWebhookClient directly
+
+2. Created run_student_dialogue_integration_tests.py script for manual test execution:
+   - Supports running all or specific tests
+   - Automatically removes @unittest.skip decorators
+   - Provides detailed test output
+
+Tests are marked with @unittest.skip by default to avoid running in regular test suites since they require valid API keys and available AI service. The run_student_dialogue_integration_tests.py script should be used when manual verification of real AI service integration is needed.
+</info added on 2025-07-11T03:00:04.844Z>
+<info added on 2025-07-11T03:18:10.097Z>
+实现了学生助手AI对话API端点，允许学生与AI助手进行对话交互。创建了必要的数据模型：DialogueRequestData、DialogueResponseData和DialogueResource。在N8nWebhookClient中添加了dialogue_with_student相关方法。实现了StudentDialogueViewSet处理API请求，支持匿名访问。添加了会话ID管理功能以支持多轮对话。修复了与n8n服务的集成问题，确保使用正确的参数名称（chatInput而非query）。实现了完善的错误处理和响应格式化机制。编写了全面的测试用例，包括单元测试和集成测试。添加了详细的API文档到README.md。所有测试用例均已通过验证。
+</info added on 2025-07-11T03:18:10.097Z>
+
+## 2. Develop Exercise Generation Logic [done]
+### Dependencies: None
+### Description: Implement functionality to dynamically generate exercises based on student requests using the AI-powered question generation module.
+### Details:
+Leverage Task 13's module to create exercises on demand, ensuring they are not persisted in the database.
+<info added on 2025-07-12T02:22:37.275Z>
+The exercise generation API has been successfully implemented without database persistence. Key implementation details include:
+
+1. Added generate_exercises and generate_exercises_sync methods in N8nWebhookClient for AI service interaction
+2. Created ExerciseGenerationSerializer for API request parameter validation
+3. Implemented ExerciseGenerationViewSet with permissions.AllowAny for student access without authentication
+4. Registered route in urls.py accessible via /api/ai/generate-exercises/
+5. Added comprehensive unit tests covering success cases, error handling, and anonymous access
+
+API features:
+- Accepts query text with optional parameters (knowledge point ID, question type, quantity, difficulty)
+- Generates various exercise types (single/multiple choice, fill-in, short answer)
+- Returns standardized API response with exercise data and session ID
+- Maintains temporary generation without database storage
+- Supports anonymous access for student convenience
+</info added on 2025-07-12T02:22:37.275Z>
+<info added on 2025-07-12T02:56:31.296Z>
+在实现过程中发现并修复了格式不一致问题：
+
+1. 问题：formats.py中的parse_single_exercise函数使用连字符格式（如"single-choice"），而系统其他部分期望下划线格式（如"single_choice"），导致集成测试失败。
+
+2. 解决方案：修改formats.py中的parse_single_exercise函数，统一使用下划线格式：
+   - "single-choice" → "single_choice"
+   - "multiple-choice" → "multiple_choice"
+   - "fill-in" → "fill_in"
+   - "short-answer" → "short_answer"
+
+3. 测试结果：修改后所有单元测试和集成测试均通过，确保API返回数据格式与系统其他部分一致。
+
+4. 总结：练习题生成API已完全实现并通过测试，能够生成不同类型的练习题，支持匿名访问且不保存到数据库，符合需求规格。
+</info added on 2025-07-12T02:56:31.296Z>
+
+## 3. Implement Answer Correction Mechanism [done]
+### Dependencies: 17.2
+### Description: Develop logic to evaluate student-submitted answers against generated exercises using the AI service.
+### Details:
+Use the AI service to provide feedback or corrections, ensuring accuracy and helpfulness in responses.
+<info added on 2025-07-12T07:03:25.228Z>
+答案校正机制已成功实现，包括数据结构定义、AI服务通信方法、序列化器、视图集和路由配置。实现了针对不同题型（单选/多选/简答）的prompt优化和评估处理，提供结构化响应（正确性/得分/反馈/建议）。已完成单元测试和集成测试，通过真实服务验证了各题型处理能力。系统现可接收学生答案和题目ID，经AI评估后返回详细校正结果。
+</info added on 2025-07-12T07:03:25.228Z>
+
+## 6. Test and Validate Full Module Integration [done]
+### Dependencies: 17.1, 17.2, 17.3
+### Description: Conduct comprehensive testing of the entire student assistant module to ensure all components work together seamlessly.
+### Details:
+Test dialogue integration, exercise generation, answer correction, and error handling as a unified system.
+<info added on 2025-07-12T07:58:49.027Z>
+1) Created test_student_assistant_integration.py for automated testing of dialogue, exercise generation and answer correction API integration, covering full process testing, session management testing, functional interaction testing and error handling testing. 2) Developed run_student_assistant_tests.py manual test script supporting selective execution of different test types via command line parameters, with detailed test reports and statistics. 3) Implemented multiple test scenarios including learning assistance, Q&A sessions and multi-topic learning scenarios to ensure system stability and reliability in real-world usage. Testing verified seamless collaboration between three core components (dialogue API, exercise generation API, answer correction API) with consistent session IDs and robust error handling mechanisms.
+</info added on 2025-07-12T07:58:49.027Z>
+<info added on 2025-07-12T08:43:48.833Z>
+在集成测试中发现并修复了会话ID一致性问题：1) 问题表现为练习题生成API返回不一致的会话ID，答案校正API响应缺少会话ID字段；2) 解决方案包括修改ExerciseGenerationViewSet使用请求中的会话ID，并在StudentAnswerCorrectionViewSet中添加会话ID字段；3) 验证结果：所有测试通过（6/6），会话ID一致性检查通过，三个组件实现无缝协作，确保学习过程保持一致的会话上下文。
+</info added on 2025-07-12T08:43:48.833Z>
+
