@@ -299,13 +299,14 @@ class ExerciseGenerationViewSet(viewsets.ViewSet):
             # 处理返回的练习题数据
             if 'questions' not in result:
                 raise ValueError("API返回的数据缺少练习题内容")
-                
+            
+            # 确保使用请求中的会话ID，而不是响应中可能返回的不同ID
             # 返回处理后的响应
             return create_api_response(
                 success=True,
                 data={
                     "exercises": result["questions"],
-                    "session_id": result.get("session_id", session_id)
+                    "session_id": session_id  # 使用请求中的会话ID，确保一致性
                 },
                 message="练习题生成成功",
                 status_code=status.HTTP_200_OK
@@ -454,6 +455,9 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
             # 调用n8n客户端
             client = N8nWebhookClient()
             result = client.correct_student_answer_sync(correction_data)
+            
+            # 确保结果中包含会话ID
+            result['session_id'] = session_id
             
             # 返回处理后的响应
             return create_api_response(
