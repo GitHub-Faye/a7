@@ -11,12 +11,8 @@ from .views import (
     ExerciseViewSet,
     StudentAnswerViewSet,
     QuestionGenerationViewSet,
-    KnowledgePointToPPTViewSet
-)
-
-from ai_services.views import (
-    CourseContentGenerationViewSet,
-    StudentDialogueViewSet
+    KnowledgePointToPPTViewSet,
+    CourseContentGenerationViewSet
 )
 
 # 创建一个路由器并注册我们的视图集
@@ -31,7 +27,6 @@ router.register(r'knowledge-points-to-ppt', KnowledgePointToPPTViewSet, basename
 # 注册AI服务相关视图集
 router.register(r'generate-course', CourseContentGenerationViewSet, basename='generate-course')
 router.register(r'generate-questions', QuestionGenerationViewSet, basename='generate-questions')
-router.register(r'student-dialogue', StudentDialogueViewSet, basename='student-dialogue')
 
 urlpatterns = [
     path('', include(router.urls)),

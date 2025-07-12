@@ -23,115 +23,37 @@ from .services.n8n_webhook.client import N8nWebhookClient
 from .services.n8n_webhook.exceptions import N8nWebhookError
 from .api_response import create_api_response
 
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 logger = logging.getLogger(__name__)
-
-
-class CourseContentGenerationViewSet(viewsets.ViewSet):
-    """课程内容生成API视图集"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def create(self, request, *args, **kwargs):
-        """处理课程内容生成请求"""
-        serializer = CourseContentGenerationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        try:
-            # 准备请求数据
-            course_data = {
-                "course_name": serializer.validated_data["course_name"],
-                "course_description": serializer.validated_data["course_description"],
-                "chapter_count": serializer.validated_data["chapter_count"],
-                "subject": serializer.validated_data["subject"],
-                "grade_level": serializer.validated_data["grade_level"],
-                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
-                # n8n格式要求
-                "chatInput": f"Generate course content for {serializer.validated_data['course_name']}",
-                "sessionId": str(uuid.uuid4())
-            }
-            
-            # 调用n8n客户端
-            client = N8nWebhookClient()
-            result = client.generate_course_content_sync(course_data)
-            
-            return Response({
-                "course": result["course"],
-                "knowledge_points": result["knowledge_points"]
-            }, status=status.HTTP_200_OK)
-            
-        except N8nWebhookError as e:
-            logger.error(f"课程内容生成失败: {str(e)}")
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        except Exception as e:
-            logger.exception(f"课程内容生成处理异常: {str(e)}")
-            return Response(
-                {"error": f"处理课程内容生成请求时出错: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class QuestionGenerationViewSet(viewsets.ViewSet):
-    """问题生成API视图集"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def create(self, request, *args, **kwargs):
-        """处理问题生成请求"""
-        serializer = QuestionGenerationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        try:
-            # 获取知识点数据
-            knowledge_point_ids = serializer.validated_data["knowledge_point_ids"]
-            knowledge_points = KnowledgePoint.objects.filter(id__in=knowledge_point_ids)
-            
-            if not knowledge_points.exists():
-                return Response(
-                    {"error": "未找到指定的知识点"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # 构建知识点内容字符串
-            knowledge_content = ""
-            for kp in knowledge_points:
-                knowledge_content += f"知识点 {kp.id}: {kp.title}\n{kp.content}\n\n"
-            
-            # 准备请求数据
-            question_data = {
-                "knowledge_point_ids": knowledge_point_ids,
-                "question_types": serializer.validated_data["question_types"],
-                "quantity": serializer.validated_data["quantity"],
-                "difficulty": serializer.validated_data.get("difficulty"),
-                # n8n格式要求
-                "chatInput": f"Generate {serializer.validated_data['quantity']} questions based on the following knowledge points:\n{knowledge_content}",
-                "sessionId": str(uuid.uuid4())
-            }
-            
-            # 调用n8n客户端
-            client = N8nWebhookClient()
-            result = client.generate_questions_sync(question_data)
-            
-            return Response(result, status=status.HTTP_200_OK)
-            
-        except N8nWebhookError as e:
-            logger.error(f"问题生成失败: {str(e)}")
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        except Exception as e:
-            logger.exception(f"问题生成处理异常: {str(e)}")
-            return Response(
-                {"error": f"处理问题生成请求时出错: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
 
 class StudentDialogueViewSet(viewsets.ViewSet):
     """学生助手对话API视图集，处理学生查询并提供AI回复"""
     permission_classes = [permissions.AllowAny]  # 学生可无需认证使用
     
+    @swagger_auto_schema(
+        operation_summary="学生助手对话",
+        operation_description="处理学生提出的问题并返回AI生成的回复",
+        request_body=StudentDialogueSerializer,
+        responses={
+            200: openapi.Response(
+                description="成功处理对话请求",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "answer": "AI生成的回答内容",
+                            "session_id": "会话ID"
+                        },
+                        "message": "对话请求处理成功"
+                    }
+                }
+            ),
+            400: "请求参数验证失败",
+            500: "服务器内部错误"
+        }
+    )
     def create(self, request, *args, **kwargs):
         """处理学生提问并返回AI响应"""
         serializer = StudentDialogueSerializer(data=request.data)
@@ -243,6 +165,36 @@ class ExerciseGenerationViewSet(viewsets.ViewSet):
     """练习题生成API视图集，生成练习题但不保存到数据库"""
     permission_classes = [permissions.AllowAny]  # 允许匿名访问，便于学生使用
     
+    @swagger_auto_schema(
+        operation_summary="生成练习题",
+        operation_description="基于输入的查询或知识点生成练习题，支持指定数量、类型和难度",
+        request_body=ExerciseGenerationSerializer,
+        responses={
+            200: openapi.Response(
+                description="成功生成练习题",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "exercises": [
+                                {
+                                    "title": "练习题标题",
+                                    "content": "练习题内容",
+                                    "type": "类型",
+                                    "difficulty": 3,
+                                    "answer_template": ["选项A", "选项B"]
+                                }
+                            ],
+                            "session_id": "会话ID"
+                        },
+                        "message": "练习题生成成功"
+                    }
+                }
+            ),
+            400: "请求参数验证失败或知识点不存在",
+            500: "服务器内部错误"
+        }
+    )
     def create(self, request, *args, **kwargs):
         """处理练习题生成请求"""
         serializer = ExerciseGenerationSerializer(data=request.data)
@@ -359,6 +311,33 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
     """学生答案校正API视图集，评估学生答案但不直接保存到数据库"""
     permission_classes = [permissions.AllowAny]  # 允许匿名访问，便于学生使用
     
+    @swagger_auto_schema(
+        operation_summary="评估学生答案",
+        operation_description="对指定练习题的学生答案进行评估，返回正确性、得分和反馈信息",
+        request_body=StudentAnswerCorrectionSerializer,
+        responses={
+            200: openapi.Response(
+                description="成功评估答案",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "is_correct": True,
+                            "score": 95,
+                            "feedback": "评价反馈",
+                            "improvement_suggestions": "改进建议",
+                            "explanation": "解题思路",
+                            "session_id": "会话ID"
+                        },
+                        "message": "答案评估成功"
+                    }
+                }
+            ),
+            400: "请求参数验证失败",
+            404: "练习题不存在",
+            500: "服务器内部错误"
+        }
+    )
     def create(self, request, *args, **kwargs):
         """处理答案校正请求"""
         serializer = StudentAnswerCorrectionSerializer(data=request.data)
