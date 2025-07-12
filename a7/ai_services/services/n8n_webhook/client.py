@@ -362,9 +362,35 @@ class N8nWebhookClient:
         生成练习题（同步方法）
         
         Args:
-            request_data: 请求数据，包含查询和生成参数
+            request_data: 练习题生成任务的请求数据
             
         Returns:
             Dict[str, Any]: 生成的练习题数据
         """
-        return asyncio.run(self.generate_exercises(request_data)) 
+        return asyncio.run(self.generate_exercises(request_data))
+        
+    async def correct_student_answer(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        评估和校正学生答案（异步方法）
+        
+        Args:
+            request_data: 答案校正任务的请求数据，应包含:
+                - chatInput: 包含练习题内容、学生答案等信息的提示文本
+                - sessionId: 会话ID，用于跟踪上下文
+                
+        Returns:
+            Dict[str, Any]: 校正结果，包含正确性评估、得分、反馈等
+        """
+        return await self.process_ai_task("answerCorrection", request_data)
+        
+    def correct_student_answer_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        评估和校正学生答案（同步方法）
+        
+        Args:
+            request_data: 答案校正任务的请求数据
+            
+        Returns:
+            Dict[str, Any]: 校正结果，包含正确性评估、得分、反馈等
+        """
+        return asyncio.run(self.correct_student_answer(request_data)) 

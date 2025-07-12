@@ -9,7 +9,8 @@ from .views import (
     CourseContentGenerationViewSet,
     QuestionGenerationViewSet,
     StudentDialogueViewSet,
-    ExerciseGenerationViewSet
+    ExerciseGenerationViewSet,
+    StudentAnswerCorrectionViewSet
 )
 
 app_name = 'ai_services'
@@ -20,6 +21,7 @@ router.register(r'generate-course', CourseContentGenerationViewSet, basename='ge
 router.register(r'generate-questions', QuestionGenerationViewSet, basename='generate-questions')
 router.register(r'student-dialogue', StudentDialogueViewSet, basename='student-dialogue')
 router.register(r'generate-exercises', ExerciseGenerationViewSet, basename='generate-exercises')
+router.register(r'correct-answer', StudentAnswerCorrectionViewSet, basename='correct-answer')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -178,7 +178,7 @@ a7/                           # 项目根目录
 - **a7/ai_services/api_response.py**: 标准化API响应格式化工具，提供`create_api_response`函数用于生成统一的API响应。
 - **a7/ai_services/models.py**: 模型定义，包含WebhookConfig（webhook配置）和WebhookCallLog（调用日志）模型，实现与外部服务集成和调用记录功能。
 - **a7/ai_services/urls.py**: URL路由配置，定义AI服务的API端点路径，包含StudentDialogueViewSet的路由注册。
-- **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类和StudentDialogueViewSet视图集，处理webhook请求、学生对话请求，并转发至n8n服务，使用标准化的响应格式。新增ExerciseGenerationViewSet视图集，实现练习题生成API，允许匿名访问，支持根据查询文本、知识点ID、题型、数量和难度生成练习题，但不将生成的练习题保存到数据库。
+- **a7/ai_services/views.py**: 视图文件，包含N8nWebhookAPIView视图类和StudentDialogueViewSet视图集，处理webhook请求、学生对话请求，并转发至n8n服务，使用标准化的响应格式。新增ExerciseGenerationViewSet视图集，实现练习题生成API，允许匿名访问，支持根据查询文本、知识点ID、题型、数量和难度生成练习题，但不将生成的练习题保存到数据库。新增StudentAnswerCorrectionSerializer和StudentAnswerCorrectionViewSet，实现学生答案校正API，允许匿名访问，支持根据练习题ID和学生答案评估正确性并提供结构化反馈，包括正确性、得分、反馈意见、改进建议和解析说明。
 - **a7/ai_services/services/knowledge_converter.py**: 负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
 - **a7/ai_services/services/question_export.py**: 问题导出工具类，提供将AI生成的问题导出为JSON和CSV格式的功能。实现了优雅的文件名生成、Unicode字符处理和大型数据集优化。包含QuestionExporter类，提供export_as_json、export_as_csv和通用export_questions方法。
 - **a7/ai_services/services/base.py**: 服务基类定义，提供共享的服务功能和接口。
@@ -186,9 +186,9 @@ a7/                           # 项目根目录
 
 ### n8n Webhook服务文件
 
-- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。还实现了问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。
+- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。还实现了问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。新增答案校正的便捷方法（correct_student_answer和correct_student_answer_sync），支持评估学生提交的答案并提供结构化的反馈。
 - **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，包括N8nWebhookError基类、N8nConnectionError（连接错误）、N8nTimeoutError（超时错误）、N8nResponseError（响应错误）以及请求/响应验证相关的异常。
-- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）和学生对话相关的数据模型（DialogueRequestData、DialogueResource、DialogueResponseData）。新增练习题生成相关的数据模型（ExerciseGenerationRequestData、ExerciseGenerationResponseData）和解析函数（parse_exercise_text、parse_single_exercise），支持从文本中提取练习题内容、选项和答案。题型格式使用下划线格式（如"single_choice"、"multiple_choice"），确保与系统其他部分的格式一致。
+- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）和学生对话相关的数据模型（DialogueRequestData、DialogueResource、DialogueResponseData）。新增练习题生成相关的数据模型（ExerciseGenerationRequestData、ExerciseGenerationResponseData）和解析函数（parse_exercise_text、parse_single_exercise），支持从文本中提取练习题内容、选项和答案。题型格式使用下划线格式（如"single_choice"、"multiple_choice"），确保与系统其他部分的格式一致。新增答案校正相关的数据模型（AnswerCorrectionResponseData）和解析函数（format_answer_correction_response），支持从AI服务返回的文本中提取结构化的答案评估结果，包括正确性、得分、反馈、改进建议和解析说明。
 
 ### AI服务测试文件
 
@@ -206,6 +206,8 @@ a7/                           # 项目根目录
 - **a7/ai_services/tests/run_student_dialogue_tests.py**: 学生对话测试运行脚本，提供便捷的方式运行单元测试和集成测试。
 - **a7/ai_services/tests/test_exercise_generation.py**: 练习题生成API的单元测试，包含对API端点的功能测试、参数验证测试和错误处理测试。使用模拟（mock）技术测试API的行为，验证API能够正确处理请求、验证参数和返回标准化响应。
 - **a7/ai_services/tests/test_exercise_generation_integration.py**: 练习题生成API的集成测试，包含与真实N8N服务的交互测试，验证API能够成功调用AI服务生成练习题。测试包括通过API端点的测试和直接使用N8nWebhookClient的测试，确保整个流程正常工作。
+- **a7/ai_services/tests/test_answer_correction.py**: 学生答案校正API的单元测试，验证API端点功能、参数验证和错误处理。使用模拟（mock）技术测试API的行为，验证API能够正确处理请求、构造适当的prompt、调用AI服务并返回标准化响应。
+- **a7/ai_services/tests/test_answer_correction_integration.py**: 学生答案校正API的集成测试，包含与真实N8N服务的交互测试，验证API能够成功评估不同类型（单选题、多选题、简答题）的学生答案。测试包括正确答案和错误答案的评估，验证评分、反馈和建议的合理性。
 
 ### pytest配置文件
 
@@ -413,13 +415,13 @@ a7/                           # 项目根目录
 
 14. **AI服务系统**:
     - `a7/ai_services/models.py`定义了webhook配置和调用日志的核心数据模型。
-    - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。还提供问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。新增练习题生成的便捷方法（generate_exercises和generate_exercises_sync），支持根据查询文本和知识点内容生成练习题。
+    - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。还提供问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。新增答案校正的便捷方法（correct_student_answer和correct_student_answer_sync），支持评估学生提交的答案并提供结构化的反馈。新增练习题生成的便捷方法（generate_exercises和generate_exercises_sync），支持根据查询文本和知识点内容生成练习题。
     - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
-    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）和学生对话相关的数据模型（DialogueRequestData、DialogueResource、DialogueResponseData）。新增练习题生成相关的数据模型（ExerciseGenerationRequestData、ExerciseGenerationResponseData）和解析函数（parse_exercise_text、parse_single_exercise），支持从文本中提取练习题内容、选项和答案。题型格式使用下划线格式（如"single_choice"、"multiple_choice"），确保与系统其他部分的格式一致。
-    - `a7/ai_services/views.py`中的N8nWebhookAPIView权限类已设置为[AllowAny]，允许无需认证即可访问。新增StudentDialogueViewSet视图集，处理学生对话请求，权限设置为[AllowAny]，允许学生无需认证即可使用。新增ExerciseGenerationViewSet视图集，实现练习题生成API，允许匿名访问，支持根据查询文本、知识点ID、题型、数量和难度生成练习题，但不将生成的练习题保存到数据库。
+    - `a7/ai_services/services/n8n_webhook/formats.py`使用Pydantic定义灵活的请求/响应数据模型，以适应外部服务的不同输出。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）和学生对话相关的数据模型（DialogueRequestData、DialogueResource、DialogueResponseData）。新增练习题生成相关的数据模型（ExerciseGenerationRequestData、ExerciseGenerationResponseData）和解析函数（parse_exercise_text、parse_single_exercise），支持从文本中提取练习题内容、选项和答案。题型格式使用下划线格式（如"single_choice"、"multiple_choice"），确保与系统其他部分的格式一致。新增答案校正相关的数据模型（AnswerCorrectionResponseData）和解析函数（format_answer_correction_response），支持从AI服务返回的文本中提取结构化的答案评估结果，包括正确性、得分、反馈、改进建议和解析说明。
+    - `a7/ai_services/views.py`中的N8nWebhookAPIView权限类已设置为[AllowAny]，允许无需认证即可访问。新增StudentDialogueViewSet视图集，处理学生对话请求，权限设置为[AllowAny]，允许学生无需认证即可使用。新增ExerciseGenerationViewSet视图集，实现练习题生成API，允许匿名访问，支持根据查询文本、知识点ID、题型、数量和难度生成练习题，但不将生成的练习题保存到数据库。新增StudentAnswerCorrectionSerializer和StudentAnswerCorrectionViewSet，实现学生答案校正API，允许匿名访问，支持根据练习题ID和学生答案评估正确性并提供结构化反馈，包括正确性、得分、反馈意见、改进建议和解析说明。
     - `a7/ai_services/services/knowledge_converter.py`负责将AI服务（如n8n）返回的课程内容JSON数据，安全地转换为数据库中的Course和KnowledgePoint模型。包含对输入数据进行验证、处理层级结构（有深度限制以防无限递归）、以及在原子事务中完成数据库操作的健壮逻辑。
     - `a7/ai_services/services/question_export.py`提供导出工具，将问题数据转换为标准格式（JSON、CSV），支持文件命名和Unicode处理。
-    - `a7/ai_services/urls.py`将API视图与URL路径映射，注册StudentDialogueViewSet提供'/api/student-dialogue/'端点。新增ExerciseGenerationViewSet注册，提供'/api/generate-exercises/'端点，用于练习题生成API。
+    - `a7/ai_services/urls.py`将API视图与URL路径映射，注册StudentDialogueViewSet提供'/api/student-dialogue/'端点。新增ExerciseGenerationViewSet注册，提供'/api/generate-exercises/'端点，用于练习题生成API。新增StudentAnswerCorrectionViewSet路由注册，提供'/api/correct-answer/'端点用于学生答案校正API。
     - `a7/courses/views.py`中的QuestionGenerationViewSet实现问题生成API端点，接收知识点ID、问题类型和数量等参数，调用n8n服务生成问题并返回标准化响应。
     - `a7/courses/serializers.py`中的QuestionGenerationSerializer负责问题生成API的请求参数验证。新增StudentDialogueSerializer负责学生对话API的请求参数验证。
     - `a7/courses/urls.py`注册QuestionGenerationViewSet，提供'/api/questions-generate/'端点。
@@ -429,6 +431,8 @@ a7/                           # 项目根目录
     - `a7/ai_services/tests/test_student_dialogue.py`和`a7/ai_services/tests/test_student_dialogue_integration.py`提供学生对话API的单元测试和集成测试，验证功能完整性、错误处理和与真实n8n服务的集成。
     - `a7/ai_services/tests/test_exercise_generation.py`提供练习题生成API的单元测试，验证API端点功能、参数验证和错误处理，使用模拟技术测试API行为。
     - `a7/ai_services/tests/test_exercise_generation_integration.py`提供练习题生成API的集成测试，验证与真实N8N服务的交互，包括通过API端点和直接使用N8nWebhookClient的测试。
+    - `a7/ai_services/tests/test_answer_correction.py`提供学生答案校正API的单元测试，验证API端点功能、参数验证和错误处理。使用模拟（mock）技术测试API的行为，验证API能够正确处理请求、构造适当的prompt、调用AI服务并返回标准化响应。
+    - `a7/ai_services/tests/test_answer_correction_integration.py`提供学生答案校正API的集成测试，包含与真实N8N服务的交互测试，验证API能够成功评估不同类型（单选题、多选题、简答题）的学生答案。测试包括正确答案和错误答案的评估，验证评分、反馈和建议的合理性。
 
 15. **问题生成系统**:
     - `a7/ai_services/services/n8n_webhook/formats.py`中的QuestionData模型定义问题数据结构，支持多种题型（如简答题、选择题）和不同格式的答案模板（字符串或列表）。
@@ -541,6 +545,23 @@ a7/                           # 项目根目录
     - 提供标准化的练习题数据结构，包括标题、内容、类型、难度、答案模板等。
     - 系统设计足够灵活，能够处理不同格式的答案模板（如简答题的文本答案和选择题的选项列表）。
     - 练习题生成API不保存生成的练习题到数据库，而是直接返回给客户端，适合用于学生自主练习和临时题目生成场景。
+
+21. **学生答案校正系统**:
+    - `a7/ai_services/services/n8n_webhook/formats.py`中的AnswerCorrectionResponseData模型定义答案校正的响应数据结构，包含正确性评估、得分、反馈、改进建议和解析说明等字段。
+    - `a7/ai_services/services/n8n_webhook/formats.py`中的format_answer_correction_response函数负责从AI服务返回的文本中提取结构化的答案评估结果，实现健壮的文本解析和JSON提取逻辑。
+    - `a7/ai_services/services/n8n_webhook/client.py`中的correct_student_answer和correct_student_answer_sync方法提供异步和同步的答案校正功能，支持评估学生提交的答案并提供结构化的反馈。
+    - `a7/ai_services/views.py`中的StudentAnswerCorrectionSerializer验证答案校正请求参数，确保练习题ID和学生答案内容有效，并验证练习题是否存在。
+    - `a7/ai_services/views.py`中的StudentAnswerCorrectionViewSet处理答案校正API请求，根据练习题类型构建适当的评估prompt，调用n8n服务评估学生答案并返回结构化反馈，支持匿名访问，便于学生使用。
+    - `a7/ai_services/urls.py`注册'/api/correct-answer/'端点，提供RESTful API接口。
+    - `a7/ai_services/tests/test_answer_correction.py`包含单元测试用例，验证答案校正API的功能完整性、参数验证和错误处理，使用模拟技术测试API行为。
+    - `a7/ai_services/tests/test_answer_correction_integration.py`提供与真实N8N服务的集成测试，验证答案校正API能够成功评估不同类型（单选题、多选题、简答题）的学生答案。
+    - 答案校正系统与练习题模型集成，基于练习题内容和答案模板评估学生答案的正确性。
+    - 支持多种题型的答案评估，包括单选题、多选题和简答题，并针对不同题型提供特定的评分标准和反馈。
+    - 系统设计采用结构化prompt模板，包含练习题详情、选项信息、学生答案和评估指示，确保AI能够准确理解任务和数据。
+    - 对于多选题，系统提供特定的评分标准，根据选择的正确选项比例给出合理的得分。
+    - 响应数据结构包含正确性评估（布尔值）、得分（0-100分）、详细反馈、改进建议和解题思路/解析，为学生提供全面的学习支持。
+    - API端点设置为允许匿名访问，便于学生无需认证即可使用答案校正功能。
+    - 系统不直接保存评估结果到数据库，而是实时返回给客户端，适合用于学生自主学习和即时反馈场景。
 
 ## 目录组织逻辑
 
@@ -664,6 +685,7 @@ a7/                           # 项目根目录
    - `/api/questions-generate/export/` - 问题导出API端点，支持将生成的问题导出为JSON或CSV格式
    - `/api/student-dialogue/` - 学生助手对话端点，接收学生查询并返回AI助手回答
    - `/api/generate-exercises/` - 练习题生成API端点，接收查询文本、知识点ID、题型、数量和难度等参数，返回AI生成的练习题
+   - `/api/correct-answer/` - 学生答案校正API端点，接收练习题ID和学生答案，返回评估结果（正确性、得分、反馈、改进建议和解析）
    - 支持POST方法，接收任务类型、任务数据和webhook配置ID
    - 需要认证（JWT令牌）访问
    - 支持不同任务类型，如"ragAI"（检索增强生成式AI）、"questionGeneration"（问题生成）和"exerciseGeneration"（练习题生成）

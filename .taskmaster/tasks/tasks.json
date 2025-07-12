@@ -709,8 +709,8 @@
             "dependencies": [
               2
             ],
-            "details": "Use the AI service to provide feedback or corrections, ensuring accuracy and helpfulness in responses.",
-            "status": "pending",
+            "details": "Use the AI service to provide feedback or corrections, ensuring accuracy and helpfulness in responses.\n<info added on 2025-07-12T07:03:25.228Z>\n答案校正机制已成功实现，包括数据结构定义、AI服务通信方法、序列化器、视图集和路由配置。实现了针对不同题型（单选/多选/简答）的prompt优化和评估处理，提供结构化响应（正确性/得分/反馈/建议）。已完成单元测试和集成测试，通过真实服务验证了各题型处理能力。系统现可接收学生答案和题目ID，经AI评估后返回详细校正结果。\n</info added on 2025-07-12T07:03:25.228Z>",
+            "status": "done",
             "testStrategy": "Test with various correct and incorrect answers to verify feedback accuracy."
           },
           {
@@ -745,7 +745,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-12T02:22:42.792Z",
+      "updated": "2025-07-12T07:03:29.709Z",
       "description": "Tasks for master context"
     }
   }

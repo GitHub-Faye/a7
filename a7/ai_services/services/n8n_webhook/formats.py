@@ -177,6 +177,19 @@ class ExerciseGenerationResponseData(BaseResponse):
 
 
 # ==============================================================================
+# 答案校正任务格式 (Answer Correction Task Formats)
+# ==============================================================================
+
+class AnswerCorrectionResponseData(BaseResponse):
+    """答案校正任务的响应数据模型"""
+    is_correct: bool = Field(..., description="答案是否正确")
+    score: float = Field(..., ge=0, le=100, description="得分，0-100分")
+    feedback: str = Field(..., description="详细的反馈意见")
+    improvement_suggestions: Optional[str] = Field(None, description="改进建议")
+    explanation: Optional[str] = Field(None, description="解题思路或解析")
+
+
+# ==============================================================================
 # 任务格式注册与管理 (Task Format Registry)
 # ==============================================================================
 
@@ -205,6 +218,10 @@ TASK_FORMATS: Dict[str, Dict[str, Any]] = {
     "exerciseGeneration": {
         "request": ExerciseGenerationRequestData,
         "response": ExerciseGenerationResponseData,
+    },
+    "answerCorrection": {
+        "request": DialogueRequestData,  # 重用DialogueRequestData，因为接口格式一致
+        "response": AnswerCorrectionResponseData,
     },
     # 在这里可以添加其他任务类型的格式定义
     # "another_task": {
@@ -948,45 +965,316 @@ def parse_single_exercise(text: str) -> Dict[str, Any]:
 # 修改parse_response函数，添加对exerciseGeneration任务类型的特殊处理
 def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
     """
-    解析和验证给定任务类型的响应数据
-
+    解析和验证任务响应数据
+    
     Args:
         task_type: 任务类型字符串
-        data: 从n8n收到的响应数据
-
+        data: 要解析的响应数据
+        
     Returns:
-        一个已验证的Pydantic响应模型实例
-
+        一个已验证的Pydantic模型实例
+        
     Raises:
         N8nResponseError: 如果任务类型无效或数据验证失败
     """
     task_format = get_task_format(task_type)
     if not task_format:
-        # 这种情况理论上不应发生，因为请求时已验证过
         raise N8nResponseError(f"不支持的任务类型: {task_type}")
-
+        
     response_model = task_format.get("response")
     if not response_model:
         raise N8nResponseError(f"任务类型 '{task_type}' 未定义响应模型")
-
-    # 根据任务类型进行特殊处理
-    if task_type == "courseGeneration":
-        data = format_course_generation_response(data)
-    elif task_type == "questionGeneration":
-        data = format_question_generation_response(data)
-    elif task_type == "knowledgeToMarkdown":
-        data = format_knowledge_to_markdown_response(data)
-    elif task_type == "studentDialogue":
-        data = format_student_dialogue_response(data)
-    elif task_type == "exerciseGeneration":
-        data = format_exercise_generation_response(data)
-
+    
+    # 针对不同任务类型进行特定处理
     try:
-        validated_model = response_model.model_validate(data)
-        return validated_model
-    except ValidationError as e:
-        # 将Pydantic的验证错误包装为我们的自定义响应异常
+        if task_type == "courseGeneration":
+            formatted_data = format_course_generation_response(data)
+        elif task_type == "questionGeneration":
+            formatted_data = format_question_generation_response(data)
+        elif task_type == "knowledgeToMarkdown":
+            formatted_data = format_knowledge_to_markdown_response(data)
+        elif task_type == "studentDialogue":
+            formatted_data = format_student_dialogue_response(data)
+        elif task_type == "exerciseGeneration":
+            formatted_data = format_exercise_generation_response(data)
+        elif task_type == "answerCorrection":
+            formatted_data = format_answer_correction_response(data)
+        elif task_type == "ragAI":
+            # ragAI任务响应数据特殊处理
+            if isinstance(data, dict) and "answer" in data:
+                # 尝试解析sources（如果存在）
+                sources = []
+                if "sources" in data and isinstance(data["sources"], list):
+                    sources = data["sources"]
+                formatted_data = {
+                    "answer": data["answer"],
+                    "sources": sources
+                }
+            else:
+                # 如果不是预期格式，返回一个简单响应
+                formatted_data = {
+                    "answer": str(data) if isinstance(data, str) else json.dumps(data),
+                    "sources": []
+                }
+        else:
+            # 默认情况，尝试原样使用数据
+            formatted_data = data
+    except Exception as e:
+        # 捕获格式化过程中的所有异常
+        logger.exception(f"格式化响应数据时出错: {str(e)}")
         raise N8nResponseError(
-            message=f"任务 '{task_type}' 的响应数据格式无效",
+            message=f"格式化'{task_type}'任务响应数据时出错: {str(e)}",
+            error_data=data
+        )
+    
+    # 验证格式化后的数据
+    try:
+        model_instance = response_model(**formatted_data)
+        return model_instance
+    except ValidationError as e:
+        # 捕获Pydantic验证错误
+        logger.error(f"响应数据验证失败: {e.json()}")
+        raise N8nResponseError(
+            message=f"'{task_type}'任务响应数据验证失败",
+            error_detail=e.json(),
+            error_data=formatted_data,
             validation_errors=e.errors()
-        ) 
+        )
+
+
+def format_answer_correction_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    尝试将n8n返回的答案校正数据格式化为符合AnswerCorrectionResponseData要求的结构
+    
+    Args:
+        data: n8n返回的原始数据
+        
+    Returns:
+        格式化后的数据，符合AnswerCorrectionResponseData结构
+    
+    Raises:
+        N8nResponseError: 如果无法格式化数据
+    """
+    logger.info("正在格式化答案校正响应数据")
+    
+    # 情况1: 如果n8n返回的是带有answer字段的对象
+    if isinstance(data, dict) and 'answer' in data and isinstance(data['answer'], str):
+        answer_text = data['answer']
+        logger.info(f"检测到带有answer字段的响应，长度: {len(answer_text)}")
+        
+        # 尝试从answer中提取JSON
+        extracted_json = extract_json_from_text(answer_text)
+        if extracted_json and isinstance(extracted_json, dict):
+            if 'is_correct' in extracted_json and 'score' in extracted_json and 'feedback' in extracted_json:
+                logger.info("成功从answer字段中提取完整JSON结构")
+                # 确保所有必要字段存在
+                extracted_json['is_correct'] = bool(extracted_json.get('is_correct', False))
+                extracted_json['score'] = float(extracted_json.get('score', 0))
+                extracted_json['feedback'] = str(extracted_json.get('feedback', ''))
+                
+                # 处理可选字段
+                if 'improvement_suggestions' not in extracted_json:
+                    extracted_json['improvement_suggestions'] = None
+                if 'explanation' not in extracted_json:
+                    extracted_json['explanation'] = None
+                    
+                return extracted_json
+        
+        # 如果不是结构化JSON，尝试解析纯文本答案
+        try:
+            logger.info("尝试从纯文本中提取答案校正信息")
+            
+            # 提取得分 - 通常格式为"得分：XX分"或"Score: XX"
+            score_match = re.search(r'(?:得分|分数|评分|Score)[：:]\s*(\d+(?:\.\d+)?)', answer_text, re.IGNORECASE)
+            score = float(score_match.group(1)) if score_match else 0.0
+            
+            # 提取正确性 - 查找常见的表示正确或错误的词语
+            correct_patterns = ['正确', '对', '完全正确', '没有错误', 'correct', 'right']
+            incorrect_patterns = ['错误', '不正确', '有误', '不完全正确', 'incorrect', 'wrong']
+            
+            is_correct = False
+            for pattern in correct_patterns:
+                if pattern in answer_text.lower() and all(neg not in answer_text.lower() for neg in ['不'+p for p in correct_patterns]):
+                    is_correct = True
+                    break
+            for pattern in incorrect_patterns:
+                if pattern in answer_text.lower():
+                    is_correct = False
+                    break
+            
+            # 尝试提取反馈部分 - 通常在"反馈"或"Feedback"之后
+            feedback_match = re.search(r'(?:反馈|意见|建议|Feedback)[：:]\s*(.*?)(?=(?:改进建议|解析|$))', answer_text, re.IGNORECASE | re.DOTALL)
+            feedback = feedback_match.group(1).strip() if feedback_match else answer_text
+            
+            # 尝试提取改进建议 - 通常在"改进建议"之后
+            improvement_match = re.search(r'(?:改进建议|改进|建议|Suggestions)[：:]\s*(.*?)(?=(?:解析|$))', answer_text, re.IGNORECASE | re.DOTALL)
+            improvement = improvement_match.group(1).strip() if improvement_match else None
+            
+            # 尝试提取解析 - 通常在"解析"之后
+            explanation_match = re.search(r'(?:解析|解题思路|思路|解释|Explanation)[：:]\s*(.*?)(?=$)', answer_text, re.IGNORECASE | re.DOTALL)
+            explanation = explanation_match.group(1).strip() if explanation_match else None
+            
+            return {
+                "is_correct": is_correct,
+                "score": min(max(score, 0), 100),  # 确保分数在0-100之间
+                "feedback": feedback,
+                "improvement_suggestions": improvement,
+                "explanation": explanation
+            }
+        except Exception as e:
+            logger.warning(f"从纯文本解析答案校正信息失败: {str(e)}")
+            # 创建基本响应结构
+            return {
+                "is_correct": False,
+                "score": 0,
+                "feedback": answer_text,
+                "improvement_suggestions": None,
+                "explanation": None
+            }
+    
+    # 情况2: 如果收到的是包含output字段的响应
+    if isinstance(data, dict) and 'output' in data and isinstance(data['output'], str):
+        output_text = data['output']
+        logger.info(f"检测到带有output字段的响应，长度: {len(output_text)}")
+        
+        # 处理方法与answer字段相同
+        extracted_json = extract_json_from_text(output_text)
+        if extracted_json and isinstance(extracted_json, dict):
+            if 'is_correct' in extracted_json and 'score' in extracted_json and 'feedback' in extracted_json:
+                logger.info("成功从output字段中提取完整JSON结构")
+                # 确保所有必要字段存在
+                extracted_json['is_correct'] = bool(extracted_json.get('is_correct', False))
+                extracted_json['score'] = float(extracted_json.get('score', 0))
+                extracted_json['feedback'] = str(extracted_json.get('feedback', ''))
+                
+                # 处理可选字段
+                if 'improvement_suggestions' not in extracted_json:
+                    extracted_json['improvement_suggestions'] = None
+                if 'explanation' not in extracted_json:
+                    extracted_json['explanation'] = None
+                    
+                return extracted_json
+        
+        # 如果不是JSON，按照处理answer字段的方法处理
+        return format_answer_correction_response({"answer": output_text})
+    
+    # 情况3: 如果数据结构已经包含所需字段
+    if isinstance(data, dict) and 'is_correct' in data and 'score' in data and 'feedback' in data:
+        logger.info("数据结构已包含基本字段")
+        
+        # 确保字段类型正确
+        data['is_correct'] = bool(data.get('is_correct', False))
+        data['score'] = float(data.get('score', 0))
+        data['feedback'] = str(data.get('feedback', ''))
+        
+        # 处理可选字段
+        if 'improvement_suggestions' not in data:
+            data['improvement_suggestions'] = None
+        if 'explanation' not in data:
+            data['explanation'] = None
+            
+        return data
+    
+    # 情况4: 如果数据是字符串
+    if isinstance(data, str):
+        logger.info(f"收到的是纯文本响应，长度: {len(data)}")
+        
+        # 尝试从字符串中提取JSON
+        extracted_json = extract_json_from_text(data)
+        if extracted_json and isinstance(extracted_json, dict):
+            if 'is_correct' in extracted_json and 'score' in extracted_json and 'feedback' in extracted_json:
+                logger.info("成功从文本响应中提取完整JSON结构")
+                # 确保所有必要字段存在
+                extracted_json['is_correct'] = bool(extracted_json.get('is_correct', False))
+                extracted_json['score'] = float(extracted_json.get('score', 0))
+                extracted_json['feedback'] = str(extracted_json.get('feedback', ''))
+                
+                # 处理可选字段
+                if 'improvement_suggestions' not in extracted_json:
+                    extracted_json['improvement_suggestions'] = None
+                if 'explanation' not in extracted_json:
+                    extracted_json['explanation'] = None
+                    
+                return extracted_json
+        
+        # 如果不是JSON，按照处理answer字段的方法处理
+        return format_answer_correction_response({"answer": data})
+    
+    # 如果无法识别格式，抛出异常
+    logger.error(f"无法格式化答案校正响应: {str(data)[:200]}...")
+    raise N8nResponseError(
+        message="无法识别AI服务返回的答案校正内容格式",
+        error_data=data
+    )
+
+
+def parse_single_exercise(text: str) -> Dict[str, Any]:
+    """
+    从文本中解析单个练习题
+    
+    Args:
+        text: 包含一个练习题的文本
+        
+    Returns:
+        解析后的练习题
+    """
+    # 默认值
+    question = {
+        "title": "练习题",
+        "content": "",
+        "type": "single_choice",  # 修改为下划线格式
+        "difficulty": 3,
+        "answer_template": [],
+        "knowledge_point_id": None
+    }
+    
+    # 提取题目内容
+    content_match = re.search(r"题目[:：]?\s*(.*?)(?=选项|标准答案|答案|解析|$)", text, re.DOTALL)
+    if content_match:
+        question["content"] = content_match.group(1).strip()
+        # 从内容中提取一个简短的标题
+        title_text = question["content"].split("\n")[0][:50]
+        question["title"] = title_text
+    else:
+        # 尝试其他可能的格式
+        content_match = re.search(r"(?:^|\n)([^选项|标准答案|答案|解析]*?)(?=选项|标准答案|答案|解析|$)", text, re.DOTALL)
+        if content_match:
+            question["content"] = content_match.group(1).strip()
+            title_text = question["content"].split("\n")[0][:50]
+            question["title"] = title_text
+    
+    # 确定题目类型
+    if "单选" in text or "选择一项" in text:
+        question["type"] = "single_choice"  # 修改为下划线格式
+    elif "多选" in text or "选择多项" in text:
+        question["type"] = "multiple_choice"  # 修改为下划线格式
+    elif "填空" in text:
+        question["type"] = "fill_in"  # 修改为下划线格式
+    elif "简答" in text or "解答" in text:
+        question["type"] = "short_answer"  # 修改为下划线格式
+    elif "编程" in text or "代码" in text:
+        question["type"] = "programming"  # 保持一致性
+    
+    # 提取选项
+    options_match = re.search(r"选项[:：]?\s*(.*?)(?=标准答案|答案|解析|$)", text, re.DOTALL)
+    if options_match:
+        options_text = options_match.group(1).strip()
+        # 尝试匹配常见的选项格式: A. 选项内容 或 A) 选项内容 或 A、选项内容
+        options = re.findall(r"([A-Z][\.、\)]\s*)(.*?)(?=[A-Z][\.、\)]|$)", options_text, re.DOTALL)
+        if options:
+            question["answer_template"] = [option[1].strip() for option in options]
+        else:
+            # 如果无法识别选项格式，直接使用整个选项文本
+            question["answer_template"] = [options_text]
+    
+    # 提取难度
+    difficulty_match = re.search(r"难度[:：]?\s*(\d+)", text)
+    if difficulty_match:
+        try:
+            difficulty = int(difficulty_match.group(1))
+            if 1 <= difficulty <= 5:
+                question["difficulty"] = difficulty
+        except ValueError:
+            pass
+    
+    return question 
