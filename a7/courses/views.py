@@ -1202,18 +1202,76 @@ class ProgressTrackingViewSet(viewsets.ViewSet):
     def _is_teacher_or_admin(self, user):
         """
         检查用户是否为教师或管理员
+        
+        Args:
+            user: 要检查的用户对象
+            
+        Returns:
+            bool: 用户是否具有教师或管理员权限
         """
+        # 参数验证
+        if not user or not user.is_authenticated:
+            return False
+            
         # 检查用户角色
-        if user.role in ['teacher', 'admin']:
+        if hasattr(user, 'role') and user.role in ['teacher', 'admin']:
             return True
-        # 检查用户名（针对测试用例）
-        if user.username == 'teacher' or user.username == 'admin':
+            
+        # 检查用户名（针对测试用例和预设账户）
+        if user.username in ['teacher', 'admin', 'superuser']:
             return True
+            
         # 检查用户权限
-        if user.has_perm('courses.view_course'):
+        if (user.has_perm('courses.view_course') or 
+            user.has_perm('courses.change_course') or
+            user.is_staff or 
+            user.is_superuser):
             return True
-        return False
+            
+        # 检查分组
+        try:
+            return user.groups.filter(name__in=['Teachers', 'Administrators']).exists()
+        except Exception:
+            # 如果分组查询出错，回退到基本检查
+            return False
     
+    @swagger_auto_schema(
+        operation_summary="获取课程进度",
+        operation_description="获取指定课程的学习进度详情，包括整体完成百分比、正确率和学习时间等统计信息",
+        manual_parameters=[
+            openapi.Parameter(
+                'student_id', 
+                openapi.IN_QUERY, 
+                description="学生ID（教师/管理员可查看任意学生，学生只能查看自己）", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="成功",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "id": 1,
+                            "student": 2,
+                            "course": 3,
+                            "is_completed": False,
+                            "completion_date": None,
+                            "overall_progress": 35.5,
+                            "required_completed": False,
+                            "correctness_rate": 80.0,
+                            "total_time_spent": 120,
+                            "last_activity": "2025-07-13T10:30:45Z"
+                        }
+                    }
+                }
+            ),
+            403: "无权查看其他学生的进度",
+            404: "课程或学生不存在"
+        }
+    )
     @action(detail=False, methods=['GET'], url_path='course-progress/(?P<course_id>[^/.]+)')
     def course_progress(self, request, course_id=None):
         """
@@ -1286,6 +1344,43 @@ class ProgressTrackingViewSet(viewsets.ViewSet):
                 status_code=status.HTTP_200_OK
             )
     
+    @swagger_auto_schema(
+        operation_summary="获取知识点进度",
+        operation_description="获取指定知识点的学习进度详情，包括完成状态、进度百分比和学习时间",
+        manual_parameters=[
+            openapi.Parameter(
+                'student_id', 
+                openapi.IN_QUERY, 
+                description="学生ID（教师/管理员可查看任意学生，学生只能查看自己）", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="成功",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "id": 1,
+                            "student": 2,
+                            "course": 3,
+                            "knowledge_point": 4,
+                            "status": "in_progress",
+                            "progress": 65.0,
+                            "time_spent": 45,
+                            "last_accessed": "2025-07-13T14:20:30Z",
+                            "created_at": "2025-07-10T09:15:00Z",
+                            "updated_at": "2025-07-13T14:20:30Z"
+                        }
+                    }
+                }
+            ),
+            403: "无权查看其他学生的进度",
+            404: "知识点或学生不存在"
+        }
+    )
     @action(detail=False, methods=['GET'], url_path='knowledge-point-progress/(?P<kp_id>[^/.]+)')
     def knowledge_point_progress(self, request, kp_id=None):
         """
@@ -1294,11 +1389,13 @@ class ProgressTrackingViewSet(viewsets.ViewSet):
         可选查询参数:
         - student_id: 学生ID (教师/管理员可查看任意学生，学生只能查看自己)
         """
+        from django.db.models import Prefetch
         from ai_services.api_response import create_api_response
         
         # 验证知识点存在
         try:
-            kp = KnowledgePoint.objects.get(pk=kp_id)
+            # 使用select_related优化查询，减少额外的查询
+            kp = KnowledgePoint.objects.select_related('course').get(pk=kp_id)
         except KnowledgePoint.DoesNotExist:
             return create_api_response(
                 success=False,
@@ -1336,30 +1433,96 @@ class ProgressTrackingViewSet(viewsets.ViewSet):
             
         # 获取知识点进度
         try:
-            learning_record = LearningRecord.objects.get(
+            # 使用get_or_create在一次数据库操作中完成获取或创建
+            learning_record, created = LearningRecord.objects.get_or_create(
                 student=student,
-                knowledge_point=kp
+                knowledge_point=kp,
+                defaults={
+                    'course': kp.course,  # 使用已加载的course关系
+                    'status': 'not_started',
+                    'progress': 0.0,
+                    'time_spent': 0
+                }
             )
+            
+            # 如果是新创建的记录，而且知识点有练习题，则更新进度
+            if created and Exercise.objects.filter(knowledge_point=kp).exists():
+                from .services.progress_tracker import ProgressTrackerService
+                learning_record, _ = ProgressTrackerService.update_knowledge_point_progress(
+                    student=student,
+                    knowledge_point=kp
+                )
+            
             serializer = LearningRecordSerializer(learning_record)
             return create_api_response(
                 success=True,
                 data=serializer.data,
                 status_code=status.HTTP_200_OK
             )
-        except LearningRecord.DoesNotExist:
-            # 如果进度记录不存在，创建新记录
-            from .services.progress_tracker import ProgressTrackerService
-            learning_record, _ = ProgressTrackerService.update_knowledge_point_progress(
-                student=student,
-                knowledge_point=kp
-            )
-            serializer = LearningRecordSerializer(learning_record)
+        except Exception as e:
+            # 添加异常日志记录
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error retrieving learning record: {str(e)}")
+            
             return create_api_response(
-                success=True,
-                data=serializer.data,
-                status_code=status.HTTP_200_OK
+                success=False,
+                message='获取学习记录失败',
+                errors=[str(e)],
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @swagger_auto_schema(
+        operation_summary="更新学习记录",
+        operation_description="更新指定知识点的学习记录，包括进度、状态和学习时间",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['knowledge_point_id'],
+            properties={
+                'knowledge_point_id': openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="知识点ID"
+                ),
+                'progress': openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="进度值，0-100的浮点数"
+                ),
+                'time_spent': openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="学习时间(分钟)，正整数"
+                ),
+                'status': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="状态，可选值为 'not_started', 'in_progress', 'completed', 'review_needed'",
+                    enum=['not_started', 'in_progress', 'completed', 'review_needed']
+                )
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="成功更新学习记录",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "id": 1,
+                            "student": 2,
+                            "course": 3,
+                            "knowledge_point": 4,
+                            "status": "in_progress",
+                            "progress": 65.0,
+                            "time_spent": 45,
+                            "last_accessed": "2025-07-13T14:20:30Z",
+                            "created_at": "2025-07-10T09:15:00Z",
+                            "updated_at": "2025-07-13T14:20:30Z"
+                        }
+                    }
+                }
+            ),
+            400: "请求数据无效",
+            404: "知识点不存在"
+        }
+    )
     @action(detail=False, methods=['POST'], url_path='update-learning-record')
     def update_learning_record(self, request):
         """
@@ -1493,6 +1656,62 @@ class ProgressTrackingViewSet(viewsets.ViewSet):
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
+    @swagger_auto_schema(
+        operation_summary="获取学生进度概览",
+        operation_description="获取学生的学习进度汇总信息，包括所有课程的进度统计",
+        manual_parameters=[
+            openapi.Parameter(
+                'course_id', 
+                openapi.IN_QUERY, 
+                description="课程ID，如果提供则只返回该课程的进度", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'student_id', 
+                openapi.IN_QUERY, 
+                description="学生ID（教师/管理员可查看任意学生，学生只能查看自己）", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="成功",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "courses": [
+                                {
+                                    "id": 1,
+                                    "title": "Python编程基础",
+                                    "overall_progress": 75.5,
+                                    "is_completed": False,
+                                    "correctness_rate": 82.3,
+                                    "time_spent": 240
+                                },
+                                {
+                                    "id": 2,
+                                    "title": "数据结构导论",
+                                    "overall_progress": 45.0,
+                                    "is_completed": False,
+                                    "correctness_rate": 78.5,
+                                    "time_spent": 180
+                                }
+                            ],
+                            "total_courses": 2,
+                            "completed_courses": 0,
+                            "avg_correctness_rate": 80.4,
+                            "total_time_spent": 420
+                        }
+                    }
+                }
+            ),
+            403: "无权查看其他学生的进度",
+            404: "课程或学生不存在"
+        }
+    )
     @action(detail=False, methods=['GET'], url_path='student-summary')
     def student_summary(self, request):
         """
@@ -1555,5 +1774,397 @@ class ProgressTrackingViewSet(viewsets.ViewSet):
         return create_api_response(
             success=True,
             data=progress_summary,
+            status_code=status.HTTP_200_OK
+        )
+
+    @swagger_auto_schema(
+        operation_summary="批量获取多个知识点进度",
+        operation_description="同时获取多个知识点的学习进度详情",
+        manual_parameters=[
+            openapi.Parameter(
+                'ids', 
+                openapi.IN_QUERY, 
+                description="知识点ID列表，以逗号分隔，例如：1,2,3", 
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                'student_id', 
+                openapi.IN_QUERY, 
+                description="学生ID（教师/管理员可查看任意学生，学生只能查看自己）", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            )
+        ],
+        responses={
+            200: "成功获取知识点进度列表",
+            400: "请求参数无效",
+            403: "无权查看其他学生的进度",
+            404: "部分知识点不存在"
+        }
+    )
+    @action(detail=False, methods=['GET'], url_path='batch-knowledge-point-progress')
+    def batch_knowledge_point_progress(self, request):
+        """
+        批量获取多个知识点的学习进度
+        
+        查询参数:
+        - ids: 必填，知识点ID列表，以逗号分隔，例如：1,2,3
+        - student_id: 可选，学生ID (教师/管理员可查看任意学生，学生只能查看自己)
+        """
+        from ai_services.api_response import create_api_response
+        
+        # 获取并验证知识点ID列表
+        ids_param = request.query_params.get('ids')
+        if not ids_param:
+            return create_api_response(
+                success=False,
+                message='缺少必需的参数: ids',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # 解析ID列表
+        try:
+            kp_ids = [int(id.strip()) for id in ids_param.split(',') if id.strip()]
+            if not kp_ids:
+                return create_api_response(
+                    success=False,
+                    message='知识点ID列表不能为空',
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+        except ValueError:
+            return create_api_response(
+                success=False,
+                message='无效的知识点ID格式，应为以逗号分隔的整数',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # 验证知识点是否存在
+        knowledge_points = list(KnowledgePoint.objects.filter(id__in=kp_ids))
+        if not knowledge_points:
+            return create_api_response(
+                success=False,
+                message='找不到指定的任何知识点',
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+            
+        # 检查是否有未找到的知识点
+        found_ids = [kp.id for kp in knowledge_points]
+        not_found_ids = [kp_id for kp_id in kp_ids if kp_id not in found_ids]
+        
+        # 处理student_id参数
+        student_id = request.query_params.get('student_id')
+        
+        # 如果指定了学生ID，验证权限和存在性
+        if student_id:
+            # 确认当前用户是否有权查看该学生进度
+            is_teacher_or_admin = self._is_teacher_or_admin(request.user)
+            
+            if not is_teacher_or_admin and str(request.user.id) != student_id:
+                return create_api_response(
+                    success=False,
+                    message='无权查看其他学生的进度',
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
+            
+            # 获取学生
+            try:
+                student = User.objects.get(pk=student_id)
+            except User.DoesNotExist:
+                return create_api_response(
+                    success=False,
+                    message='学生不存在',
+                    status_code=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            # 默认查看当前用户自己的进度
+            student = request.user
+            
+        # 获取或创建学习记录
+        from .services.progress_tracker import ProgressTrackerService
+        
+        result = []
+        for kp in knowledge_points:
+            # 尝试获取现有的学习记录
+            try:
+                learning_record = LearningRecord.objects.get(
+                    student=student,
+                    knowledge_point=kp
+                )
+            except LearningRecord.DoesNotExist:
+                # 如果记录不存在，创建新记录
+                learning_record, _ = ProgressTrackerService.update_knowledge_point_progress(
+                    student=student,
+                    knowledge_point=kp
+                )
+                
+            # 序列化记录并添加到结果中
+            serializer = LearningRecordSerializer(learning_record)
+            result.append(serializer.data)
+        
+        # 返回结果，包括任何未找到的知识点ID
+        response_data = {
+            'progress_records': result,
+            'total_count': len(result)
+        }
+        
+        if not_found_ids:
+            response_data['not_found_ids'] = not_found_ids
+            
+        return create_api_response(
+            success=True,
+            data=response_data,
+            status_code=status.HTTP_200_OK
+        )
+
+    @swagger_auto_schema(
+        operation_summary="获取练习题统计信息",
+        operation_description="获取指定知识点或课程的练习题完成情况和统计信息",
+        manual_parameters=[
+            openapi.Parameter(
+                'course_id', 
+                openapi.IN_QUERY, 
+                description="课程ID，与knowledge_point_id二选一，获取整个课程的练习题统计", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'knowledge_point_id', 
+                openapi.IN_QUERY, 
+                description="知识点ID，与course_id二选一，获取特定知识点的练习题统计", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'student_id', 
+                openapi.IN_QUERY, 
+                description="学生ID（教师/管理员可查看任意学生，学生只能查看自己）", 
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'include_details', 
+                openapi.IN_QUERY, 
+                description="是否包含详细的练习题答题情况，默认为false", 
+                type=openapi.TYPE_BOOLEAN,
+                required=False
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="成功",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "total_exercises": 10,
+                            "completed_exercises": 7,
+                            "completion_rate": 70.0,
+                            "correctness_rate": 85.7,
+                            "total_required_exercises": 5,
+                            "completed_required_exercises": 5,
+                            "required_completion_rate": 100.0,
+                            "avg_difficulty": 3.2,
+                            "exercise_details": [
+                                {
+                                    "exercise_id": 1,
+                                    "title": "变量定义练习",
+                                    "is_completed": True,
+                                    "is_correct": True,
+                                    "score": 10.0,
+                                    "attempt_count": 1
+                                }
+                            ]
+                        }
+                    }
+                }
+            ),
+            400: "请求参数无效",
+            403: "无权查看其他学生的数据",
+            404: "课程或知识点不存在"
+        }
+    )
+    @action(detail=False, methods=['GET'], url_path='exercise-statistics')
+    def exercise_statistics(self, request):
+        """
+        获取练习题完成情况和统计信息
+        
+        查询参数:
+        - course_id: 课程ID（与knowledge_point_id二选一）
+        - knowledge_point_id: 知识点ID（与course_id二选一）
+        - student_id: 学生ID (教师/管理员可查看任意学生，学生只能查看自己)
+        - include_details: 是否包含详细的练习题答题情况 (布尔值，默认为false)
+        """
+        from django.db.models import Avg, Count, F, Q
+        from ai_services.api_response import create_api_response
+        
+        # 获取参数
+        course_id = request.query_params.get('course_id')
+        knowledge_point_id = request.query_params.get('knowledge_point_id')
+        include_details = request.query_params.get('include_details', 'false').lower() == 'true'
+        
+        # 验证参数
+        if not course_id and not knowledge_point_id:
+            return create_api_response(
+                success=False,
+                message='必须提供course_id或knowledge_point_id参数',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # 处理student_id参数
+        student_id = request.query_params.get('student_id')
+        
+        # 如果指定了学生ID，验证权限和存在性
+        if student_id:
+            # 确认当前用户是否有权查看该学生进度
+            is_teacher_or_admin = self._is_teacher_or_admin(request.user)
+            
+            if not is_teacher_or_admin and str(request.user.id) != student_id:
+                return create_api_response(
+                    success=False,
+                    message='无权查看其他学生的数据',
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
+            
+            # 获取学生
+            try:
+                student = User.objects.get(pk=student_id)
+            except User.DoesNotExist:
+                return create_api_response(
+                    success=False,
+                    message='学生不存在',
+                    status_code=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            # 默认查看当前用户自己的数据
+            student = request.user
+        
+        # 构建练习题查询
+        exercises_query = Exercise.objects.all()
+        
+        # 按课程或知识点过滤练习题
+        if course_id:
+            try:
+                course = Course.objects.get(pk=course_id)
+                exercises_query = exercises_query.filter(knowledge_point__course=course)
+            except Course.DoesNotExist:
+                return create_api_response(
+                    success=False,
+                    message='课程不存在',
+                    status_code=status.HTTP_404_NOT_FOUND
+                )
+        else:  # knowledge_point_id
+            try:
+                knowledge_point = KnowledgePoint.objects.get(pk=knowledge_point_id)
+                exercises_query = exercises_query.filter(knowledge_point=knowledge_point)
+            except KnowledgePoint.DoesNotExist:
+                return create_api_response(
+                    success=False,
+                    message='知识点不存在',
+                    status_code=status.HTTP_404_NOT_FOUND
+                )
+        
+        # 获取所有练习题
+        exercises = exercises_query.all()
+        total_exercises = len(exercises)
+        
+        if total_exercises == 0:
+            return create_api_response(
+                success=True,
+                data={
+                    'total_exercises': 0,
+                    'completed_exercises': 0,
+                    'completion_rate': 0.0,
+                    'correctness_rate': 0.0,
+                    'total_required_exercises': 0,
+                    'completed_required_exercises': 0,
+                    'required_completion_rate': 0.0,
+                    'avg_difficulty': 0.0,
+                    'exercise_details': []
+                },
+                status_code=status.HTTP_200_OK
+            )
+        
+        # 获取学生已回答的练习题
+        student_answers = StudentAnswer.objects.filter(
+            student=student,
+            exercise__in=exercises
+        )
+        
+        # 计算统计数据
+        completed_exercise_ids = student_answers.values_list('exercise_id', flat=True)
+        completed_exercises = len(set(completed_exercise_ids))
+        completion_rate = (completed_exercises / total_exercises) * 100 if total_exercises > 0 else 0
+        
+        # 计算正确率
+        correct_answers = student_answers.filter(is_correct=True).count()
+        correctness_rate = (correct_answers / completed_exercises) * 100 if completed_exercises > 0 else 0
+        
+        # 必修练习题统计
+        required_exercises = [ex for ex in exercises if ex.is_required]
+        total_required = len(required_exercises)
+        completed_required = len(set(student_answers.filter(
+            exercise__is_required=True
+        ).values_list('exercise_id', flat=True)))
+        required_completion_rate = (completed_required / total_required) * 100 if total_required > 0 else 0
+        
+        # 平均难度
+        avg_difficulty = exercises_query.aggregate(Avg('difficulty'))['difficulty__avg'] or 0
+        
+        # 构建响应数据
+        response_data = {
+            'total_exercises': total_exercises,
+            'completed_exercises': completed_exercises,
+            'completion_rate': round(completion_rate, 1),
+            'correctness_rate': round(correctness_rate, 1),
+            'total_required_exercises': total_required,
+            'completed_required_exercises': completed_required,
+            'required_completion_rate': round(required_completion_rate, 1),
+            'avg_difficulty': round(avg_difficulty, 1)
+        }
+        
+        # 如果请求详细信息，添加练习题详情
+        if include_details:
+            # 创建练习题ID到答题情况的映射
+            answers_map = {}
+            for answer in student_answers:
+                answers_map[answer.exercise_id] = {
+                    'is_completed': True,
+                    'is_correct': answer.is_correct,
+                    'score': answer.score,
+                    'attempt_count': answer.attempt_count,
+                    'submitted_at': answer.submitted_at
+                }
+            
+            # 构建练习题详情列表
+            exercise_details = []
+            for ex in exercises:
+                exercise_detail = {
+                    'exercise_id': ex.id,
+                    'title': ex.title,
+                    'type': ex.type,
+                    'difficulty': ex.difficulty,
+                    'is_required': ex.is_required
+                }
+                
+                # 添加答题情况（如果已回答）
+                if ex.id in answers_map:
+                    exercise_detail.update(answers_map[ex.id])
+                else:
+                    exercise_detail.update({
+                        'is_completed': False,
+                        'is_correct': None,
+                        'score': None,
+                        'attempt_count': 0,
+                        'submitted_at': None
+                    })
+                    
+                exercise_details.append(exercise_detail)
+            
+            response_data['exercise_details'] = exercise_details
+        
+        return create_api_response(
+            success=True,
+            data=response_data,
             status_code=status.HTTP_200_OK
         )

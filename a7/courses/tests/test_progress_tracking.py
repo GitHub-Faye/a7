@@ -554,3 +554,156 @@ class ProgressTrackingAPITest(TestCase):
         self.assertIn('courses', response.data['data'])
         self.assertEqual(len(response.data['data']['courses']), 1)
         self.assertEqual(response.data['data']['courses'][0]['id'], self.course.id) 
+
+    def test_batch_knowledge_point_progress_endpoint(self):
+        """测试批量获取知识点进度的API端点"""
+        # 创建测试数据
+        self.client.force_authenticate(user=self.student)
+        
+        # 创建第二个知识点（kp2已在setUp中创建）
+        self.kp2 = KnowledgePoint.objects.create(
+            course=self.course,
+            title='知识点2',
+            content='知识点2的内容',
+            importance=3,
+            is_required=False
+        )
+        
+        # 使用get_or_create避免唯一约束错误
+        # 因为setUp中可能已经创建了这些记录
+        lr1, _ = LearningRecord.objects.get_or_create(
+            student=self.student,
+            knowledge_point=self.kp1,
+            defaults={
+                'course': self.course,
+                'status': 'in_progress',
+                'progress': 50.0,
+                'time_spent': 30
+            }
+        )
+        
+        lr2, _ = LearningRecord.objects.get_or_create(
+            student=self.student,
+            knowledge_point=self.kp2,
+            defaults={
+                'course': self.course,
+                'status': 'completed',
+                'progress': 100.0,
+                'time_spent': 20
+            }
+        )
+        
+        # 测试批量获取进度
+        url = reverse('progress-batch-knowledge-point-progress')
+        response = self.client.get(f"{url}?ids={self.kp1.id},{self.kp2.id}")
+        
+        # 验证响应状态码
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证响应数据
+        self.assertTrue(response.data['success'])
+        self.assertEqual(len(response.data['data']['progress_records']), 2)
+        self.assertEqual(response.data['data']['total_count'], 2)
+        
+        # 验证返回的第一个记录是否正确
+        record1 = next(
+            record for record in response.data['data']['progress_records'] 
+            if record['knowledge_point'] == self.kp1.id
+        )
+        self.assertEqual(record1['status'], 'in_progress')
+        
+        # 测试权限控制 - 教师访问学生的进度
+        self.client.force_authenticate(user=self.teacher)
+        response = self.client.get(f"{url}?ids={self.kp1.id},{self.kp2.id}&student_id={self.student.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 测试权限控制 - 学生访问其他学生的进度(应被拒绝)
+        other_student = User.objects.create_user(username='other_student', password='password')
+        self.client.force_authenticate(user=other_student)
+        response = self.client.get(f"{url}?ids={self.kp1.id},{self.kp2.id}&student_id={self.student.id}")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # 测试无效参数
+        response = self.client.get(f"{url}")  # 不提供ids参数
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        response = self.client.get(f"{url}?ids=invalid")  # 无效的ID格式
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        response = self.client.get(f"{url}?ids=999")  # 不存在的知识点ID
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_exercise_statistics_endpoint(self):
+        """测试获取练习题统计信息的API端点"""
+        # 创建测试数据
+        self.client.force_authenticate(user=self.student)
+        
+        # 创建学生答案 - 修正引用为self.exercise而非self.exercise1
+        StudentAnswer.objects.create(
+            student=self.student,
+            exercise=self.exercise,
+            content='{"answer": "A"}',
+            score=10.0,
+            is_correct=True
+        )
+        
+        # 测试按知识点获取统计
+        url = reverse('progress-exercise-statistics')
+        response = self.client.get(f"{url}?knowledge_point_id={self.kp1.id}")
+        
+        # 验证响应状态码
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 验证响应数据
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['data']['total_exercises'], 1)
+        self.assertEqual(response.data['data']['completed_exercises'], 1)
+        self.assertEqual(response.data['data']['completion_rate'], 100.0)
+        self.assertEqual(response.data['data']['correctness_rate'], 100.0)
+        
+        # 测试包含详情参数
+        response = self.client.get(f"{url}?knowledge_point_id={self.kp1.id}&include_details=true")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue('exercise_details' in response.data['data'])
+        self.assertEqual(len(response.data['data']['exercise_details']), 1)
+        self.assertEqual(response.data['data']['exercise_details'][0]['exercise_id'], self.exercise.id)  # 修正引用
+        self.assertTrue(response.data['data']['exercise_details'][0]['is_completed'])
+        self.assertTrue(response.data['data']['exercise_details'][0]['is_correct'])
+        
+        # 测试按课程获取统计 - 创建额外的练习题确保有两个
+        exercise2 = Exercise.objects.create(
+            title='练习题2',
+            content='练习题2的内容',
+            type='short_answer',
+            difficulty=4,
+            knowledge_point=self.kp1,  # 使用已存在的kp1
+            answer_template='示例答案',
+            is_required=False
+        )
+        
+        response = self.client.get(f"{url}?course_id={self.course.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['data']['total_exercises'], 2)  # 课程有两个练习题
+        self.assertEqual(response.data['data']['completed_exercises'], 1)  # 但只完成了一个
+        
+        # 测试权限控制 - 教师访问学生的统计
+        self.client.force_authenticate(user=self.teacher)
+        response = self.client.get(f"{url}?course_id={self.course.id}&student_id={self.student.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 测试权限控制 - 学生访问其他学生的统计(应被拒绝)
+        other_student = User.objects.create_user(username='other_student2', password='password')
+        self.client.force_authenticate(user=other_student)
+        response = self.client.get(f"{url}?course_id={self.course.id}&student_id={self.student.id}")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # 测试缺少必需参数
+        response = self.client.get(f"{url}")  # 不提供course_id或knowledge_point_id参数
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # 测试无效ID
+        response = self.client.get(f"{url}?course_id=999")  # 不存在的课程ID
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        
+        response = self.client.get(f"{url}?knowledge_point_id=999")  # 不存在的知识点ID
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND) 
