@@ -1,5 +1,7 @@
 from django.db import models
 from users.models import User
+from django.db.models import Avg, Sum
+from django.utils import timezone
 
 class Course(models.Model):
     """
@@ -49,13 +51,15 @@ class KnowledgePoint(models.Model):
         verbose_name='重要性(1-10)'
     )
     parent = models.ForeignKey(
-        'self', 
-        on_delete=models.CASCADE,  # 保持CASCADE，删除父知识点时连带删除子知识点
-        null=True, 
-        blank=True, 
+        'self',
+        on_delete=models.SET_NULL,  # 修改为SET_NULL，删除父知识点不应影响子知识点
+        null=True,
+        blank=True,
         related_name='children',
         verbose_name='父知识点'
     )
+    is_required = models.BooleanField(default=True, verbose_name='是否必修')
+    estimated_time = models.PositiveIntegerField(default=30, verbose_name='预计学习时间(分钟)')
     
     class Meta:
         verbose_name = '知识点'
@@ -63,7 +67,8 @@ class KnowledgePoint(models.Model):
         ordering = ['importance', 'title']
         indexes = [
             models.Index(fields=['course', 'importance'], name='kp_course_imp_idx'),
-            models.Index(fields=['parent'], name='kp_parent_idx')
+            models.Index(fields=['parent'], name='kp_parent_idx'),
+            models.Index(fields=['is_required'], name='kp_required_idx'),
         ]
     
     def __str__(self):
@@ -164,6 +169,9 @@ class Exercise(models.Model):
         verbose_name='答案模板'
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    is_required = models.BooleanField(default=True, verbose_name='是否必做题')
+    correct_count = models.PositiveIntegerField(default=0, verbose_name='正确次数')
+    attempt_count = models.PositiveIntegerField(default=0, verbose_name='尝试次数')
     
     class Meta:
         verbose_name = '练习题'
@@ -171,11 +179,26 @@ class Exercise(models.Model):
         ordering = ['knowledge_point', 'difficulty', '-created_at']
         indexes = [
             models.Index(fields=['knowledge_point', 'difficulty'], name='ex_kp_diff_idx'),
-            models.Index(fields=['type'], name='ex_type_idx')
+            models.Index(fields=['type'], name='ex_type_idx'),
+            models.Index(fields=['is_required'], name='ex_required_idx'),
         ]
     
     def __str__(self):
         return self.title
+        
+    def update_statistics(self, is_correct):
+        """更新练习题的统计信息"""
+        self.attempt_count += 1
+        if is_correct:
+            self.correct_count += 1
+        self.save(update_fields=['attempt_count', 'correct_count'])
+        
+    @property
+    def correctness_rate(self):
+        """计算练习题的正确率"""
+        if self.attempt_count == 0:
+            return 0.0
+        return (self.correct_count / self.attempt_count) * 100
 
 class StudentAnswer(models.Model):
     """
@@ -205,6 +228,8 @@ class StudentAnswer(models.Model):
         verbose_name='反馈'
     )
     submitted_at = models.DateTimeField(auto_now_add=True, verbose_name='提交时间')
+    is_correct = models.BooleanField(null=True, blank=True, verbose_name='是否正确')
+    attempt_count = models.PositiveIntegerField(default=1, verbose_name='尝试次数')
     
     class Meta:
         verbose_name = '学生答案'
@@ -213,11 +238,38 @@ class StudentAnswer(models.Model):
         unique_together = ['student', 'exercise']  # 保持约束，每个学生对每道题只能有一个答案
         indexes = [
             models.Index(fields=['student', 'submitted_at'], name='ans_stud_date_idx'),
-            models.Index(fields=['exercise', 'score'], name='ans_ex_score_idx')
+            models.Index(fields=['exercise', 'score'], name='ans_ex_score_idx'),
+            models.Index(fields=['is_correct'], name='ans_correct_idx'),
+            models.Index(fields=['student', 'is_correct'], name='ans_stud_correct_idx'),
         ]
     
     def __str__(self):
         return f"{self.student.username} - {self.exercise.title}"
+        
+    def save(self, *args, **kwargs):
+        """重写save方法，以便在保存答案时更新练习题统计信息"""
+        is_new = not self.pk  # 判断是否为新记录
+        old_is_correct = None
+        
+        # 如果不是新记录，获取旧的is_correct值
+        if not is_new:
+            old_instance = StudentAnswer.objects.get(pk=self.pk)
+            old_is_correct = old_instance.is_correct
+            
+        # 调用原始save方法保存记录
+        super().save(*args, **kwargs)
+        
+        # 只有当is_correct有变化或是新记录时更新练习题统计
+        if is_new:
+            # 新记录，增加尝试次数和正确计数（如果正确）
+            self.exercise.update_statistics(self.is_correct)
+        elif self.is_correct is not None and self.is_correct != old_is_correct:
+            # 已有记录的正确性发生变化，只更新正确计数
+            if self.is_correct:
+                self.exercise.correct_count += 1
+            else:
+                self.exercise.correct_count -= 1
+            self.exercise.save(update_fields=['correct_count'])
 
 class LearningRecord(models.Model):
     """
@@ -305,6 +357,9 @@ class LearningRecord(models.Model):
             elif progress_value > 0:
                 self.status = 'in_progress'
             self.save()
+            
+            # 更新关联的课程进度
+            self._update_course_progress()
             return True
         return False
     
@@ -313,5 +368,122 @@ class LearningRecord(models.Model):
         if minutes > 0:
             self.time_spent += minutes
             self.save()
+            
+            # 更新关联的课程进度
+            self._update_course_progress()
             return True
         return False
+        
+    def _update_course_progress(self):
+        """更新关联的课程进度"""
+        # 获取或创建CourseProgress实例
+        course_progress, created = CourseProgress.objects.get_or_create(
+            student=self.student,
+            course=self.course
+        )
+        # 更新课程进度
+        course_progress.update_from_learning_records()
+
+class CourseProgress(models.Model):
+    """
+    课程进度模型，跟踪学生在整个课程上的综合进度
+    """
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='course_progress',
+        verbose_name='学生'
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='student_progress',
+        verbose_name='课程'
+    )
+    is_completed = models.BooleanField(default=False, verbose_name='是否完成')
+    completion_date = models.DateTimeField(null=True, blank=True, verbose_name='完成时间')
+    overall_progress = models.FloatField(default=0.0, verbose_name='整体进度百分比')
+    required_completed = models.BooleanField(default=False, verbose_name='必修内容是否完成')
+    correctness_rate = models.FloatField(default=0.0, verbose_name='练习题正确率')
+    total_time_spent = models.PositiveIntegerField(default=0, verbose_name='总学习时间(分钟)')
+    last_activity = models.DateTimeField(auto_now=True, verbose_name='最近活动时间')
+    
+    class Meta:
+        verbose_name = '课程进度'
+        verbose_name_plural = '课程进度'
+        unique_together = ['student', 'course']
+        indexes = [
+            models.Index(fields=['student', 'course'], name='cp_stud_course_idx'),
+            models.Index(fields=['is_completed'], name='cp_completed_idx'),
+            models.Index(fields=['overall_progress'], name='cp_progress_idx'),
+        ]
+        
+    def __str__(self):
+        return f"{self.student.username} - {self.course.title} ({self.overall_progress:.1f}%)"
+    
+    def update_from_learning_records(self):
+        """根据学习记录更新课程整体进度"""
+        # 获取该课程下所有知识点
+        all_kp = self.course.knowledge_points.all()
+        required_kp = all_kp.filter(is_required=True)
+        
+        # 没有知识点时直接返回
+        if not all_kp.exists():
+            return
+        
+        # 获取该学生在该课程下的所有学习记录
+        learning_records = LearningRecord.objects.filter(
+            student=self.student,
+            course=self.course
+        )
+        
+        # 计算总进度
+        total_progress = 0
+        if learning_records.exists():
+            total_progress = learning_records.aggregate(Avg('progress'))['progress__avg'] or 0
+        
+        # 计算是否完成所有必修知识点
+        if required_kp.exists():
+            completed_required = learning_records.filter(
+                knowledge_point__in=required_kp,
+                status='completed'
+            ).count()
+            self.required_completed = (completed_required == required_kp.count())
+        else:
+            self.required_completed = True
+        
+        # 计算总学习时间
+        total_time = learning_records.aggregate(Sum('time_spent'))['time_spent__sum'] or 0
+        
+        # 计算练习题正确率
+        student_answers = StudentAnswer.objects.filter(
+            student=self.student,
+            exercise__knowledge_point__course=self.course,
+            is_correct__isnull=False
+        )
+        
+        if student_answers.exists():
+            correct_count = student_answers.filter(is_correct=True).count()
+            self.correctness_rate = (correct_count / student_answers.count()) * 100
+        else:
+            self.correctness_rate = 0
+        
+        # 更新字段
+        self.overall_progress = total_progress
+        self.total_time_spent = total_time
+        
+        # 检查是否完成课程
+        all_completed = False
+        if required_kp.exists():
+            all_completed = learning_records.filter(
+                knowledge_point__in=required_kp,
+                status='completed'
+            ).count() == required_kp.count()
+        else:
+            all_completed = total_progress >= 100
+        
+        if all_completed and not self.is_completed:
+            self.is_completed = True
+            self.completion_date = timezone.now()
+        
+        self.save()

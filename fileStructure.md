@@ -66,6 +66,24 @@ a7/                           # 项目根目录
 │   │       ├── test_student_dialogue_integration.py # 学生对话API集成测试
 │   │       ├── test_views_integration.py    # AI服务视图集成测试
 │   │       └── run_student_dialogue_tests.py # 学生对话测试运行脚本
+│   ├── courses/              # 课程管理应用
+│   │   ├── migrations/       # 数据库迁移文件
+│   │   ├── tests/            # 测试目录
+│   │   │   ├── test_question_export.py      # 问题导出测试
+│   │   │   ├── test_question_export_integration.py # 问题导出集成测试
+│   │   │   ├── test_api_exercises.py        # 练习题API测试
+│   │   │   ├── test_api_exercises_additional.py # 练习题API补充测试
+│   │   │   ├── test_progress_models.py      # 学习进度跟踪模型测试
+│   │   │   └── test_progress_serializers.py # 学习进度跟踪序列化器测试
+│   │   ├── __init__.py       # Python包初始化文件
+│   │   ├── admin.py          # 课程Admin配置
+│   │   ├── apps.py           # 应用配置
+│   │   ├── models.py         # 课程模型定义
+│   │   ├── serializers.py    # 课程序列化器
+│   │   ├── serializers_ppt.py # 知识点到PPT转换序列化器
+│   │   ├── serializers_progress.py # 学习进度跟踪序列化器
+│   │   ├── urls.py           # 课程URL配置
+│   │   └── views.py          # 课程视图
 ├── scripts/                  # 脚本和工具目录
 │   └── example_prd.txt       # 产品需求文档示例
 ├── tasks/                    # 任务文件目录（Task Master生成的任务）
@@ -151,7 +169,7 @@ a7/                           # 项目根目录
 - **a7/courses/__init__.py**: Courses应用的Python包标识文件。
 - **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
-- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。
+- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。新增CourseProgress（课程进度）模型，跟踪学生整体课程完成情况，包括总体进度、必修内容完成状态、正确率和总学习时间。
 - **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。还包含QuestionGenerationSerializer，用于问题生成API的请求参数验证。新增Exercise和StudentAnswer相关序列化器（读取、创建、更新、反馈），支持练习题和学生答案管理。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
 - **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`、`CourseContentGenerationViewSet`、`QuestionGenerationViewSet`、`ExerciseViewSet`和`StudentAnswerViewSet`，提供课程内容、练习和答案的API端点。
@@ -169,6 +187,7 @@ a7/                           # 项目根目录
 - **a7/courses/tests/test_api_exercises.py**: 练习题和学生答案API的CRUD功能测试，包括对过滤、排序和搜索功能的全面测试用例，验证按知识点过滤、按创建时间排序、按内容搜索等功能的正确性。
 - **a7/courses/tests/test_api_exercises_additional.py**: 练习题和学生答案API的补充测试文件，包含ExerciseValidationTests（字段验证和边缘情况测试）、StudentAnswerValidationTests（学生答案约束测试）、CombinedFilteringTests（组合过滤和排序测试）、PaginationAndEdgeCaseTests（分页和边缘情况测试）和APIResponseFormatTests（API响应格式测试）五个测试类，共18个测试用例。验证了字段验证、学生答案约束、组合过滤排序、分页功能、特殊字符处理和API响应格式等方面。
 - **a7/courses/serializers_ppt.py**: 知识点到PPT转换序列化器定义，包含KnowledgePointToPPTSerializer类，负责验证知识点转PPT所需的各项参数，包括必填的knowledge_point_ids（知识点ID列表）和可选参数如include_children（是否包含子知识点）、max_depth（包含子知识点的最大深度）、format（输出格式，支持pptx/pdf/html）、theme（演示主题）等。实现了validate_knowledge_point_ids方法检查ID重复，以及validate方法进行整体数据验证。新增direct_download和filename字段，支持直接下载功能，启用后将文件直接作为响应返回，并使用指定的文件名。
+- **a7/courses/serializers_progress.py**: 学习进度跟踪相关序列化器定义，包含KnowledgePointProgressSerializer、ExerciseProgressSerializer、StudentAnswerSerializer、LearningRecordSerializer、LearningRecordUpdateSerializer、CourseProgressSerializer和CourseProgressDetailSerializer类，实现进度数据的序列化与反序列化，支持字段验证和只读保护。
 
 ### AI服务应用文件
 
@@ -367,6 +386,15 @@ a7/                           # 项目根目录
    - `a7/courses/admin.py`配置LearningRecord模型在Django Admin中的展示和操作方式。
    - `a7/courses/tests.py`提供学习记录模型的自动化测试，验证学习进度跟踪、状态转换和统计分析功能。
    - LearningRecord模型添加了lr_progress_idx等多个优化索引，提高查询性能。
+   - 新增CourseProgress模型，通过外键关联User(student)和Course模型，跟踪学生整体课程进度。
+   - CourseProgress模型提供overall_progress（总体进度）、required_completed（必修内容完成状态）、correctness_rate（正确率）和total_time_spent（总学习时间）字段，全面记录学习状态。
+   - CourseProgress模型实现update_from_learning_records方法，自动从学习记录计算更新整体进度。
+   - KnowledgePoint模型扩展is_required（是否必修）和estimated_time（预计学习时间）字段，支持必修内容跟踪和学习时间规划。
+   - Exercise模型扩展is_required（是否必修）、correct_count（正确次数）和attempt_count（尝试次数）字段，支持必修练习跟踪和正确率统计。
+   - Exercise模型提供correctness_rate属性，自动计算练习题的正确率。
+   - StudentAnswer模型扩展is_correct（是否正确）和attempt_count（尝试次数）字段，记录答题正确性和尝试次数。
+   - `a7/courses/serializers_progress.py`定义专门的进度跟踪序列化器，支持进度数据的API交互。
+   - `a7/courses/tests/test_progress_models.py`和`a7/courses/tests/test_progress_serializers.py`提供全面的单元测试，验证进度跟踪功能的正确性和完整性。
 
 10. **模型关系优化系统**:
     - 为所有模型添加了优化的索引设计，提高查询性能。
@@ -724,17 +752,26 @@ a7/                           # 项目根目录
    - 可设置难度等级（1-5级）
    - 与知识点关联，实现按知识点组织练习题
    - 支持答案模板，用于标准答案或选项设置
+   - 新增is_required字段，标记必修练习题
+   - 新增correct_count和attempt_count字段，自动统计答题情况
+   - 提供correctness_rate属性，自动计算正确率
 
 2. **学生答案管理**:
    - 记录学生提交的答案内容
    - 支持评分和反馈记录
    - 确保每个学生对每道题只有一个有效答案
    - 记录提交时间，支持时间排序
+   - 新增is_correct字段，标记答案正确性
+   - 新增attempt_count字段，记录尝试次数
+   - 自动更新相关练习题的统计数据
 
-3. **待实现功能**:
-   - 练习题推荐API（基于学习进度）
-   - 答案自动评测逻辑
-   - 学习记录和统计分析
+3. **学习进度跟踪**:
+   - CourseProgress模型跟踪学生整体课程进度
+   - 记录总体进度、必修内容完成状态、正确率和总学习时间
+   - 自动从学习记录计算更新整体进度
+   - 提供is_completed属性，判断课程是否完成
+   - 记录completion_date，标记完成时间
+   - 支持进度数据的API交互，便于前端展示
 
 ## 数据监控和分析系统
 

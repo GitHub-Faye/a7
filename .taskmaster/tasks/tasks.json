@@ -746,8 +746,8 @@
             "title": "Extend Database Models for Progress Tracking",
             "description": "Modify existing database models to include fields for tracking student progress, such as `is_completed` and `correctness_rate`.",
             "dependencies": [],
-            "details": "Add new fields to the database models to store completion status and correctness statistics. Ensure these fields are properly indexed for performance.",
-            "status": "pending",
+            "details": "Add new fields to the database models to store completion status and correctness statistics. Ensure these fields are properly indexed for performance.\n<info added on 2025-07-13T00:45:20.342Z>\n数据库模型扩展完成：\n- KnowledgePoint模型新增is_required和estimated_time字段\n- Exercise模型新增is_required、correct_count和attempt_count字段\n- StudentAnswer模型新增is_correct和attempt_count字段\n- 新增CourseProgress模型用于整体课程进度跟踪\n\n实现自动统计功能：\n- 计算Exercise.correctness_rate正确率属性\n- StudentAnswer.save()自动更新Exercise统计数据\n- CourseProgress.update_from_learning_records更新整体进度\n\n序列化器实现：\n- 完成所有相关模型的序列化器\n- 开发LearningRecordUpdateSerializer用于进度更新\n- 实现CourseProgressDetailSerializer提供嵌套数据视图\n\n测试验证通过：\n- 模型测试验证字段扩展、统计更新和进度跟踪功能\n- 序列化器测试验证数据转换、只读字段保护、字段更新和验证逻辑\n</info added on 2025-07-13T00:45:20.342Z>",
+            "status": "done",
             "testStrategy": "Verify field additions via database migration tests and schema validation."
           },
           {
@@ -800,7 +800,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-12T13:44:01.093Z",
+      "updated": "2025-07-13T00:35:52.218Z",
       "description": "Tasks for master context"
     }
   }
