@@ -34,21 +34,23 @@ class StudentAnswerSerializer(serializers.ModelSerializer):
 
 class LearningRecordSerializer(serializers.ModelSerializer):
     """学习记录序列化器"""
-    knowledge_point_title = serializers.CharField(source='knowledge_point.title', read_only=True)
-    is_complete = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = LearningRecord
-        fields = ['id', 'student', 'course', 'knowledge_point', 'knowledge_point_title',
-                 'status', 'progress', 'time_spent', 'is_complete', 'last_accessed']
-        read_only_fields = ['id', 'student', 'course', 'knowledge_point', 'last_accessed']
+        fields = [
+            'id', 'student', 'course', 'knowledge_point', 'status',
+            'progress', 'time_spent', 'last_accessed', 'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'student', 'course', 'knowledge_point', 'created_at', 'updated_at']
 
 
 class LearningRecordUpdateSerializer(serializers.ModelSerializer):
     """学习记录更新序列化器"""
+    
     class Meta:
         model = LearningRecord
-        fields = ['progress', 'status', 'time_spent']
+        fields = ['status', 'progress', 'time_spent']
         
     def validate_progress(self, value):
         """验证进度值在0-100之间"""
@@ -78,10 +80,14 @@ class CourseProgressSerializer(serializers.ModelSerializer):
                            'completion_date', 'last_activity']
 
 
-class CourseProgressDetailSerializer(CourseProgressSerializer):
-    """课程进度详细序列化器，包含学习记录和答案信息"""
-    learning_records = LearningRecordSerializer(source='student.learning_records', many=True, read_only=True)
-    answers = StudentAnswerSerializer(source='student.answers', many=True, read_only=True)
+class CourseProgressDetailSerializer(serializers.ModelSerializer):
+    """课程进度详情序列化器"""
     
-    class Meta(CourseProgressSerializer.Meta):
-        fields = CourseProgressSerializer.Meta.fields + ['learning_records', 'answers'] 
+    class Meta:
+        model = CourseProgress
+        fields = [
+            'id', 'student', 'course', 'is_completed', 'completion_date',
+            'overall_progress', 'required_completed', 'correctness_rate',
+            'total_time_spent', 'last_activity'
+        ]
+        read_only_fields = ['id', 'student', 'course', 'is_completed', 'completion_date'] 

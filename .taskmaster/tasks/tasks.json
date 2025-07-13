@@ -757,8 +757,8 @@
             "dependencies": [
               1
             ],
-            "details": "Implement logic to update `is_completed` for knowledge points and courses, and calculate `correctness_rate` for exercises. Ensure updates are triggered by relevant student actions.",
-            "status": "pending",
+            "details": "Implement logic to update `is_completed` for knowledge points and courses, and calculate `correctness_rate` for exercises. Ensure updates are triggered by relevant student actions.\n<info added on 2025-07-13T02:31:13.544Z>\n已完成进度跟踪逻辑的实现，创建了ProgressTrackerService服务类，实现核心方法包括更新练习题统计信息、知识点进度和课程进度。实现了自动触发进度更新的机制，当学生提交答案或学习记录更新时自动更新相关数据。开发了ProgressTrackingViewSet视图集，提供课程进度、知识点进度、学习记录更新和学生进度概览等API端点。实现了权限控制，确保学生只能访问自己的进度数据，教师和管理员可查看所有学生进度。修复了User模型导入、角色识别逻辑、CourseProgress唯一约束冲突等问题，确保API响应数据格式统一。所有测试已通过，功能正常运行。\n</info added on 2025-07-13T02:31:13.544Z>",
+            "status": "done",
             "testStrategy": "Unit tests for logic correctness and integration tests with student activity simulations."
           },
           {
@@ -800,7 +800,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-13T00:35:52.218Z",
+      "updated": "2025-07-13T02:31:18.796Z",
       "description": "Tasks for master context"
     }
   }

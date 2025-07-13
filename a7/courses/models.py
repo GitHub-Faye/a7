@@ -245,31 +245,51 @@ class StudentAnswer(models.Model):
     
     def __str__(self):
         return f"{self.student.username} - {self.exercise.title}"
+    
+    def __init__(self, *args, **kwargs):
+        """初始化方法，记录原始is_correct值以便在save中检测变化"""
+        super().__init__(*args, **kwargs)
+        # 记录原始的is_correct值以便检测变化
+        if self.pk:  # 仅对已存在的实例记录
+            self._original_is_correct = self.is_correct
         
     def save(self, *args, **kwargs):
         """重写save方法，以便在保存答案时更新练习题统计信息"""
+        from django.db import transaction
+        
         is_new = not self.pk  # 判断是否为新记录
-        old_is_correct = None
         
-        # 如果不是新记录，获取旧的is_correct值
-        if not is_new:
-            old_instance = StudentAnswer.objects.get(pk=self.pk)
-            old_is_correct = old_instance.is_correct
+        # 如果不是新记录，获取原始is_correct值
+        if not is_new and not hasattr(self, '_original_is_correct'):
+            try:
+                old_instance = StudentAnswer.objects.get(pk=self.pk)
+                self._original_is_correct = old_instance.is_correct
+            except StudentAnswer.DoesNotExist:
+                self._original_is_correct = None
+        
+        # 使用事务保证原子性
+        with transaction.atomic():
+            # 调用原始save方法保存记录
+            super().save(*args, **kwargs)
             
-        # 调用原始save方法保存记录
-        super().save(*args, **kwargs)
+            # 只有当is_correct有变化或是新记录时更新练习题统计
+            if is_new:
+                # 新记录，增加尝试次数和正确计数（如果正确）
+                self.exercise.update_statistics(self.is_correct)
+            elif hasattr(self, '_original_is_correct') and self.is_correct != self._original_is_correct:
+                # 已有记录的正确性发生变化，更新正确计数
+                if self.is_correct and not self._original_is_correct:
+                    # 从错误变为正确，增加正确计数
+                    self.exercise.correct_count += 1
+                    self.exercise.save(update_fields=['correct_count'])
+                elif not self.is_correct and self._original_is_correct:
+                    # 从正确变为错误，减少正确计数
+                    if self.exercise.correct_count > 0:  # 避免负值
+                        self.exercise.correct_count -= 1
+                        self.exercise.save(update_fields=['correct_count'])
         
-        # 只有当is_correct有变化或是新记录时更新练习题统计
-        if is_new:
-            # 新记录，增加尝试次数和正确计数（如果正确）
-            self.exercise.update_statistics(self.is_correct)
-        elif self.is_correct is not None and self.is_correct != old_is_correct:
-            # 已有记录的正确性发生变化，只更新正确计数
-            if self.is_correct:
-                self.exercise.correct_count += 1
-            else:
-                self.exercise.correct_count -= 1
-            self.exercise.save(update_fields=['correct_count'])
+        # 更新后重置_original_is_correct
+        self._original_is_correct = self.is_correct
 
 class LearningRecord(models.Model):
     """
@@ -415,75 +435,84 @@ class CourseProgress(models.Model):
         indexes = [
             models.Index(fields=['student', 'course'], name='cp_stud_course_idx'),
             models.Index(fields=['is_completed'], name='cp_completed_idx'),
-            models.Index(fields=['overall_progress'], name='cp_progress_idx'),
+            models.Index(fields=['required_completed'], name='cp_req_comp_idx'),
+            models.Index(fields=['last_activity'], name='cp_activity_idx')
         ]
-        
+    
     def __str__(self):
         return f"{self.student.username} - {self.course.title} ({self.overall_progress:.1f}%)"
     
     def update_from_learning_records(self):
-        """根据学习记录更新课程整体进度"""
-        # 获取该课程下所有知识点
-        all_kp = self.course.knowledge_points.all()
-        required_kp = all_kp.filter(is_required=True)
+        """从学习记录更新课程整体进度"""
+        from django.db import transaction
+        from django.db.models import Avg, Count, Sum
+        from django.utils import timezone
         
-        # 没有知识点时直接返回
-        if not all_kp.exists():
-            return
-        
-        # 获取该学生在该课程下的所有学习记录
-        learning_records = LearningRecord.objects.filter(
-            student=self.student,
-            course=self.course
-        )
-        
-        # 计算总进度
-        total_progress = 0
-        if learning_records.exists():
-            total_progress = learning_records.aggregate(Avg('progress'))['progress__avg'] or 0
-        
-        # 计算是否完成所有必修知识点
-        if required_kp.exists():
-            completed_required = learning_records.filter(
-                knowledge_point__in=required_kp,
-                status='completed'
-            ).count()
-            self.required_completed = (completed_required == required_kp.count())
-        else:
-            self.required_completed = True
-        
-        # 计算总学习时间
-        total_time = learning_records.aggregate(Sum('time_spent'))['time_spent__sum'] or 0
-        
-        # 计算练习题正确率
-        student_answers = StudentAnswer.objects.filter(
-            student=self.student,
-            exercise__knowledge_point__course=self.course,
-            is_correct__isnull=False
-        )
-        
-        if student_answers.exists():
-            correct_count = student_answers.filter(is_correct=True).count()
-            self.correctness_rate = (correct_count / student_answers.count()) * 100
-        else:
-            self.correctness_rate = 0
-        
-        # 更新字段
-        self.overall_progress = total_progress
-        self.total_time_spent = total_time
-        
-        # 检查是否完成课程
-        all_completed = False
-        if required_kp.exists():
-            all_completed = learning_records.filter(
-                knowledge_point__in=required_kp,
-                status='completed'
-            ).count() == required_kp.count()
-        else:
-            all_completed = total_progress >= 100
-        
-        if all_completed and not self.is_completed:
-            self.is_completed = True
-            self.completion_date = timezone.now()
-        
-        self.save()
+        with transaction.atomic():
+            # 获取课程的所有知识点
+            all_knowledge_points = KnowledgePoint.objects.filter(course=self.course)
+            total_kps = all_knowledge_points.count()
+            
+            # 获取必修知识点
+            required_knowledge_points = all_knowledge_points.filter(is_required=True)
+            required_count = required_knowledge_points.count()
+            
+            # 获取学生的学习记录
+            learning_records = LearningRecord.objects.filter(
+                student=self.student,
+                course=self.course
+            )
+            
+            # 计算平均进度
+            if learning_records.exists():
+                avg_progress = learning_records.aggregate(Avg('progress'))['progress__avg'] or 0.0
+                self.overall_progress = avg_progress
+            else:
+                self.overall_progress = 0.0
+                
+            # 计算必修内容是否完成
+            if required_knowledge_points.exists():
+                completed_required = learning_records.filter(
+                    knowledge_point__in=required_knowledge_points,
+                    status='completed'
+                ).count()
+                
+                self.required_completed = (completed_required == required_count)
+            else:
+                # 如果没有必修知识点，默认为已完成
+                self.required_completed = True
+                
+            # 计算练习题正确率
+            student_answers = StudentAnswer.objects.filter(
+                student=self.student,
+                exercise__knowledge_point__course=self.course
+            )
+            
+            if student_answers.exists():
+                correct_answers = student_answers.filter(is_correct=True).count()
+                total_answers = student_answers.count()
+                self.correctness_rate = (correct_answers / total_answers) * 100 if total_answers > 0 else 0.0
+            else:
+                self.correctness_rate = 0.0
+                
+            # 计算总学习时间
+            total_time = learning_records.aggregate(Sum('time_spent'))['time_spent__sum'] or 0
+            self.total_time_spent = total_time
+            
+            # 检查是否完成课程
+            old_completed = self.is_completed
+            
+            # 课程完成条件：必修内容已完成且整体进度>=90%
+            new_completed = self.required_completed and self.overall_progress >= 90
+            
+            if new_completed and not old_completed:
+                # 首次完成，设置完成日期
+                self.is_completed = True
+                self.completion_date = timezone.now()
+            elif not new_completed and old_completed:
+                # 从已完成变为未完成
+                self.is_completed = False
+                self.completion_date = None
+            
+            # 保存更新后的进度
+            self.save()
