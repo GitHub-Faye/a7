@@ -14,6 +14,7 @@ router.register(r'generate-questions', views.QuestionGenerationViewSet, basename
 router.register(r'exercises', views.ExerciseViewSet)
 router.register(r'student-answers', views.StudentAnswerViewSet)
 router.register(r'progress', views.ProgressTrackingViewSet, basename='progress')
+router.register(r'knowledge-to-ppt', views.KnowledgePointToPPTViewSet, basename='knowledge-to-ppt')
 
 urlpatterns = [
     path('', include(router.urls)),

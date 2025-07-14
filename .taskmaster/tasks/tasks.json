@@ -787,10 +787,10 @@
       },
       {
         "id": 19,
-        "title": "Refactor AI Service Integration with Custom Prompt Support",
-        "description": "Refactor the existing AI service integration to create a unified interface, maintaining RAG AI functionality while adding support for custom prompts to control AI response style, format, and content focus.",
-        "details": "1. **Unified Interface Design**: Create a new Python class or module to serve as a unified interface for AI service interactions. This interface should encapsulate the existing RAG AI functionality (sessionId and chatInput as input, answer and sources as output) while exposing methods for custom prompt injection.\n2. **Custom Prompt Integration**: Extend the interface to accept an optional `custom_prompt` parameter. When provided, this prompt should override or augment the default RAG AI prompt, allowing developers to tailor the AI's response.\n3. **Backward Compatibility**: Ensure the refactored interface remains backward-compatible with existing RAG AI calls. Default behavior should match the current implementation when no custom prompt is provided.\n4. **Knowledge Base Query Preservation**: Maintain the existing knowledge base query functionality, ensuring it integrates seamlessly with custom prompts.\n5. **Error Handling**: Implement robust error handling for invalid or malformed prompts, ensuring graceful degradation to default behavior when necessary.\n6. **Documentation**: Update API documentation to include the new custom prompt feature, with examples of usage and expected outcomes.",
-        "testStrategy": "1. **Unit Testing**:\n   - Test the unified interface with default RAG AI inputs to verify backward compatibility.\n   - Validate custom prompt functionality by injecting prompts and comparing responses to expected outputs.\n   - Test edge cases, such as empty or malformed prompts, to ensure graceful handling.\n2. **Integration Testing**:\n   - Simulate API calls to the refactored interface, including both default and custom prompt scenarios.\n   - Verify that knowledge base queries still function correctly when custom prompts are used.\n3. **Performance Testing**:\n   - Measure response times with and without custom prompts to ensure no significant performance degradation.",
+        "title": "Refactor AI Service to Unified Input/Output Standard",
+        "description": "Update existing AI services to comply with the new standard, accepting only `chatInput` and `sessionId` as inputs and returning `answer` and `sources` as outputs, while ensuring prompt control and content extraction logic is preserved.",
+        "details": "1. **Input/Output Standardization**: Modify the AI service endpoints to strictly accept `chatInput` (user query) and `sessionId` (for session context) as inputs. The response must include only `answer` (AI-generated response) and `sources` (references or citations).\n2. **Prompt Control**: Replace the current view-based `chatInput` customization with a centralized prompt management system. Ensure prompts are dynamically injected to control the structure of the `answer` output.\n3. **Content Extraction**: Migrate the existing content extraction logic to work with the new `answer` format. Ensure the extracted content (e.g., structured data, key phrases) is derived from the `answer` text and `sources`.\n4. **Backward Compatibility**: Verify that existing integrations continue to function by mapping old input/output formats to the new standard where necessary.\n5. **Error Handling**: Implement robust error handling for invalid inputs or malformed prompts, ensuring clear feedback is returned to the caller.",
+        "testStrategy": "1. **Unit Testing**:\n   - Test the AI service with various `chatInput` and `sessionId` combinations to ensure correct input parsing and output formatting.\n   - Validate prompt injection logic to confirm the `answer` structure adheres to the new standard.\n   - Test content extraction from `answer` and `sources` to ensure accuracy.\n2. **Integration Testing**:\n   - Simulate API calls from existing integrations to verify backward compatibility.\n   - Test error scenarios (e.g., missing `sessionId`, invalid `chatInput`) to ensure proper error responses.\n3. **Regression Testing**:\n   - Re-run tests for related features (e.g., student assistant module, exercise generation) to confirm no unintended side effects.",
         "status": "pending",
         "dependencies": [
           13,
@@ -800,68 +800,82 @@
         "subtasks": [
           {
             "id": 1,
-            "title": "Design Unified Interface",
-            "description": "Create a new Python class or module to serve as a unified interface for AI service interactions.",
-            "dependencies": [],
-            "details": "The interface should encapsulate existing RAG AI functionality and expose methods for custom prompt injection.",
+            "title": "Modify AI Service Endpoints",
+            "description": "Update the AI service endpoints to strictly accept `chatInput` and `sessionId` as inputs and return `answer` and `sources` as outputs.",
+            "dependencies": [
+              "19.6"
+            ],
+            "details": "Ensure all endpoints are updated to comply with the new input/output standard. Validate the changes with unit tests.",
             "status": "pending",
-            "testStrategy": "Unit tests to verify the interface methods and their default behavior."
+            "testStrategy": "Unit tests to verify input/output formats."
           },
           {
             "id": 2,
-            "title": "Implement Custom Prompt Support",
-            "description": "Extend the interface to accept an optional `custom_prompt` parameter.",
+            "title": "Implement Centralized Prompt Management",
+            "description": "Replace the current view-based `chatInput` customization with a centralized prompt management system.",
             "dependencies": [
-              1
+              1,
+              "19.6"
             ],
-            "details": "When provided, the custom prompt should override or augment the default RAG AI prompt.",
+            "details": "Develop a system to dynamically inject prompts to control the structure of the `answer` output. Ensure prompts are managed centrally.",
             "status": "pending",
-            "testStrategy": "Unit tests to verify custom prompt integration and its effect on AI responses."
+            "testStrategy": "Integration tests to verify prompt injection and output structure."
           },
           {
             "id": 3,
-            "title": "Ensure Backward Compatibility",
-            "description": "Verify that the refactored interface remains backward-compatible with existing RAG AI calls.",
+            "title": "Migrate Content Extraction Logic",
+            "description": "Update the content extraction logic to work with the new `answer` format.",
             "dependencies": [
               1,
-              2
+              "19.6"
             ],
-            "details": "Default behavior should match the current implementation when no custom prompt is provided.",
+            "details": "Ensure the extracted content (e.g., structured data, key phrases) is derived from the `answer` text and `sources`. Maintain existing functionality.",
             "status": "pending",
-            "testStrategy": "Integration tests to ensure existing functionality remains unchanged without custom prompts."
+            "testStrategy": "Unit and integration tests to verify content extraction."
           },
           {
             "id": 4,
-            "title": "Maintain Knowledge Base Query Functionality",
-            "description": "Ensure the existing knowledge base query functionality integrates seamlessly with custom prompts.",
-            "dependencies": [
-              1,
-              2
-            ],
-            "details": "The knowledge base query should work correctly whether a custom prompt is provided or not.",
-            "status": "pending",
-            "testStrategy": "Tests to verify knowledge base queries with and without custom prompts."
-          },
-          {
-            "id": 5,
-            "title": "Update Documentation",
-            "description": "Update API documentation to include the new custom prompt feature.",
+            "title": "Ensure Backward Compatibility",
+            "description": "Verify that existing integrations continue to function by mapping old input/output formats to the new standard.",
             "dependencies": [
               1,
               2,
               3,
-              4
+              "19.6"
             ],
-            "details": "Documentation should include examples of usage and expected outcomes.",
+            "details": "Implement mapping logic to convert between old and new formats where necessary. Test with existing integrations.",
             "status": "pending",
-            "testStrategy": "Review documentation for accuracy and completeness."
+            "testStrategy": "End-to-end tests with existing integrations."
+          },
+          {
+            "id": 5,
+            "title": "Implement Robust Error Handling",
+            "description": "Add error handling for invalid inputs or malformed prompts, ensuring clear feedback is returned to the caller.",
+            "dependencies": [
+              1,
+              2,
+              "19.6"
+            ],
+            "details": "Develop error handling mechanisms to manage invalid inputs or malformed prompts. Provide clear error messages.",
+            "status": "pending",
+            "testStrategy": "Negative testing to verify error handling and feedback."
+          },
+          {
+            "id": 6,
+            "title": "收集现有AI服务信息",
+            "description": "收集当前所有使用AI的服务的信息，包括它们如何定制ChatInput、如何提取AI的输出、如何使用提取到的内容，并将这些信息输出到old_ai_servers.md中，为之后的任务做准备。",
+            "dependencies": [],
+            "details": "1. 识别项目中所有使用AI的现有服务。\\n2. 对每个服务，分析其如何定制ChatInput来控制AI的输出。\\n3. 记录每个服务如何从AI响应中提取所需内容。\\n4. 文档化每个服务如何使用提取的内容。\\n5. 将所有收集的信息整理并输出到old_ai_servers.md文件中。\\n6. 确保文档格式清晰，便于后续子任务参考。",
+            "status": "done",
+            "testStrategy": "验证old_ai_servers.md文件是否包含所有必要信息，包括所有AI服务的列表、各自的ChatInput定制方法、输出提取方法和使用模式",
+            "parentTaskId": 19
           }
         ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-13T12:29:53.128Z",
+      "updated": "2025-07-14T03:19:35.075Z",
       "description": "Tasks for master context"
     }
   }
