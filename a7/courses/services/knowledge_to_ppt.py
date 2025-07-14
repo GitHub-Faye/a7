@@ -400,20 +400,14 @@ class KnowledgePointToPPTService:
             # 创建客户端
             client = N8nWebhookClient()
             
-            # 准备请求数据
-            request_data = {
-                "knowledge_data": knowledge_data,
-                "title": title,
-                "include_course_info": include_course_info,
-                "theme": theme,
-                "chatInput": prompt,
-                "sessionId": session_id
-            }
-            
+            # 准备请求数据 - 只传递chatInput和sessionId
             logger.info("正在调用AI服务生成Markdown")
             
             # 调用AI服务
-            response = client.generate_markdown_from_knowledge_sync(request_data)
+            response = client.generate_markdown_from_knowledge_sync({
+                "chatInput": prompt,
+                "sessionId": session_id
+            })
             
             # 提取Markdown内容
             if response and "markdown" in response:

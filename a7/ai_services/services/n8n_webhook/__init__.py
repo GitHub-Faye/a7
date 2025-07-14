@@ -1,17 +1,25 @@
 """
-n8n Webhook 服务模块
+n8n Webhook服务包
 
-该模块提供了与n8n工作流程平台交互的服务抽象层，
-包括发送webhook请求和处理响应的功能。
+提供与n8n工作流平台集成的服务
 """
 
 from .client import N8nWebhookClient
 from .exceptions import (
-    N8nWebhookError, 
+    N8nWebhookError,
     N8nConnectionError,
     N8nTimeoutError,
-    N8nResponseError
+    N8nResponseError,
 )
+from .formats import (
+    format_student_dialogue_response,
+    format_question_generation_response,
+    format_exercise_generation_response,
+    format_answer_correction_response,
+    format_course_generation_response,
+    format_knowledge_to_markdown_response,
+)
+from . import prompt_templates
 
 __all__ = [
     'N8nWebhookClient',
@@ -19,4 +27,11 @@ __all__ = [
     'N8nConnectionError',
     'N8nTimeoutError',
     'N8nResponseError',
+    'format_student_dialogue_response',
+    'format_question_generation_response',
+    'format_exercise_generation_response',
+    'format_answer_correction_response',
+    'format_course_generation_response',
+    'format_knowledge_to_markdown_response',
+    'prompt_templates',
 ] 

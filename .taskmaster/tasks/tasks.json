@@ -865,7 +865,7 @@
             "title": "收集现有AI服务信息",
             "description": "收集当前所有使用AI的服务的信息，包括它们如何定制ChatInput、如何提取AI的输出、如何使用提取到的内容，并将这些信息输出到old_ai_servers.md中，为之后的任务做准备。",
             "dependencies": [],
-            "details": "1. 识别项目中所有使用AI的现有服务。\\n2. 对每个服务，分析其如何定制ChatInput来控制AI的输出。\\n3. 记录每个服务如何从AI响应中提取所需内容。\\n4. 文档化每个服务如何使用提取的内容。\\n5. 将所有收集的信息整理并输出到old_ai_servers.md文件中。\\n6. 确保文档格式清晰，便于后续子任务参考。",
+            "details": "1. 识别项目中所有使用AI的现有服务。\\n2. 对每个服务，分析其如何定制ChatInput来控制AI的输出。\\n3. 记录每个服务如何从AI响应中提取所需内容。\\n4. 文档化每个服务如何使用提取的内容。\\n5. 将所有收集的信息整理并输出到old_ai_servers.md文件中。\\n6. 确保文档格式清晰，便于后续子任务参考。\n<info added on 2025-07-14T03:48:59.843Z>\n7. 补充KnowledgePointToPPT服务信息：该服务位于`a7/courses/services/knowledge_to_ppt.py`，功能是将知识点数据转换为演示文稿格式(PPT/PDF/HTML)，流程为通过AI服务生成Markdown内容，再经Marp服务转换输出。该服务已作为关键AI组件记录至old_ai_servers.md文档。\n</info added on 2025-07-14T03:48:59.843Z>\n<info added on 2025-07-14T03:52:56.964Z>\n已完成所有AI服务的信息收集和文档化工作，具体包括以下7个服务：\n1. 学生对话服务（dialogue_with_student）\n2. 问题生成服务（generate_questions）\n3. 练习题生成服务（generate_exercises）\n4. 答案校正服务（correct_student_answer）\n5. 课程内容生成服务（generate_course_content）\n6. 知识点转Markdown服务（generate_markdown_from_knowledge）\n7. 知识点转PPT服务（KnowledgePointToPPT）\n\n对每个服务已记录：\n- 服务用途和功能说明\n- ChatInput定制方式和示例代码\n- 输出内容提取方法\n- 提取内容的使用方式和API端点\n\n所有信息已完整整理至old_ai_servers.md文档，包含各服务的共同特点分析（输入格式、输出格式、API响应格式和异步支持等），为后续标准化改造提供了全面参考依据。\n</info added on 2025-07-14T03:52:56.964Z>",
             "status": "done",
             "testStrategy": "验证old_ai_servers.md文件是否包含所有必要信息，包括所有AI服务的列表、各自的ChatInput定制方法、输出提取方法和使用模式",
             "parentTaskId": 19
@@ -875,7 +875,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-14T03:19:35.075Z",
+      "updated": "2025-07-14T03:44:52.836Z",
       "description": "Tasks for master context"
     }
   }

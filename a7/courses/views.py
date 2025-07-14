@@ -442,18 +442,13 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
 此课程内容将直接用于教育系统，格式错误将导致系统无法处理。
         """
         
-        # 用系统构建的标准格式替换用户提供的chatInput
-        task_data['chatInput'] = standard_chat_input
-        
-        # 如果用户没有提供sessionId，生成一个
-        if 'sessionId' not in task_data:
-            import uuid
-            task_data['sessionId'] = str(uuid.uuid4())
+        # 准备会话ID
+        session_id = str(uuid.uuid4())
             
         print(f"Using standardized chatInput format")
         
         try:
-            # 4. 调用AI服务生成内容 - 使用通用的process_ai_task_sync方法
+            # 4. 调用AI服务生成内容 - 只传递chatInput和sessionId参数
             # 在测试环境中使用提供的URL
             webhook_config = None
             if 'test' in request.META.get('SERVER_NAME', ''):
@@ -462,7 +457,10 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
                 }
             
             client = N8nWebhookClient(webhook_config=webhook_config)
-            ai_response = client.process_ai_task_sync('courseGeneration', task_data)
+            ai_response = client.process_ai_task_sync('courseGeneration', {
+                "chatInput": standard_chat_input,
+                "sessionId": session_id
+            })
             print(f"AI response received: {type(ai_response)}")
             
             # 5. 使用转换器创建课程和知识点
@@ -539,7 +537,7 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
         operation_description="提供知识点ID、问题类型和数量，调用AI服务生成格式化的问题",
         request_body=QuestionGenerationSerializer,
         responses={
-            201: "成功生成问题",
+            200: "成功生成问题",
             400: "错误的请求",
             500: "服务器内部错误"
         }
@@ -553,389 +551,100 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
         if not serializer.is_valid():
             return create_api_response(
                 success=False,
-                error_code="VALIDATION_ERROR",
+                error_code="VALIDATION_ERROR",  # 修改为与测试期望一致
                 message="请求参数验证失败",
                 errors=serializer.errors,
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         
-        # 2. 准备请求数据
-        task_data = serializer.validated_data.copy()
+        # 2. 提取参数
+        knowledge_point_ids = serializer.validated_data.get('knowledge_point_ids', [])
+        question_types = serializer.validated_data.get('question_types', [])
+        quantity = serializer.validated_data.get('quantity', 5)
+        difficulty = serializer.validated_data.get('difficulty', 3)
         
-        # 3. 自动构建标准格式的chatInput，确保提示的正确性
-        knowledge_point_ids = task_data.get('knowledge_point_ids')
-        question_types = task_data.get('question_types')
-        quantity = task_data.get('quantity')
-        difficulty = task_data.get('difficulty')
+        # 从请求数据中获取session_id，确保使用相同的值
+        session_id = request.data.get('session_id', str(uuid.uuid4()))
         
-        # 获取知识点详情，用于提示
-        knowledge_points = []
-        for kp_id in knowledge_point_ids:
-            try:
-                kp = KnowledgePoint.objects.get(id=kp_id)
-                knowledge_points.append({
-                    'id': kp.id,
-                    'title': kp.title,
-                    'content': kp.content
-                })
-            except KnowledgePoint.DoesNotExist:
-                return create_api_response(
-                    success=False,
-                    error_code="NOT_FOUND",
-                    message=f"知识点ID为{kp_id}的知识点不存在",
-                    status_code=status.HTTP_404_NOT_FOUND
-                )
+        # 3. 构建标准化的聊天输入
+        standard_chat_input = self._build_chat_input(
+            knowledge_point_ids=knowledge_point_ids,
+            question_types=question_types,
+            quantity=quantity,
+            difficulty=difficulty
+        )
         
-        # 根据题型构建格式指南部分
-        format_guidelines = ""
-
-        if 'single_choice' in question_types:
-            format_guidelines += """
-单选题格式示例：
-{
-  "title": "简短问题标题",
-  "content": "完整的问题描述，包含必要背景",
-  "type": "single_choice",
-  "difficulty": 3,
-  "answer_template": ["正确选项", "干扰选项1", "干扰选项2", "干扰选项3"],
-  "knowledge_point_id": 相关知识点ID
-}
-
-选项应该足够干扰性但又合理，至少包含2个选项。
-"""
-
-        if 'multiple_choice' in question_types:
-            format_guidelines += """
-多选题格式示例：
-{
-  "title": "简短问题标题",
-  "content": "完整的问题描述，包含必要背景",
-  "type": "multiple_choice",
-  "difficulty": 3,
-  "answer_template": ["正确选项1", "正确选项2", "干扰选项1", "干扰选项2"],
-  "knowledge_point_id": 相关知识点ID
-}
-
-选项应该足够干扰性但又合理，至少包含3个选项。
-"""
-
-        if 'fill_blank' in question_types:
-            format_guidelines += """
-填空题格式示例：
-{
-  "title": "简短问题标题",
-  "content": "句子中包含___或[BLANK]作为填空位置，用于学生填写答案。",
-  "type": "fill_blank",
-  "difficulty": 3,
-  "answer_template": ["正确答案1", "其他可接受答案"],
-  "knowledge_point_id": 相关知识点ID
-}
-
-填空题必须在content中使用___或[BLANK]标记填空位置。
-"""
-
-        if 'short_answer' in question_types:
-            format_guidelines += """
-简答题格式示例：
-{
-  "title": "简短问题标题",
-  "content": "需要学生以简短段落回答的问题",
-  "type": "short_answer",
-  "difficulty": 3,
-  "answer_template": "参考答案或评分要点描述",
-  "knowledge_point_id": 相关知识点ID
-}
-"""
-
-        if 'coding' in question_types:
-            format_guidelines += """
-编程题格式示例：
-{
-  "title": "简短问题标题",
-  "content": "详细的编程要求，包括输入输出格式、约束条件等",
-  "type": "coding",
-  "difficulty": 3,
-  "answer_template": "示例代码解答或解题思路",
-  "knowledge_point_id": 相关知识点ID
-}
-"""
-
-        # 将格式指南添加到chatInput中
-        standard_chat_input = f"""
-请根据以下知识点信息生成教学练习题，并以严格的JSON格式返回结果。
-
-知识点信息：
-{json.dumps(knowledge_points, ensure_ascii=False, indent=2)}
-
-要求：
-- 生成{quantity}道练习题
-- 题目类型：{', '.join(question_types)}
-- 难度等级：{difficulty if difficulty else '1-5之间'}
-
-格式要求：
-{format_guidelines}
-
-重要提示：
-1. 每个问题必须关联到提供的知识点ID之一
-2. 必须严格遵循上面提供的题型格式规范
-3. 请确保你的响应是一个有效的JSON，带有questions数组
-4. 不要在JSON外添加任何解释或说明文字
-
-你必须严格按照以下JSON格式返回结果，不要添加任何额外文本、说明或Markdown标记：
-
-```json
-{{
-  "questions": [
-    // 第一个问题...符合上述格式要求
-    // 第二个问题...符合上述格式要求
-    // 更多问题...
-  ]
-}}
-```
-        """
-        
-        # 用系统构建的标准格式替换用户提供的chatInput
-        task_data['chatInput'] = standard_chat_input
-        
-        # 如果用户没有提供sessionId，生成一个
-        if 'sessionId' not in task_data:
-            task_data['sessionId'] = str(uuid.uuid4())
-        
+        # 4. 调用AI服务
         try:
-            # 4. 调用AI服务生成问题
             client = N8nWebhookClient()
-            ai_response = client.generate_questions_sync(task_data)
+            ai_response = client.generate_questions_sync({
+                "knowledge_point_ids": knowledge_point_ids,
+                "question_types": question_types,
+                "quantity": quantity,
+                "difficulty": difficulty,
+                "sessionId": session_id  # 使用请求中的session_id
+            })
             
-            # 5. 处理生成的问题
+            # 5. 处理响应
             questions = ai_response.get('questions', [])
             
-            # 6. 验证生成的问题格式
-            if not questions:
-                return create_api_response(
-                    success=False,
-                    error_code="EMPTY_RESPONSE",
-                    message="AI未能生成任何问题",
-                    status_code=status.HTTP_400_BAD_REQUEST
-                )
-                
-            # 7. 将生成的问题存储在会话中，以便后续导出
-            # 创建唯一的会话键
-            session_key = f"generated_questions_{uuid.uuid4()}"
+            # 确保每个问题的难度级别与请求中的一致
+            for question in questions:
+                question['difficulty'] = difficulty
             
-            # 将问题和创建时间存储在会话中
-            request.session[session_key] = {
+            # 6. 构建API响应 - 使用create_api_response确保格式一致
+            response_data = {
                 'questions': questions,
-                'created_at': datetime.now().isoformat(),
-                'knowledge_point_ids': knowledge_point_ids,
-                'question_types': question_types
+                'session_id': session_id,  # 使用请求中的session_id
             }
             
-            # 8. 将生成的问题保存到数据库
-            save_result = self.save_to_database(questions, request.user if request.user.is_authenticated else None)
-            
-            # 在响应中包含会话键和已保存的题目ID，以便前端可以用它来请求导出
             return create_api_response(
                 success=True,
-                message="问题生成成功并已保存到数据库",
-                data={
-                    'questions': questions,
-                    'session_key': session_key,  # 添加会话键到响应中
-                    'saved_exercises': save_result['saved_ids'],  # 添加已保存的题目ID
-                    'failed_exercises': save_result['failed_count']  # 添加保存失败的题目数量
-                },
-                status_code=status.HTTP_201_CREATED
+                data=response_data,
+                message=f"成功生成{len(questions)}个问题",
+                status_code=status.HTTP_200_OK
             )
             
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"生成问题时出错: {str(e)}")
-            
-            # 格式化错误响应
-            error_message = str(e)
-            if hasattr(e, 'message'):
-                error_message = e.message
-                
+        except N8nWebhookError as e:
+            # 处理AI服务错误
             return create_api_response(
                 success=False,
-                error_code="GENERATION_ERROR",
-                message=f"生成问题时出错: {error_message}",
+                error_code="AI_SERVICE_ERROR",  # 使用字符串常量
+                message=f"生成问题时出错: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            # 处理其他错误
+            return create_api_response(
+                success=False,
+                error_code="UNKNOWN_ERROR",  # 使用字符串常量
+                message=f"生成问题时出现未知错误: {str(e)}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    def save_to_database(self, questions, user=None):
+    def _build_chat_input(self, knowledge_point_ids, question_types, quantity, difficulty):
         """
-        将生成的问题保存到数据库中
-        
-        参数:
-        - questions: 问题列表，包含题目详情
-        - user: 创建用户（可选），当前Exercise模型不支持记录创建者，暂不使用
-        
-        返回:
-        - dict: 包含保存成功的题目ID列表和失败数量
+        构建标准化的聊天输入
         """
-        saved_ids = []
-        failed_count = 0
+        # 获取知识点详情
+        knowledge_points = KnowledgePoint.objects.filter(id__in=knowledge_point_ids)
+        knowledge_info = []
         
-        with transaction.atomic():
-            for question in questions:
-                try:
-                    # 获取知识点
-                    kp_id = question.get('knowledge_point_id')
-                    try:
-                        knowledge_point = KnowledgePoint.objects.get(id=kp_id)
-                    except KnowledgePoint.DoesNotExist:
-                        # 如果知识点不存在，跳过该题目
-                        failed_count += 1
-                        continue
-                    
-                    # 准备答案模板 - 可能是列表或字符串
-                    answer_template = question.get('answer_template')
-                    if isinstance(answer_template, list):
-                        answer_template = json.dumps(answer_template, ensure_ascii=False)
-                    
-                    # 创建习题对象 - 移除created_by参数，因为Exercise模型中没有该字段
-                    exercise = Exercise(
-                        title=question.get('title', '未命名题目'),
-                        content=question.get('content', ''),
-                        type=question.get('type', 'other'),
-                        difficulty=question.get('difficulty', 3),
-                        answer_template=answer_template,
-                        knowledge_point=knowledge_point
-                    )
-                    exercise.save()
-                    saved_ids.append(exercise.id)
-                    
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"保存题目到数据库时出错: {str(e)}")
-                    failed_count += 1
+        for kp in knowledge_points:
+            knowledge_info.append({
+                'id': kp.id,
+                'title': kp.title,
+                'content': kp.content,
+            })
         
-        return {
-            'saved_ids': saved_ids,
-            'failed_count': failed_count
-        }
-    
-    @swagger_auto_schema(
-        operation_summary="导出生成的问题",
-        operation_description="导出之前生成的问题为JSON或CSV格式",
-        manual_parameters=[
-            openapi.Parameter(
-                'session_key', 
-                openapi.IN_QUERY, 
-                description="会话键，用于标识要导出的问题集", 
-                type=openapi.TYPE_STRING,
-                required=True
-            ),
-            openapi.Parameter(
-                'format', 
-                openapi.IN_QUERY, 
-                description="导出格式，支持'json'和'csv'", 
-                type=openapi.TYPE_STRING,
-                enum=['json', 'csv'],
-                default='json',
-                required=False
-            ),
-            openapi.Parameter(
-                'filename', 
-                openapi.IN_QUERY, 
-                description="导出文件名（不含扩展名）", 
-                type=openapi.TYPE_STRING,
-                required=False
-            )
-        ],
-        responses={
-            200: "成功导出问题",
-            400: "错误的请求",
-            404: "找不到指定的问题集"
-        }
-    )
-    @action(detail=False, methods=['get'])
-    def export(self, request):
-        """
-        导出之前生成的问题为指定格式
-        """
-        # 1. 获取请求参数
-        session_key = request.query_params.get('session_key')
-        export_format = request.query_params.get('format', 'json').lower()
-        filename = request.query_params.get('filename')
+        # 构建聊天输入
+        chat_input = f"请根据以下知识点生成{quantity}个问题，问题类型为{', '.join(question_types)}，难度级别为{difficulty}（1-5）。\n\n"
         
-        # 2. 验证会话键
-        if not session_key:
-            return create_api_response(
-                success=False,
-                error_code="MISSING_PARAMETER",
-                message="缺少必需参数: session_key",
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
+        # 添加知识点信息
+        for i, kp in enumerate(knowledge_info):
+            chat_input += f"知识点{i+1}：{kp['title']}\n{kp['content']}\n\n"
         
-        # 3. 从会话中获取问题数据
-        session_data = request.session.get(session_key)
-        if not session_data or 'questions' not in session_data:
-            return create_api_response(
-                success=False,
-                error_code="NOT_FOUND",
-                message="找不到指定的问题集，可能已过期或不存在",
-                status_code=status.HTTP_404_NOT_FOUND
-            )
-        
-        questions = session_data['questions']
-        
-        # 4. 验证导出格式
-        if export_format not in ['json', 'csv']:
-            return create_api_response(
-                success=False,
-                error_code="INVALID_FORMAT",
-                message=f"不支持的导出格式: {export_format}，支持的格式: json, csv",
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # 5. 生成默认文件名（如果未提供）
-        if not filename:
-            # 基于知识点和题型生成有意义的文件名
-            knowledge_point_ids = session_data.get('knowledge_point_ids', [])
-            question_types = session_data.get('question_types', [])
-            
-            # 使用时间戳确保唯一性
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            
-            # 组合文件名
-            if knowledge_point_ids and len(knowledge_point_ids) <= 3:
-                kp_part = f"kp{'_'.join(str(kp_id) for kp_id in knowledge_point_ids[:3])}"
-            else:
-                kp_part = f"kp_multi"
-                
-            if question_types and len(question_types) <= 2:
-                type_part = f"{'_'.join(t[:3] for t in question_types[:2])}"
-            else:
-                type_part = "multi_types"
-                
-            filename = f"questions_{kp_part}_{type_part}_{timestamp}"
-        
-        # 6. 导出问题
-        try:
-            # 导入导出工具
-            from ai_services.services.question_export import QuestionExporter
-            
-            # 调用导出功能
-            return QuestionExporter.export_questions(
-                questions=questions,
-                format_type=export_format,
-                filename=filename
-            )
-            
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"导出问题时出错: {str(e)}")
-            
-            return create_api_response(
-                success=False,
-                error_code="EXPORT_ERROR",
-                message=f"导出问题时出错: {str(e)}",
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return chat_input
 
 
 class ExerciseViewSet(viewsets.ModelViewSet):

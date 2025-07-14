@@ -44,6 +44,8 @@ class StudentDialogueViewSet(viewsets.ViewSet):
                         "success": True,
                         "data": {
                             "answer": "AI生成的回答内容",
+                            "sources": [],
+                            "follow_up_questions": [],
                             "session_id": "会话ID"
                         },
                         "message": "对话请求处理成功"
@@ -74,21 +76,21 @@ class StudentDialogueViewSet(viewsets.ViewSet):
             if not session_id:
                 session_id = str(uuid.uuid4())
             
-            # 准备请求数据 - 注意：n8n服务期望chatInput而不是query
-            dialogue_data = {
-                # 将query映射到chatInput
-                "chatInput": serializer.validated_data["query"],
-                "sessionId": session_id,
-                # 可选：如果需要传递上下文
-                "context": serializer.validated_data.get("context", {})
-            }
+            # 获取查询文本和上下文
+            query = serializer.validated_data["query"]
+            context = serializer.validated_data.get("context", {})
             
             # 调用n8n客户端
             client = N8nWebhookClient()
-            result = client.dialogue_with_student_sync(dialogue_data)
+            result = client.dialogue_with_student_sync({
+                "query": query,  # client.py中会处理参数转换为chatInput
+                "context": context,
+                "sessionId": session_id
+            })
             
             # 在响应中包含会话ID，便于客户端进行后续对话
-            result["session_id"] = session_id
+            if isinstance(result, dict):
+                result["session_id"] = session_id
             
             # 使用标准化响应格式
             return create_api_response(

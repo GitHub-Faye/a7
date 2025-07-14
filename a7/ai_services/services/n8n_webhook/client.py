@@ -9,7 +9,8 @@ import time
 import logging
 import aiohttp
 import asyncio
-from typing import Dict, Any, Optional, Union
+import uuid
+from typing import Dict, Any, Optional, Union, List
 
 from django.conf import settings
 from asgiref.sync import sync_to_async
@@ -22,6 +23,7 @@ from .exceptions import (
 )
 from .formats import validate_request_data, parse_response
 from ...models import WebhookConfig, WebhookCallLog
+from . import prompt_templates
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +261,30 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 生成的课程内容
         """
-        return await self.process_ai_task('courseGeneration', request_data)
+        # 提取参数
+        course_name = request_data.get("course_name", "")
+        chapter_count = request_data.get("chapter_count", 5)
+        course_description = request_data.get("course_description", "")
+        subject = request_data.get("subject", "")
+        grade_level = request_data.get("grade_level", "")
+        additional_requirements = request_data.get("additional_requirements", "")
+        session_id = request_data.get("sessionId", str(uuid.uuid4()))
+        
+        # 使用提示模板构建chatInput
+        chat_input = prompt_templates.build_course_content_generation_prompt(
+            course_name=course_name,
+            chapter_count=chapter_count,
+            course_description=course_description,
+            subject=subject,
+            grade_level=grade_level,
+            additional_requirements=additional_requirements
+        )
+        
+        # 只传递chatInput和sessionId给n8n
+        return await self.process_ai_task('courseGeneration', {
+            "chatInput": chat_input,
+            "sessionId": session_id
+        })
     
     def generate_course_content_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -283,7 +308,36 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 生成的问题列表
         """
-        return await self.process_ai_task('questionGeneration', request_data)
+        # 提取参数
+        knowledge_point_ids = request_data.get("knowledge_point_ids", [])
+        knowledge_points = request_data.get("knowledge_points", [])
+        question_types = request_data.get("question_types", ["multiple_choice"])
+        quantity = request_data.get("quantity", 5)
+        difficulty = request_data.get("difficulty", 3)
+        session_id = request_data.get("sessionId", str(uuid.uuid4()))
+        
+        # 如果客户端提供了chatInput，直接使用
+        if "chatInput" in request_data and request_data["chatInput"]:
+            chat_input = request_data["chatInput"]
+        else:
+            # 否则使用提示模板构建chatInput
+            chat_input = prompt_templates.build_question_generation_prompt(
+                knowledge_point_ids=knowledge_point_ids,
+                knowledge_points=knowledge_points,
+                question_types=question_types,
+                quantity=quantity,
+                difficulty=difficulty
+            )
+        
+        # 传递所有必需参数给process_ai_task，而不仅仅是chatInput和sessionId
+        return await self.process_ai_task('questionGeneration', {
+            "knowledge_point_ids": knowledge_point_ids,
+            "question_types": question_types,
+            "quantity": quantity,
+            "difficulty": difficulty,
+            "chatInput": chat_input,
+            "sessionId": session_id
+        })
     
     def generate_questions_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -307,7 +361,30 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 包含生成Markdown的响应数据
         """
-        return await self.process_ai_task('knowledgeToMarkdown', request_data)
+        # 提取参数
+        knowledge_data = request_data.get("knowledge_data", {})
+        title = request_data.get("title", "知识点演示")
+        include_course_info = request_data.get("include_course_info", True)
+        theme = request_data.get("theme", "default")
+        session_id = request_data.get("sessionId", str(uuid.uuid4()))
+        
+        # 如果客户端提供了chatInput，直接使用
+        if "chatInput" in request_data and request_data["chatInput"]:
+            chat_input = request_data["chatInput"]
+        else:
+            # 否则使用提示模板构建chatInput
+            chat_input = prompt_templates.build_knowledge_to_markdown_prompt(
+                knowledge_data=knowledge_data,
+                title=title,
+                theme=theme,
+                include_course_info=include_course_info
+            )
+        
+        # 只传递chatInput和sessionId给n8n
+        return await self.process_ai_task('knowledgeToMarkdown', {
+            "chatInput": chat_input,
+            "sessionId": session_id
+        })
     
     def generate_markdown_from_knowledge_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -331,7 +408,19 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 包含AI助手回答的响应数据
         """
-        return await self.process_ai_task('studentDialogue', request_data)
+        # 提取参数
+        query = request_data.get("query") or request_data.get("chatInput", "")
+        context = request_data.get("context", {})
+        session_id = request_data.get("sessionId", str(uuid.uuid4()))
+        
+        # 使用提示模板构建chatInput
+        chat_input = prompt_templates.build_student_dialogue_prompt(query, context)
+        
+        # 只传递chatInput和sessionId给n8n
+        return await self.process_ai_task('studentDialogue', {
+            "chatInput": chat_input,
+            "sessionId": session_id
+        })
     
     def dialogue_with_student_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -355,7 +444,32 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 生成的练习题数据
         """
-        return await self.process_ai_task("exerciseGeneration", request_data)
+        # 提取参数
+        query = request_data.get("query", "")
+        knowledge_content = request_data.get("knowledge_content", "")
+        question_types = request_data.get("question_types", [])
+        quantity = request_data.get("quantity", 3)
+        difficulty = request_data.get("difficulty")
+        session_id = request_data.get("sessionId", str(uuid.uuid4()))
+        
+        # 如果客户端提供了chatInput，直接使用
+        if "chatInput" in request_data and request_data["chatInput"]:
+            chat_input = request_data["chatInput"]
+        else:
+            # 否则使用提示模板构建chatInput
+            chat_input = prompt_templates.build_exercise_generation_prompt(
+                query=query,
+                knowledge_content=knowledge_content,
+                question_types=question_types,
+                quantity=quantity,
+                difficulty=difficulty
+            )
+        
+        # 只传递chatInput和sessionId给n8n
+        return await self.process_ai_task("exerciseGeneration", {
+            "chatInput": chat_input,
+            "sessionId": session_id
+        })
 
     def generate_exercises_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -381,7 +495,32 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 校正结果，包含正确性评估、得分、反馈等
         """
-        return await self.process_ai_task("answerCorrection", request_data)
+        # 提取参数
+        exercise_content = request_data.get("exercise_content", "")
+        exercise_type = request_data.get("exercise_type", "")
+        reference_answer = request_data.get("reference_answer", "")
+        student_answer = request_data.get("student_answer", "")
+        answer_template = request_data.get("answer_template", None)
+        session_id = request_data.get("sessionId", str(uuid.uuid4()))
+        
+        # 如果客户端提供了chatInput，直接使用
+        if "chatInput" in request_data and request_data["chatInput"]:
+            chat_input = request_data["chatInput"]
+        else:
+            # 否则使用提示模板构建chatInput
+            chat_input = prompt_templates.build_answer_correction_prompt(
+                exercise_content=exercise_content,
+                exercise_type=exercise_type,
+                reference_answer=reference_answer,
+                student_answer=student_answer,
+                answer_template=answer_template
+            )
+        
+        # 只传递chatInput和sessionId给n8n
+        return await self.process_ai_task("answerCorrection", {
+            "chatInput": chat_input,
+            "sessionId": session_id
+        })
         
     def correct_student_answer_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
