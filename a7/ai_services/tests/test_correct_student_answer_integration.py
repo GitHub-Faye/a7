@@ -49,8 +49,7 @@ class CorrectStudentAnswerIntegrationTest(TestCase):
             type="single_choice",
             difficulty=2,
             knowledge_point=self.knowledge_point,
-            answer_template=json.dumps(["while循环", "for循环", "do-while循环", "repeat-until循环"]),
-            reference_answer="B"
+            answer_template=json.dumps(["while循环", "for循环", "do-while循环", "repeat-until循环"])
         )
         
         self.short_answer_exercise = Exercise.objects.create(
@@ -58,20 +57,21 @@ class CorrectStudentAnswerIntegrationTest(TestCase):
             content="简述for循环和while循环的主要区别。",
             type="short_answer",
             difficulty=3,
-            knowledge_point=self.knowledge_point,
-            reference_answer="for循环通常用于已知迭代次数的情况，适合遍历集合；while循环通常用于未知迭代次数的情况，基于条件判断是否继续执行。"
+            knowledge_point=self.knowledge_point
         )
+        
+        # 存储参考答案，供直接API测试使用
+        self.single_choice_reference = "B"
+        self.short_answer_reference = "for循环通常用于已知迭代次数的情况，适合遍历集合；while循环通常用于未知迭代次数的情况，基于条件判断是否继续执行。"
     
     def test_correct_single_choice_answer(self):
         """测试单选题答案校正API的请求和响应结构"""
-        # 准备请求数据
+        # 准备请求数据 - 需要传递exercise_id和reference_answer
         session_id = str(uuid.uuid4())
         request_data = {
-            'exercise_content': self.single_choice_exercise.content,
-            'exercise_type': self.single_choice_exercise.type,
-            'reference_answer': self.single_choice_exercise.reference_answer,
+            'exercise_id': self.single_choice_exercise.id,
             'student_answer': 'B',
-            'answer_template': json.loads(self.single_choice_exercise.answer_template),
+            'reference_answer': self.single_choice_reference,
             'session_id': session_id
         }
         
@@ -111,10 +111,9 @@ class CorrectStudentAnswerIntegrationTest(TestCase):
         # 准备请求数据
         session_id = str(uuid.uuid4())
         request_data = {
-            'exercise_content': self.short_answer_exercise.content,
-            'exercise_type': self.short_answer_exercise.type,
-            'reference_answer': self.short_answer_exercise.reference_answer,
+            'exercise_id': self.short_answer_exercise.id,
             'student_answer': 'for循环用于遍历列表等序列，while循环用于条件判断循环。',
+            'reference_answer': self.short_answer_reference,
             'session_id': session_id
         }
         
@@ -161,4 +160,27 @@ class CorrectStudentAnswerIntegrationTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data['success'])
         self.assertIn('error_code', response.data)
-        self.assertEqual(response.data['error_code'], 'VALIDATION_ERROR') 
+        self.assertEqual(response.data['error_code'], 'VALIDATION_ERROR')
+        
+    # 可以添加直接针对客户端的测试，测试原始参数传递方式
+    def test_client_direct_call(self):
+        """测试直接调用客户端方法并传递原始参数"""
+        client = N8nWebhookClient()
+        session_id = str(uuid.uuid4())
+        
+        # 为单选题准备测试数据
+        single_choice_data = {
+            "exercise_content": self.single_choice_exercise.content,
+            "exercise_type": self.single_choice_exercise.type,
+            "reference_answer": self.single_choice_reference,
+            "student_answer": "B",
+            "answer_template": json.loads(self.single_choice_exercise.answer_template),
+            "sessionId": session_id
+        }
+        
+        # 模拟测试，不实际调用API
+        # 这里可以添加mock对象和断言来验证参数是否正确传递
+        # 暂时跳过实际调用，因为n8n可能不在测试环境中可用
+        # result = client.correct_student_answer_sync(single_choice_data)
+        # self.assertIn('is_correct', result)
+        # self.assertTrue(result['is_correct']) 

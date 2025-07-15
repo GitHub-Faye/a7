@@ -489,7 +489,11 @@ class N8nWebhookClient:
         
         Args:
             request_data: 答案校正任务的请求数据，应包含:
-                - chatInput: 包含练习题内容、学生答案等信息的提示文本
+                - exercise_content: 练习题内容
+                - exercise_type: 练习题类型
+                - reference_answer: 参考答案
+                - student_answer: 学生答案
+                - answer_template: 答案模板(可选)
                 - sessionId: 会话ID，用于跟踪上下文
                 
         Returns:
@@ -503,18 +507,14 @@ class N8nWebhookClient:
         answer_template = request_data.get("answer_template", None)
         session_id = request_data.get("sessionId", str(uuid.uuid4()))
         
-        # 如果客户端提供了chatInput，直接使用
-        if "chatInput" in request_data and request_data["chatInput"]:
-            chat_input = request_data["chatInput"]
-        else:
-            # 否则使用提示模板构建chatInput
-            chat_input = prompt_templates.build_answer_correction_prompt(
-                exercise_content=exercise_content,
-                exercise_type=exercise_type,
-                reference_answer=reference_answer,
-                student_answer=student_answer,
-                answer_template=answer_template
-            )
+        # 使用提示模板构建chatInput
+        chat_input = prompt_templates.build_answer_correction_prompt(
+            exercise_content=exercise_content,
+            exercise_type=exercise_type,
+            reference_answer=reference_answer,
+            student_answer=student_answer,
+            answer_template=answer_template
+        )
         
         # 只传递chatInput和sessionId给n8n
         return await self.process_ai_task("answerCorrection", {

@@ -22,6 +22,7 @@ from courses.serializers import (
 from .services.n8n_webhook.client import N8nWebhookClient
 from .services.n8n_webhook.exceptions import N8nWebhookError
 from .api_response import create_api_response
+from .serializers import StudentAnswerCorrectionSerializer
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -284,31 +285,6 @@ class ExerciseGenerationViewSet(viewsets.ViewSet):
             )
 
 
-class StudentAnswerCorrectionSerializer(serializers.Serializer):
-    """学生答案校正请求的序列化器"""
-    exercise_id = serializers.IntegerField(
-        required=True, 
-        help_text="需要校正的练习题ID"
-    )
-    student_answer = serializers.CharField(
-        required=True,
-        help_text="学生提交的答案内容"
-    )
-    session_id = serializers.CharField(
-        required=False, 
-        allow_blank=True,
-        help_text="会话ID，用于跟踪上下文"
-    )
-    
-    def validate_exercise_id(self, value):
-        """验证练习题ID是否存在"""
-        try:
-            Exercise.objects.get(id=value)
-        except Exercise.DoesNotExist:
-            raise serializers.ValidationError(f"ID为{value}的练习题不存在")
-        return value
-
-
 class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
     """学生答案校正API视图集，评估学生答案但不直接保存到数据库"""
     permission_classes = [permissions.AllowAny]  # 允许匿名访问，便于学生使用
@@ -358,6 +334,7 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
             # 获取练习题和学生答案
             exercise_id = serializer.validated_data["exercise_id"]
             student_answer = serializer.validated_data["student_answer"]
+            reference_answer = serializer.validated_data.get("reference_answer", "")
             
             # 获取练习题详情
             exercise = Exercise.objects.get(id=exercise_id)
@@ -367,73 +344,25 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
             if not session_id:
                 session_id = str(uuid.uuid4())
             
-            # 构建prompt，包含练习题信息和学生答案
-            prompt = f"""请评估以下学生答案:
-
-题目标题: {exercise.title}
-题目类型: {dict(Exercise.EXERCISE_TYPES).get(exercise.type, exercise.type)}
-题目内容: {exercise.content}
-"""
-
-            # 根据题目类型添加不同的信息
-            if exercise.type in ['single_choice', 'multiple_choice'] and exercise.answer_template:
-                # 添加选项信息
-                try:
-                    options = json.loads(exercise.answer_template) if isinstance(exercise.answer_template, str) else exercise.answer_template
-                    if isinstance(options, list):
-                        prompt += "\n选项:\n"
-                        for i, option in enumerate(options):
-                            prompt += f"{chr(65+i)}. {option}\n"
-                        
-                        # 特别说明多选题
-                        if exercise.type == 'multiple_choice':
-                            prompt += "\n注意：这是一道多选题，可以选择多个正确答案。学生的答案格式为逗号分隔的选项，如'A,C,D'。\n"
-                except (json.JSONDecodeError, TypeError):
-                    prompt += f"\n选项: {exercise.answer_template}\n"
-            elif exercise.answer_template:
-                # 对于其他类型，如果有答案模板，也一并提供
-                prompt += f"\n参考答案模板: {exercise.answer_template}\n"
-            
-            # 添加学生答案
-            prompt += f"\n学生答案: {student_answer}\n"
-            
-            # 添加评估指示
-            prompt += """
-请评估这个答案并提供:
-1. 是否正确 (true/false)
-2. 得分 (0-100)
-3. 详细反馈
-4. 改进建议
-5. 解题思路或解析
-"""
-
-            # 根据题目类型添加特定的评估指导
-            if exercise.type == 'multiple_choice':
-                prompt += """
-对于多选题，评分标准如下:
-- 如果所有选项都正确选择且没有选择错误选项，则is_correct为true，得分为100分
-- 如果部分正确（有些正确选项被选中，有些错误选项也被选中），则is_correct为false，但得分应该根据正确率给出（如50-80分）
-- 如果完全错误，则is_correct为false，得分接近0分
-"""
-
-            prompt += """
-请以JSON格式回复，包含以下字段:
-{
-    "is_correct": true或false,
-    "score": 0-100之间的数字,
-    "feedback": "详细反馈",
-    "improvement_suggestions": "改进建议",
-    "explanation": "解题思路或解析"
-}
-"""
-            
-            # 准备请求数据
+            # 准备参数传递给客户端，让客户端构建chatInput
             correction_data = {
-                "chatInput": prompt,
+                "exercise_content": exercise.content,
+                "exercise_type": exercise.type,
+                "reference_answer": reference_answer,
+                "student_answer": student_answer,
                 "sessionId": session_id
             }
             
-            # 调用n8n客户端
+            # 根据题目类型添加不同的信息
+            if exercise.type in ['single_choice', 'multiple_choice'] and exercise.answer_template:
+                try:
+                    options = json.loads(exercise.answer_template) if isinstance(exercise.answer_template, str) else exercise.answer_template
+                    if isinstance(options, list):
+                        correction_data["answer_template"] = options
+                except (json.JSONDecodeError, TypeError):
+                    correction_data["answer_template"] = exercise.answer_template
+            
+            # 调用n8n客户端，让客户端负责构建chatInput
             client = N8nWebhookClient()
             result = client.correct_student_answer_sync(correction_data)
             
