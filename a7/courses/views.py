@@ -30,6 +30,7 @@ from .permissions import IsTeacherOrAdmin, IsCourseTeacherOrAdmin, IsKnowledgePo
 from .validations import validate_text_field
 from .services.knowledge_to_ppt import KnowledgePointToPPTService
 from ai_services.services.n8n_webhook.client import N8nWebhookClient
+from ai_services.services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
 from ai_services.api_response import create_api_response
 from ai_services.services.question_export import QuestionExporter
 from users.models import User
@@ -369,86 +370,16 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
         task_data = serializer.validated_data.copy()
         print(f"Validated data: {task_data}")
         
-        # 3. 自动构建标准格式的chatInput，确保提示的正确性
-        # 无论用户是否提供了chatInput，都使用系统构建的标准格式
-        course_name = task_data.get('course_name')
-        chapter_count = task_data.get('chapter_count')
-        course_description = task_data.get('course_description')
-        subject = task_data.get('subject')
-        grade_level = task_data.get('grade_level')
-        additional_requirements = task_data.get('additional_requirements', '')
-        
-        # 构建标准格式的chatInput
-        standard_chat_input = f"""
-请根据以下信息生成一门课程的知识点结构，并以严格的JSON格式返回结果。
-
-输入信息：
-- 课程名称：{course_name}
-- 章节数量：{chapter_count}
-- 课程描述：{course_description}
-- 学科：{subject}
-- 年级水平：{grade_level}
-- 额外要求：{additional_requirements}
-
-你必须严格按照以下JSON格式返回结果，不要添加任何额外文本、说明或Markdown标记：
-
-```json
-{{
-  "course": {{
-    "title": "课程标题",
-    "description": "课程描述",
-    "subject": "学科名称",
-    "grade_level": "年级水平"
-  }},
-  "knowledge_points": [
-    {{
-      "title": "顶级知识点1标题",
-      "content": "详细内容描述",
-      "importance": 数字(1-10),
-      "children": [
-        {{
-          "title": "子知识点1.1标题",
-          "content": "详细内容描述",
-          "importance": 数字(1-10),
-          "children": []
-        }},
-        {{
-          "title": "子知识点1.2标题",
-          "content": "详细内容描述",
-          "importance": 数字(1-10),
-          "children": []
-        }}
-      ]
-    }},
-    {{
-      "title": "顶级知识点2标题",
-      "content": "详细内容描述",
-      "importance": 数字(1-10),
-      "children": []
-    }}
-  ]
-}}
-```
-
-请注意：
-1. 顶级知识点数量应与章节数量相匹配（{chapter_count}个）
-2. 每个知识点必须包含title、content和importance字段
-3. importance必须是1到10之间的整数
-4. children是一个数组，可以为空，也可以包含子知识点
-5. 子知识点必须遵循相同的结构（title, content, importance, children）
-6. 不要在JSON外添加任何解释或说明文字
-7. 确保你的JSON格式正确且有效，系统将直接解析此JSON
-
-此课程内容将直接用于教育系统，格式错误将导致系统无法处理。
-        """
-        
-        # 准备会话ID
+        # 3. 准备会话ID
         session_id = str(uuid.uuid4())
             
-        print(f"Using standardized chatInput format")
+        # 添加 session_id 到请求数据中
+        task_data["sessionId"] = session_id
+            
+        print(f"Using client to construct chatInput")
         
         try:
-            # 4. 调用AI服务生成内容 - 只传递chatInput和sessionId参数
+            # 4. 调用AI服务生成内容 - 传递所有参数给客户端
             # 在测试环境中使用提供的URL
             webhook_config = None
             if 'test' in request.META.get('SERVER_NAME', ''):
@@ -457,10 +388,8 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
                 }
             
             client = N8nWebhookClient(webhook_config=webhook_config)
-            ai_response = client.process_ai_task_sync('courseGeneration', {
-                "chatInput": standard_chat_input,
-                "sessionId": session_id
-            })
+            # 使用 generate_course_content_sync 方法，让客户端负责构建 chatInput
+            ai_response = client.generate_course_content_sync(task_data)
             print(f"AI response received: {type(ai_response)}")
             
             # 5. 使用转换器创建课程和知识点

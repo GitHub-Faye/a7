@@ -280,11 +280,57 @@ class N8nWebhookClient:
             additional_requirements=additional_requirements
         )
         
-        # 只传递chatInput和sessionId给n8n
-        return await self.process_ai_task('courseGeneration', {
+        # 构建请求数据 - 同时传递chatInput和必要参数
+        task_data = {
+            "course_name": course_name,
+            "chapter_count": chapter_count,
+            "course_description": course_description,
+            "subject": subject,
+            "grade_level": grade_level,
             "chatInput": chat_input,
             "sessionId": session_id
-        })
+        }
+        
+        # 1. 验证请求数据
+        validated_data_model = validate_request_data('courseGeneration', task_data)
+        
+        # 2. 构建将发送到n8n的请求数据
+        request_data_to_send = {
+            "task_type": 'courseGeneration',
+            "data": validated_data_model.model_dump()
+        }
+        
+        # 3. 发送请求并获取原始响应
+        raw_response = await self.send_request(request_data_to_send)
+        
+        # 4. 处理嵌套响应格式 - 先提取answer、sources和sessionId
+        if isinstance(raw_response, list) and len(raw_response) > 0 and 'response' in raw_response[0]:
+            # 获取嵌套的响应内容
+            nested_response = raw_response[0]['response']
+            
+            # 从响应体中提取数据
+            if 'body' in nested_response and len(nested_response['body']) > 0:
+                body_item = nested_response['body'][0]
+                
+                # 提取answer、sources和sessionId
+                answer = body_item.get('answer', '')
+                sources = body_item.get('sources', '')
+                session_id = body_item.get('sessionId', session_id)
+                
+                # 构建格式化的响应
+                formatted_response = {
+                    'answer': answer,
+                    'sources': sources,
+                    'sessionId': session_id
+                }
+                
+                # 处理响应数据
+                validated_response_model = parse_response('courseGeneration', formatted_response)
+                return validated_response_model.model_dump()
+        
+        # 如果没有找到嵌套格式，按照标准方式处理
+        validated_response_model = parse_response('courseGeneration', raw_response)
+        return validated_response_model.model_dump()
     
     def generate_course_content_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -296,7 +342,181 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 生成的课程内容
         """
-        return asyncio.run(self.generate_course_content(request_data))
+        # 提取参数
+        course_name = request_data.get("course_name", "")
+        chapter_count = request_data.get("chapter_count", 5)
+        course_description = request_data.get("course_description", "")
+        subject = request_data.get("subject", "计算机科学")  # 设置默认值，避免空字段
+        grade_level = request_data.get("grade_level", "大学一年级")  # 设置默认值，避免空字段
+        additional_requirements = request_data.get("additional_requirements", "")
+        session_id = request_data.get("sessionId", str(uuid.uuid4()))
+        
+        # 使用提示模板构建chatInput
+        chat_input = prompt_templates.build_course_content_generation_prompt(
+            course_name=course_name,
+            chapter_count=chapter_count,
+            course_description=course_description,
+            subject=subject,
+            grade_level=grade_level,
+            additional_requirements=additional_requirements
+        )
+        
+        # 构建请求数据 - 包含所有必要参数
+        task_data = {
+            "course_name": course_name,
+            "chapter_count": chapter_count,
+            "course_description": course_description,
+            "subject": subject, 
+            "grade_level": grade_level,
+            "additional_requirements": additional_requirements,
+            "chatInput": chat_input,
+            "sessionId": session_id
+        }
+        
+        try:
+            # 通过process_ai_task_sync处理请求
+            logger.info("通过process_ai_task_sync处理课程生成请求")
+            raw_result = self.process_ai_task_sync('courseGeneration', task_data)
+            logger.info(f"process_ai_task_sync返回数据类型: {type(raw_result)}")
+            
+            # 提取并处理嵌套响应格式
+            result = raw_result
+            
+            # 检查是否有嵌套的响应结构
+            if isinstance(raw_result, dict) and 'response' in raw_result:
+                logger.info("检测到嵌套响应结构")
+                
+                if 'body' in raw_result['response'] and isinstance(raw_result['response']['body'], list) and len(raw_result['response']['body']) > 0:
+                    body_item = raw_result['response']['body'][0]
+                    logger.info(f"响应body[0]结构: {list(body_item.keys()) if isinstance(body_item, dict) else type(body_item)}")
+                    
+                    if isinstance(body_item, dict):
+                        # 提取answer和sources
+                        if 'answer' in body_item:
+                            answer = body_item['answer']
+                            logger.info(f"从嵌套响应中提取answer，长度: {len(answer)}")
+                            
+                            # 提取sources
+                            sources = ""
+                            if 'sources' in body_item:
+                                if isinstance(body_item['sources'], str):
+                                    sources = body_item['sources']
+                                elif isinstance(body_item['sources'], list):
+                                    sources = json.dumps(body_item['sources'])
+                                logger.info(f"从嵌套响应中提取sources，长度: {len(sources)}")
+                            
+                            # 构建格式化的响应
+                            formatted_response = {
+                                "answer": answer,
+                                "sources": sources,
+                                "sessionId": body_item.get('sessionId', session_id)
+                            }
+                            
+                            # 尝试从answer中提取JSON格式的课程数据
+                            import re
+                            import json as json_module
+                            
+                            json_match = re.search(r'```(?:json)?\s*([\s\S]+?)\s*```', answer)
+                            
+                            if json_match:
+                                try:
+                                    json_str = json_match.group(1)
+                                    logger.info(f"从嵌套响应中提取JSON字符串，长度: {len(json_str)}")
+                                    course_data = json_module.loads(json_str)
+                                    
+                                    # 确保课程基本信息存在
+                                    if 'course' in course_data and isinstance(course_data['course'], dict):
+                                        # 强制使用请求中的课程名称作为title
+                                        course_data['course']['title'] = course_name
+                                        
+                                        # 确保subject和grade_level不为空
+                                        if not course_data['course'].get('subject'):
+                                            course_data['course']['subject'] = subject
+                                        if not course_data['course'].get('grade_level'):
+                                            course_data['course']['grade_level'] = grade_level
+                                    
+                                    # 检查知识点标题长度
+                                    if 'knowledge_points' in course_data and isinstance(course_data['knowledge_points'], list):
+                                        for i, kp in enumerate(course_data['knowledge_points']):
+                                            if isinstance(kp, dict) and 'title' in kp:
+                                                title = kp['title']
+                                                if len(title) > 100:
+                                                    logger.warning(f"知识点标题过长，进行截断: '{title[:20]}...'")
+                                                    course_data['knowledge_points'][i]['title'] = title[:97] + '...'
+                                                    
+                                                # 处理子知识点
+                                                if 'children' in kp and isinstance(kp['children'], list):
+                                                    for j, child in enumerate(kp['children']):
+                                                        if isinstance(child, dict) and 'title' in child:
+                                                            child_title = child['title']
+                                                            if len(child_title) > 100:
+                                                                logger.warning(f"子知识点标题过长，进行截断: '{child_title[:20]}...'")
+                                                                course_data['knowledge_points'][i]['children'][j]['title'] = child_title[:97] + '...'
+                                    
+                                    # 更新answer字段为格式化的JSON
+                                    formatted_response['answer'] = json_module.dumps(course_data)
+                                    
+                                    # 通过formats.py中的函数解析响应
+                                    from .formats import parse_response
+                                    validated_response_model = parse_response('courseGeneration', formatted_response)
+                                    result = validated_response_model.model_dump()
+                                    logger.info("成功从嵌套响应中提取并解析课程内容")
+                                except Exception as json_error:
+                                    logger.error(f"解析嵌套响应中的JSON失败: {str(json_error)}")
+            
+            # 调试输出结果结构
+            if isinstance(result, dict):
+                logger.info(f"最终结果结构: {list(result.keys())}")
+                
+                # 确保结果中course包含必要字段
+                if 'course' in result and isinstance(result['course'], dict):
+                    logger.info(f"课程字段: {list(result['course'].keys())}")
+                    
+                    # 强制使用请求中的课程名称作为title
+                    result['course']['title'] = course_name
+                    
+                    # 强制使用请求中的课程描述
+                    result['course']['description'] = course_description
+                    
+                    # 确保subject和grade_level不为空
+                    if not result['course'].get('subject'):
+                        result['course']['subject'] = subject
+                    if not result['course'].get('grade_level'):
+                        result['course']['grade_level'] = grade_level
+                    
+                    logger.info(f"课程标题: {result['course'].get('title')}")
+                    logger.info(f"课程描述: {result['course'].get('description')}")
+                
+                # 检查知识点数量和标题
+                if 'knowledge_points' in result and isinstance(result['knowledge_points'], list):
+                    knowledge_points = result['knowledge_points']
+                    logger.info(f"知识点数量: {len(knowledge_points)}")
+                    
+                    if knowledge_points:
+                        first_kp = knowledge_points[0]
+                        if isinstance(first_kp, dict) and 'title' in first_kp:
+                            first_title = first_kp['title']
+                            logger.info(f"第一个知识点标题: '{first_title}'，长度: {len(first_title)}")
+                        
+                        last_kp = knowledge_points[-1]
+                        if isinstance(last_kp, dict) and 'title' in last_kp:
+                            last_title = last_kp['title']
+                            logger.info(f"最后一个知识点标题: '{last_title}'，长度: {len(last_title)}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"生成课程内容时出错: {str(e)}")
+            # 返回一个基本的响应结构
+            return {
+                "course": {
+                    "title": course_name,  # 使用请求中的课程名称
+                    "description": course_description,  # 使用请求中的课程描述
+                    "subject": subject,
+                    "grade_level": grade_level
+                },
+                "knowledge_points": []
+            }
     
     async def generate_questions(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """

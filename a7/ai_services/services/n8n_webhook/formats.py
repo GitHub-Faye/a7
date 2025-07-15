@@ -9,10 +9,11 @@ import re
 import logging
 from typing import Dict, Any, List, Union, Optional, Tuple
 import uuid
+import ast
 
 from pydantic import BaseModel, Field, ValidationError
 
-from .exceptions import N8nResponseError
+from .exceptions import N8nResponseError, N8nInvalidRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -609,8 +610,10 @@ def format_course_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         course = course_data['course']
         if 'title' not in course and 'name' in course:
             course['title'] = course['name']
+            logger.info(f"使用course.name为title: {course['title']}")
         elif 'title' not in course:
             course['title'] = "未命名课程"
+            logger.warning("课程数据中没有title或name，使用默认标题：未命名课程")
             
         if 'description' not in course:
             course['description'] = ""
@@ -622,7 +625,7 @@ def format_course_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
             course['grade_level'] = ""
         
         # 处理知识点数据
-            knowledge_points = []
+        knowledge_points = []
         for kp in course_data['knowledge_points']:
             processed_kp = process_knowledge_point(kp)
             knowledge_points.append(processed_kp)
@@ -1724,5 +1727,301 @@ def process_list_response(data: List[Any]) -> Dict[str, Any]:
             # 如果是其他类型，使用空列表
             result['sources'] = []
         logger.info(f"处理后的sources类型: {type(result['sources'])}")
+    
+    return result
+
+def process_knowledge_point(kp: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    处理知识点数据，确保包含所有必要字段并递归处理子知识点
+    
+    Args:
+        kp: 知识点数据字典
+        
+    Returns:
+        处理后的知识点数据
+    """
+    # 确保包含所有必要字段
+    if 'title' not in kp:
+        kp['title'] = "未命名知识点"
+    if 'content' not in kp:
+        kp['content'] = ""
+    if 'importance' not in kp:
+        kp['importance'] = 5  # 默认中等重要性
+        
+    # 递归处理子知识点
+    children = []
+    for child in kp.get('children', []):
+        processed_child = process_knowledge_point(child)
+        children.append(processed_child)
+    
+    kp['children'] = children
+    return kp
+
+def parse_course_content_text(text: str) -> Dict[str, Any]:
+    """
+    从文本中解析课程内容的结构
+    
+    Args:
+        text: 包含课程内容的文本
+        
+    Returns:
+        Dict[str, Any]: 解析后的课程内容结构，包含课程信息和知识点
+    """
+    logger.info("从纯文本格式解析课程内容结构")
+    
+    # 初始化结果结构 - 提前初始化以避免变量引用错误
+    result = {
+        "course": {
+            "title": "未命名课程",
+            "description": "",
+            "subject": "",
+            "grade_level": ""
+        },
+        "knowledge_points": []
+    }
+    
+    # 首先尝试从文本中提取JSON
+    json_match = re.search(r'```(?:json)?\s*([\s\S]+?)\s*```', text)
+    if json_match:
+        try:
+            # 提取JSON字符串并进行彻底清理
+            json_str = json_match.group(1)
+            
+            # 记录原始JSON字符串的前20个字符，帮助调试
+            raw_preview = repr(json_str[:20])
+            logger.info(f"原始JSON字符串前20字符: {raw_preview}")
+            
+            # 彻底清理JSON字符串
+            json_str = json_str.strip()
+            # 特别处理开头的换行符，这是常见的JSON解析失败原因
+            while json_str.startswith('\n'):
+                json_str = json_str[1:]
+            # 确保JSON以{开头
+            if not json_str.startswith('{'):
+                start_idx = json_str.find('{')
+                if start_idx > 0:
+                    json_str = json_str[start_idx:]
+            
+            # 记录清理后的JSON字符串信息
+            logger.info(f"清理后JSON字符串长度: {len(json_str)}")
+            logger.info(f"清理后JSON字符串前10字符: '{json_str[:10]}'")
+            
+            # 尝试直接解析JSON
+            try:
+                course_data = json.loads(json_str)
+                logger.info("标准JSON解析成功")
+            except json.JSONDecodeError as e:
+                logger.error(f"标准JSON解析失败: {str(e)}, 尝试使用ast.literal_eval")
+                # 尝试使用ast.literal_eval作为备选方案
+                try:
+                    # 替换单引号为双引号，处理可能的Python字典格式
+                    fixed_json = json_str.replace("'", "\"")
+                    # 使用ast.literal_eval解析Python字典
+                    course_data = ast.literal_eval(fixed_json)
+                    logger.info("使用ast.literal_eval成功解析JSON")
+                except Exception as ast_error:
+                    logger.error(f"ast.literal_eval解析失败: {str(ast_error)}")
+                    # 尝试使用正则表达式提取关键信息
+                    course_data = extract_course_data_with_regex(json_str)
+                    logger.info("使用正则表达式提取课程数据")
+            
+            # 验证解析出的数据是否符合预期结构
+            if isinstance(course_data, dict):
+                logger.info(f"JSON解析成功，顶级键: {list(course_data.keys())}")
+                
+                # 确保course和knowledge_points字段存在
+                has_course = 'course' in course_data and isinstance(course_data['course'], dict)
+                has_kp = 'knowledge_points' in course_data and isinstance(course_data['knowledge_points'], list)
+                
+                if has_course and has_kp:
+                    logger.info("成功从文本中提取到有效的JSON课程数据结构")
+                    
+                    # 确保知识点标题长度不超过100个字符
+                    if isinstance(course_data['knowledge_points'], list):
+                        for i, kp in enumerate(course_data['knowledge_points']):
+                            if isinstance(kp, dict) and 'title' in kp:
+                                title = kp['title']
+                                if len(title) > 100:
+                                    logger.warning(f"知识点标题过长({len(title)}字符)，进行截断: '{title[:20]}...'")
+                                    course_data['knowledge_points'][i]['title'] = title[:97] + '...'
+                                
+                                # 处理子知识点
+                                if 'children' in kp and isinstance(kp['children'], list):
+                                    for j, child in enumerate(kp['children']):
+                                        if isinstance(child, dict) and 'title' in child:
+                                            child_title = child['title']
+                                            if len(child_title) > 100:
+                                                logger.warning(f"子知识点标题过长({len(child_title)}字符)，进行截断: '{child_title[:20]}...'")
+                                                course_data['knowledge_points'][i]['children'][j]['title'] = child_title[:97] + '...'
+                    
+                    # 使用提取到的数据替换默认值
+                    if has_course:
+                        # 处理course字段
+                        course = course_data['course']
+                        # 优先使用name字段作为title
+                        if 'name' in course and ('title' not in course or not course.get('title')):
+                            logger.info(f"使用course.name作为title: {course['name']}")
+                            course['title'] = course['name']
+                            
+                        # 确保description字段正确复制
+                        if 'description' in course and course['description']:
+                            logger.info(f"提取到课程描述: {course['description']}")
+                        
+                        # 合并到result中
+                        result['course'].update(course)
+                    
+                    if has_kp:
+                        # 使用解析到的知识点列表
+                        result['knowledge_points'] = course_data['knowledge_points']
+                    
+                    logger.info(f"JSON解析完成，课程标题: '{result['course'].get('title')}', 课程描述: '{result['course'].get('description')}', 知识点数: {len(result['knowledge_points'])}")
+                    return result
+                else:
+                    # 记录缺失的字段，但继续处理
+                    missing = []
+                    if not has_course:
+                        missing.append('course')
+                    if not has_kp:
+                        missing.append('knowledge_points')
+                    logger.warning(f"JSON数据结构不完整，缺少字段: {', '.join(missing)}")
+            else:
+                logger.warning(f"JSON解析结果不是字典类型，而是: {type(course_data)}")
+                
+        except Exception as e:
+            logger.error(f"处理JSON数据时出现其他错误: {str(e)}")
+    else:
+        logger.info("未在文本中找到JSON代码块")
+    
+    # 尝试直接从文本中提取课程名称和描述
+    # 查找格式如 "name": "Python编程基础" 的模式
+    name_match = re.search(r'"name"\s*:\s*"([^"]+)"', text)
+    if name_match:
+        course_name = name_match.group(1).strip()
+        logger.info(f"直接从文本中提取到课程名称: '{course_name}'")
+        result["course"]["title"] = course_name
+    
+    # 提取课程描述
+    desc_match = re.search(r'"description"\s*:\s*"([^"]+)"', text)
+    if desc_match:
+        description = desc_match.group(1).strip()
+        logger.info(f"直接从文本中提取到课程描述: '{description}'")
+        result["course"]["description"] = description
+    
+    # 提取学科
+    subject_match = re.search(r'"subject"\s*:\s*"([^"]+)"', text)
+    if subject_match:
+        subject = subject_match.group(1).strip()
+        logger.info(f"直接从文本中提取到学科: '{subject}'")
+        result["course"]["subject"] = subject
+    
+    # 提取年级
+    grade_match = re.search(r'"grade_level"\s*:\s*"([^"]+)"', text)
+    if grade_match:
+        grade = grade_match.group(1).strip()
+        logger.info(f"直接从文本中提取到年级: '{grade}'")
+        result["course"]["grade_level"] = grade
+    
+    # 如果没有找到知识点，尝试使用其他结构，例如项目符号列表
+    if not result["knowledge_points"]:
+        # 尝试提取列表项
+        bullet_pattern = r"(?:[-*•]\s*)([^\n]+)(?:\n+(?:\s{2,}|\t)(.+?))?(?=\n+[-*•]|$)"
+        bullets = re.findall(bullet_pattern, text, re.DOTALL)
+        
+        for i, (title, content) in enumerate(bullets):
+            # 限制标题长度
+            if len(title.strip()) > 100:
+                title = title.strip()[:97] + '...'
+                logger.warning(f"列表项标题过长，进行截断: '{title}'")
+            
+            knowledge_point = {
+                "title": title.strip(),
+                "content": content.strip(),
+                "importance": 5,
+                "children": []
+            }
+            result["knowledge_points"].append(knowledge_point)
+    
+    # 确保至少有一个知识点
+    if not result["knowledge_points"]:
+        # 创建一个基本知识点，确保标题长度不超过100个字符
+        title = "课程内容"
+        content = text.strip()
+        if len(content) > 200:
+            content_preview = content[:197] + '...'
+        else:
+            content_preview = content
+        
+        logger.warning(f"未找到知识点结构，创建基本知识点: '{title}'")
+        result["knowledge_points"].append({
+            "title": title,
+            "content": content,
+            "importance": 5,
+            "children": []
+        })
+    
+    logger.info(f"完成文本解析，共生成{len(result['knowledge_points'])}个知识点")
+    logger.info(f"最终课程标题: '{result['course']['title']}'")
+    logger.info(f"最终课程描述: '{result['course']['description']}'")
+    
+    return result
+
+
+def extract_course_data_with_regex(json_str: str) -> Dict[str, Any]:
+    """
+    使用正则表达式从JSON字符串中提取课程数据
+    
+    Args:
+        json_str: JSON字符串
+        
+    Returns:
+        Dict[str, Any]: 提取的课程数据
+    """
+    result = {
+        "course": {
+            "title": "",
+            "description": "",
+            "subject": "",
+            "grade_level": ""
+        },
+        "knowledge_points": []
+    }
+    
+    # 提取课程信息
+    course_name_match = re.search(r'"name"\s*:\s*"([^"]+)"', json_str)
+    if course_name_match:
+        result["course"]["title"] = course_name_match.group(1).strip()
+    
+    desc_match = re.search(r'"description"\s*:\s*"([^"]+)"', json_str)
+    if desc_match:
+        result["course"]["description"] = desc_match.group(1).strip()
+    
+    subject_match = re.search(r'"subject"\s*:\s*"([^"]+)"', json_str)
+    if subject_match:
+        result["course"]["subject"] = subject_match.group(1).strip()
+    
+    grade_match = re.search(r'"grade_level"\s*:\s*"([^"]+)"', json_str)
+    if grade_match:
+        result["course"]["grade_level"] = grade_match.group(1).strip()
+    
+    # 尝试提取知识点
+    # 使用正则表达式匹配知识点结构
+    kp_pattern = r'"title"\s*:\s*"([^"]+)"[^}]*"content"\s*:\s*"([^"]+)"'
+    knowledge_points = re.findall(kp_pattern, json_str)
+    
+    for i, (title, content) in enumerate(knowledge_points):
+        # 限制标题长度
+        if len(title) > 100:
+            title = title[:97] + '...'
+        
+        # 创建知识点
+        kp = {
+            "title": title,
+            "content": content,
+            "importance": 5,
+            "children": []
+        }
+        
+        # 添加到结果中
+        result["knowledge_points"].append(kp)
     
     return result

@@ -36,9 +36,9 @@ class GenerateCourseContentIntegrationTest(TestCase):
         """测试课程内容生成API的请求和响应结构"""
         # 准备请求数据
         request_data = {
-            'course_name': 'Python编程基础',
-            'chapter_count': 5,
-            'course_description': '入门级Python编程课程，涵盖基础语法和简单应用',
+            'course_name': 'TensorFlow.js应用开发',
+            'chapter_count': 10,
+            'course_description': 'TensorFlow.js应用开发',
             'subject': '计算机科学',
             'grade_level': '大学一年级',
             'additional_requirements': '包含实践练习',
