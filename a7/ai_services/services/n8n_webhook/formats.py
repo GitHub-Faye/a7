@@ -8,6 +8,7 @@ import json
 import re
 import logging
 from typing import Dict, Any, List, Union, Optional, Tuple
+import uuid
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -690,7 +691,10 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
             if isinstance(first_item, dict):
                 answer_text = first_item.get('answer', '')
                 sources_text = first_item.get('sources', '')
+                sessionId = first_item.get('sessionId', '')
                 logger.info(f"从列表第一项提取到answer，长度: {len(answer_text)}")
+                logger.info(f"从列表第一项提取到sources，长度: {len(sources)}")
+                logger.info(f"从列表第一项提取到sessionId，长度: {len(sessionId)}")
             else:
                 raise N8nResponseError("列表第一项不是字典类型")
         else:
@@ -933,59 +937,76 @@ def format_exercise_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     logger.info("正在格式化练习题生成响应数据")
     
+    # 初始化变量
+    answer_text = ""
+    sources_text = ""
+    session_id = None
+    
     try:
-        # 从响应中提取answer和sources文本
-        answer_text, sources_text = parse_ai_response(data)
-        session_id = None
-        if isinstance(data, dict) and 'sessionId' in data:
-            session_id = data['sessionId']
-        elif isinstance(data, dict) and 'session_id' in data:
-            session_id = data['session_id']
+        # 处理列表类型的响应
+        if isinstance(data, list) and len(data) > 0:
+            logger.info("检测到列表类型响应")
+            first_item = data[0]
             
-            # 如果没有会话ID，生成一个新的
-            if not session_id:
-                session_id = str(uuid.uuid4())
-            
-            # 尝试从answer中提取JSON格式的练习题数据
-            json_data = extract_json_from_text(answer_text)
-            
-            # 如果成功提取到JSON，并且包含questions字段
-            if json_data and 'questions' in json_data and isinstance(json_data['questions'], list):
-                questions = json_data['questions']
-                logger.info(f"成功从JSON中提取练习题列表，数量: {len(questions)}")
+            # 直接提取answer和sources和sessionId
+            if isinstance(first_item, dict):
+                answer_text = first_item.get('answer', '')
+                sources_text = first_item.get('sources', '')
+                session_id = first_item.get('sessionId', '')
+                logger.info(f"从列表第一项提取到answer，长度: {len(answer_text)}")
+                logger.info(f"从列表第一项提取到sources，长度: {len(sources_text)}")
+                logger.info(f"从列表第一项提取到sessionId，长度: {len(session_id)}")
             else:
-                # 尝试解析文本格式的练习题
-                questions = parse_exercise_text(answer_text)
-                logger.info(f"从文本中解析出练习题列表，数量: {len(questions)}")
+                raise N8nResponseError("列表第一项不是字典类型")
+        else:
+            # 从响应中提取answer和sources文本
+            answer_text, sources_text = parse_ai_response(data)
             
-            # 处理每个练习题，确保格式正确
-            processed_questions = []
-            for q in questions:
-                # 确保包含所有必要字段
-                for field in ["title", "content", "type", "difficulty"]:
-                    if field not in q:
-                        if field == "difficulty":
-                            q[field] = 3  # 默认中等难度
-                        else:
-                            q[field] = ""
-                
-                # 处理答案模板
-                if "answer_template" in q and isinstance(q["answer_template"], str):
-                    if q.get("type") in ["single_choice", "multiple_choice"]:
-                        q["answer_template"] = parse_options(q["answer_template"])
-                
-                processed_questions.append(q)
+        
+        # 如果没有会话ID，生成一个新的
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        # 尝试从answer中提取JSON格式的练习题数据
+        json_data = extract_json_from_text(answer_text)
+        
+        # 如果成功提取到JSON，并且包含questions字段
+        if json_data and 'questions' in json_data and isinstance(json_data['questions'], list):
+            questions = json_data['questions']
+            logger.info(f"成功从JSON中提取练习题列表，数量: {len(questions)}")
+        else:
+            # 尝试解析文本格式的练习题
+            questions = parse_exercise_text(answer_text)
+            logger.info(f"从文本中解析出练习题列表，数量: {len(questions)}")
+        
+        # 处理每个练习题，确保格式正确
+        processed_questions = []
+        for q in questions:
+            # 确保包含所有必要字段
+            for field in ["title", "content", "type", "difficulty"]:
+                if field not in q:
+                    if field == "difficulty":
+                        q[field] = 3  # 默认中等难度
+                    else:
+                        q[field] = ""
             
-            # 构建响应数据
-            response_data = {
-                "questions": processed_questions,
-                "session_id": session_id,
-                "sources": extract_sources_from_text(sources_text) if sources_text else []
-            }
+            # 处理答案模板
+            if "answer_template" in q and isinstance(q["answer_template"], str):
+                if q.get("type") in ["single_choice", "multiple_choice"]:
+                    q["answer_template"] = parse_options(q["answer_template"])
             
-            logger.info(f"成功格式化练习题生成响应: 练习题数量={len(processed_questions)}")
-            return response_data
-            
+            processed_questions.append(q)
+        
+        # 构建响应数据
+        response_data = {
+            "questions": processed_questions,
+            "session_id": session_id,
+            "sources": extract_sources_from_text(sources_text) if sources_text else []
+        }
+        
+        logger.info(f"成功格式化练习题生成响应: 练习题数量={len(processed_questions)}")
+        return response_data
+        
     except Exception as e:
         logger.error(f"格式化练习题生成响应时出错: {str(e)}")
         

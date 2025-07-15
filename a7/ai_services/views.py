@@ -239,10 +239,10 @@ class ExerciseGenerationViewSet(viewsets.ViewSet):
                 "quantity": quantity,
                 "difficulty": difficulty,
                 # n8n格式要求
-                "chatInput": f"生成{quantity}道练习题，内容关于: {query}" + 
-                             (f"\n基于以下知识点内容:\n{knowledge_content}" if knowledge_content else "") +
-                             (f"\n题型要求: {', '.join(question_types)}" if question_types else "") +
-                             (f"\n难度级别: {difficulty}/5" if difficulty else ""),
+                # "chatInput": f"生成{quantity}道练习题，内容关于: {query}" + 
+                #              (f"\n基于以下知识点内容:\n{knowledge_content}" if knowledge_content else "") +
+                #              (f"\n题型要求: {', '.join(question_types)}" if question_types else "") +
+                #              (f"\n难度级别: {difficulty}/5" if difficulty else ""),
                 "sessionId": session_id
             }
             

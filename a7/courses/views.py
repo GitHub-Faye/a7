@@ -567,12 +567,12 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
         session_id = request.data.get('session_id', str(uuid.uuid4()))
         
         # 3. 构建标准化的聊天输入
-        standard_chat_input = self._build_chat_input(
-            knowledge_point_ids=knowledge_point_ids,
-            question_types=question_types,
-            quantity=quantity,
-            difficulty=difficulty
-        )
+        # standard_chat_input = self._build_chat_input(
+        #     knowledge_point_ids=knowledge_point_ids,
+        #     question_types=question_types,
+        #     quantity=quantity,
+        #     difficulty=difficulty
+        # )
         
         # 4. 调用AI服务
         try:
