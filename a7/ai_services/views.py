@@ -377,8 +377,15 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
             client = N8nWebhookClient()
             result = client.correct_student_answer_sync(correction_data)
             
-            # 确保结果中包含会话ID
-            result['session_id'] = session_id
+            # 确保结果中包含会话ID，优先使用n8n返回的sessionId
+            if 'sessionId' in result:
+                result['session_id'] = result.pop('sessionId')  # 将sessionId重命名为session_id
+            else:
+                result['session_id'] = session_id  # 使用请求中的会话ID
+            
+            # 如果sources未包含在结果中，添加空列表作为默认值
+            if 'sources' not in result:
+                result['sources'] = []
             
             # 返回处理后的响应
             return create_api_response(

@@ -437,6 +437,8 @@ class AnswerCorrectionResponseData(BaseResponse):
     feedback: str = Field(..., description="详细的反馈意见")
     improvement_suggestions: Optional[str] = Field(None, description="改进建议")
     explanation: Optional[str] = Field(None, description="解题思路或解析")
+    sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="回答所依据的来源列表")
+    session_id: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
 
 
 # ==============================================================================
@@ -1403,9 +1405,46 @@ def format_answer_correction_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     logger.info("正在格式化答案校正响应数据")
     
+    # 初始化变量
+    answer_text = ""
+    sources_text = ""
+    session_id = None
+    sources_data = []
+    
     try:
-        # 从响应中提取answer和sources文本
-        answer_text, sources_text = parse_ai_response(data)
+        # 处理列表类型的响应 - n8n通常返回列表格式
+        if isinstance(data, list) and len(data) > 0:
+            logger.info("检测到列表类型响应")
+            first_item = data[0]
+            
+            # 直接提取answer、sources和sessionId
+            if isinstance(first_item, dict):
+                answer_text = first_item.get('answer', '')
+                sources_text = first_item.get('sources', '')
+                session_id = first_item.get('sessionId', '')
+                logger.info(f"从列表第一项提取到answer，长度: {len(answer_text)}")
+                logger.info(f"从列表第一项提取到sources，长度: {len(sources_text)}")
+                logger.info(f"从列表第一项提取到sessionId，长度: {len(session_id)}")
+                
+                # 如果sources是列表，直接使用
+                if isinstance(first_item.get('sources'), list):
+                    sources_data = first_item.get('sources')
+                    logger.info(f"从列表第一项提取到sources列表，长度: {len(sources_data)}")
+            else:
+                logger.warning("列表第一项不是字典类型")
+        else:
+            # 从响应中提取answer和sources文本
+            answer_text, sources_text = parse_ai_response(data)
+            
+            # 尝试从原始数据中提取sessionId
+            if isinstance(data, dict) and 'sessionId' in data:
+                session_id = data.get('sessionId')
+                logger.info(f"从原始数据中提取到sessionId: {session_id}")
+        
+        # 如果没有会话ID，生成一个新的
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            logger.info(f"未找到sessionId，生成新的: {session_id}")
         
         # 尝试从answer中提取JSON格式的校正数据
         json_data = extract_json_from_text(answer_text)
@@ -1433,6 +1472,11 @@ def format_answer_correction_response(data: Dict[str, Any]) -> Dict[str, Any]:
         if 'feedback' not in correction_data:
             correction_data['feedback'] = answer_text
         
+        # 如果sources_text存在但sources_data为空，尝试解析
+        if sources_text and not sources_data:
+            sources_data = extract_sources_from_text(sources_text)
+            logger.info(f"从sources_text解析出sources_data，长度: {len(sources_data)}")
+        
         # 构建响应数据
         response_data = {
             "is_correct": bool(correction_data.get('is_correct', False)),
@@ -1440,7 +1484,8 @@ def format_answer_correction_response(data: Dict[str, Any]) -> Dict[str, Any]:
             "feedback": str(correction_data.get('feedback', "")),
             "improvement_suggestions": correction_data.get('improvement_suggestions'),
             "explanation": correction_data.get('explanation'),
-            "sources": extract_sources_from_text(sources_text) if sources_text else []
+            "sources": sources_data if sources_data else [],
+            "session_id": session_id
         }
         
         # 确保分数在0-100范围内
@@ -1449,7 +1494,7 @@ def format_answer_correction_response(data: Dict[str, Any]) -> Dict[str, Any]:
         elif response_data['score'] > 100:
             response_data['score'] = 100
         
-        logger.info(f"成功格式化答案校正响应: is_correct={response_data['is_correct']}, score={response_data['score']}")
+        logger.info(f"成功格式化答案校正响应: is_correct={response_data['is_correct']}, score={response_data['score']}, session_id={response_data['session_id']}")
         return response_data
         
     except Exception as e:
@@ -1475,7 +1520,22 @@ def format_answer_correction_response(data: Dict[str, Any]) -> Dict[str, Any]:
                 response['feedback'] = data['answer']
             else:
                 response['feedback'] = "无法提取反馈内容"
+            
+            # 添加sources和sessionId字段
+            response['sources'] = data.get('sources', [])
+            response['session_id'] = data.get('sessionId', str(uuid.uuid4()))
                 
+            return response
+        # 处理列表类型的错误恢复
+        elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+            first_item = data[0]
+            response = {
+                "is_correct": False,
+                "score": 0,
+                "feedback": "无法解析响应",
+                "sources": first_item.get('sources', []),
+                "session_id": first_item.get('sessionId', str(uuid.uuid4()))
+            }
             return response
         else:
             logger.error(f"无法格式化答案校正响应: {str(data)[:200]}...")
