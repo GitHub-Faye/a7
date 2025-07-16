@@ -260,13 +260,20 @@ class ExerciseGenerationViewSet(viewsets.ViewSet):
                 raise ValueError("API返回的数据缺少练习题内容")
             
             # 确保使用请求中的会话ID，而不是响应中可能返回的不同ID
+            # 准备响应数据，包含exercises、session_id和sources(如果存在)
+            response_data = {
+                "exercises": result["questions"],
+                "session_id": session_id  # 使用请求中的会话ID，确保一致性
+            }
+            
+            # 如果AI响应中包含sources，也添加到响应中
+            if 'sources' in result:
+                response_data["sources"] = result["sources"]
+                
             # 返回处理后的响应
             return create_api_response(
                 success=True,
-                data={
-                    "exercises": result["questions"],
-                    "session_id": session_id  # 使用请求中的会话ID，确保一致性
-                },
+                data=response_data,
                 message="练习题生成成功",
                 status_code=status.HTTP_200_OK
             )

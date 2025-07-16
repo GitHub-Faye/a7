@@ -423,6 +423,7 @@ class ExerciseGenerationResponseData(BaseResponse):
     """练习题生成任务的响应数据模型"""
     questions: List[QuestionData] = Field(..., description="生成的练习题列表")
     session_id: str = Field(..., description="会话ID，用于后续答案提交和评估")
+    sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="回答所依据的来源列表")
 
 
 # ==============================================================================
@@ -528,42 +529,108 @@ def validate_request_data(task_type: str, data: Dict[str, Any]) -> BaseModel:
 
 def extract_json_from_text(text: str) -> Optional[Dict[str, Any]]:
     """
-    从文本中提取JSON对象
+    从文本中提取JSON对象或数组
     
     Args:
         text: 可能包含JSON的文本
         
     Returns:
-        提取的JSON对象，如果未找到则返回None
+        提取的JSON对象或转换后的JSON对象，如果未找到则返回None
     """
+    logger.info("尝试从文本中提取JSON")
+    
+    # 处理文本中可能的转义字符
+    processed_text = text.replace('\\n', '\n').replace('\\"', '"')
+    
     # 尝试直接解析整个文本
     try:
-        return json.loads(text)
+        data = json.loads(processed_text)
+        if isinstance(data, dict):
+            logger.info("成功解析整个文本为JSON对象")
+            return data
+        elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+            # 如果是对象列表，尝试将第一个对象作为结果
+            logger.info(f"检测到JSON数组，包含{len(data)}个对象，使用第一个对象")
+            return {"questions": data}  # 将数组包装为questions字段
     except json.JSONDecodeError:
-        pass
+        logger.info("整个文本不是有效的JSON，尝试其他方法")
     
-    # 尝试查找JSON对象的开始和结束位置
-    start_idx = text.find('{')
-    if start_idx == -1:
-        return None
+    # 尝试提取JSON代码块
+    json_pattern = r'```(?:json)?\s*([\s\S]*?)```'
+    json_blocks = re.findall(json_pattern, processed_text)
     
-    # 找到可能的JSON对象
-    brace_count = 0
-    for i in range(start_idx, len(text)):
-        if text[i] == '{':
-            brace_count += 1
-        elif text[i] == '}':
-            brace_count -= 1
-            if brace_count == 0:
-                # 找到完整的JSON对象
+    if json_blocks:
+        logger.info(f"找到{len(json_blocks)}个JSON代码块")
+        for block in json_blocks:
+            clean_block = block.strip()
+            try:
+                data = json.loads(clean_block)
+                if isinstance(data, dict):
+                    logger.info("成功从代码块解析出JSON对象")
+                    return data
+                elif isinstance(data, list) and len(data) > 0:
+                    logger.info(f"成功从代码块解析出JSON数组，包含{len(data)}个项目，包装为questions字段")
+                    return {"questions": data}  # 将数组包装为questions字段
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON代码块解析失败: {str(e)}, 尝试下一个代码块")
+    
+    # 尝试查找JSON对象或数组的开始和结束位置
+    for pattern, start_char, end_char in [
+        (r'\{[\s\S]*?\}', '{', '}'),  # JSON对象
+        (r'\[[\s\S]*?\]', '[', ']')   # JSON数组
+    ]:
+        matches = re.findall(pattern, processed_text)
+        for match in matches:
+            try:
+                data = json.loads(match)
+                if isinstance(data, dict):
+                    logger.info("成功提取并解析出JSON对象")
+                    return data
+                elif isinstance(data, list) and len(data) > 0:
+                    logger.info(f"成功提取并解析出JSON数组，包含{len(data)}个项目，包装为questions字段")
+                    return {"questions": data}  # 将数组包装为questions字段
+            except json.JSONDecodeError:
+                continue
+    
+    # 尝试修复常见的JSON格式问题
+    start_obj = processed_text.find('{')
+    start_arr = processed_text.find('[')
+    
+    if start_obj > -1 or start_arr > -1:
+        start_idx = min(start_obj if start_obj > -1 else len(processed_text), 
+                        start_arr if start_arr > -1 else len(processed_text))
+        end_idx = max(processed_text.rfind('}'), processed_text.rfind(']'))
+        
+        if end_idx > start_idx:
+            json_text = processed_text[start_idx:end_idx+1]
+            try:
+                # 尝试解析可能的JSON文本
+                data = json.loads(json_text)
+                if isinstance(data, dict):
+                    logger.info("成功通过起始/结束位置解析JSON对象")
+                    return data
+                elif isinstance(data, list) and len(data) > 0:
+                    logger.info(f"成功通过起始/结束位置解析JSON数组，包含{len(data)}个项目，包装为questions字段")
+                    return {"questions": data}
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON解析失败: {str(e)}, 尝试清理后再次解析")
+                
+                # 尝试清理并修复JSON文本
                 try:
-                    json_text = text[start_idx:i+1]
-                    return json.loads(json_text)
+                    # 替换可能导致问题的字符
+                    cleaned_text = re.sub(r'\\(?=")', '', json_text)  # 移除引号前的反斜杠
+                    data = json.loads(cleaned_text)
+                    if isinstance(data, dict):
+                        logger.info("成功在清理后解析JSON对象")
+                        return data
+                    elif isinstance(data, list) and len(data) > 0:
+                        logger.info(f"成功在清理后解析JSON数组，包含{len(data)}个项目，包装为questions字段")
+                        return {"questions": data}
                 except json.JSONDecodeError:
-                    # 继续查找下一个可能的JSON对象
-                    continue
+                    logger.warning("清理后的JSON仍然无法解析")
     
-    # 如果没有找到有效的JSON对象，返回None
+    # 如果所有方法都失败，返回None
+    logger.warning("无法从文本中提取任何有效的JSON")
     return None
 
 
@@ -701,6 +768,10 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
                 logger.info(f"从列表第一项提取到answer，长度: {len(answer_text)}")
                 logger.info(f"从列表第一项提取到sources，长度: {len(sources_text)}")
                 logger.info(f"从列表第一项提取到sessionId，长度: {len(sessionId)}")
+                
+                # 处理answer文本中可能的转义字符
+                answer_text = answer_text.replace('\\n', '\n')
+                answer_text = answer_text.replace('\\"', '"')
             else:
                 raise N8nResponseError("列表第一项不是字典类型")
         else:
@@ -1023,9 +1094,11 @@ def format_exercise_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         # 尝试从原始数据中提取练习题
         if isinstance(data, dict) and 'questions' in data and isinstance(data['questions'], list):
             session_id = data.get('session_id', str(uuid.uuid4()))
+            sources = data.get('sources', [])
             return {
                 "questions": data['questions'],
-                "session_id": session_id
+                "session_id": session_id,
+                "sources": sources
             }
         else:
             logger.error(f"无法格式化练习题生成响应: {str(data)[:200]}...")
@@ -1560,9 +1633,12 @@ def parse_questions_from_text(text: str) -> List[Dict[str, Any]]:
     logger.info("开始从文本中解析问题")
     questions = []
     
+    # 处理转义字符，将\n转换为实际的换行符
+    processed_text = text.replace('\\n', '\n')
+    
     # 尝试匹配Markdown中的JSON代码块
-    # 匹配 ```json {...} ``` 格式
-    json_blocks = re.findall(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text)
+    # 匹配 ```json {...} ``` 或 ```json [...] ``` 格式（支持对象和数组），并处理可能的换行符
+    json_blocks = re.findall(r"```(?:json)?[\s\n]*(\{[\s\S\n]*?\}|\[[\s\S\n]*?\])[\s\n]*```", processed_text)
     
     if json_blocks:
         logger.info(f"找到 {len(json_blocks)} 个JSON代码块")
@@ -1612,8 +1688,10 @@ def parse_questions_from_text(text: str) -> List[Dict[str, Any]]:
                 
                 question_content = "".join(question_sections[start_idx:end_idx]).strip()
                 
-                # 尝试从内容中提取JSON
-                json_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", question_content)
+                # 尝试从内容中提取JSON（支持对象和数组）
+                # 先处理可能的转义字符
+                processed_content = question_content.replace('\\n', '\n')
+                json_match = re.search(r"```(?:json)?[\s\n]*(\{[\s\S\n]*?\}|\[[\s\S\n]*?\])[\s\n]*```", processed_content)
                 if json_match:
                     try:
                         question_data = json.loads(json_match.group(1))
@@ -1643,6 +1721,62 @@ def parse_questions_from_text(text: str) -> List[Dict[str, Any]]:
                 i = end_idx
     
     # 如果仍然没有找到问题，尝试作为纯文本处理
+    # 如果上述方法都未找到问题，尝试更直接的提取JSON数组
+    if not questions:
+        logger.warning("常规解析未找到JSON，尝试直接提取JSON数组")
+        # 尝试直接提取可能的JSON数组
+        start_idx = processed_text.find('[')
+        end_idx = processed_text.rfind(']')
+        if start_idx > -1 and end_idx > start_idx:
+            try:
+                json_str = processed_text[start_idx:end_idx+1]
+                logger.info(f"尝试解析直接提取的JSON: 长度{len(json_str)}")
+                json_data = json.loads(json_str)
+                if isinstance(json_data, list):
+                    logger.info(f"成功从文本中直接提取到JSON数组，包含{len(json_data)}个项目")
+                    questions.extend(json_data)
+            except json.JSONDecodeError as e:
+                logger.warning(f"直接提取JSON失败: {str(e)}")
+                # 尝试修复常见的转义和引号问题
+                try:
+                    # 替换转义的双引号
+                    fixed_json_str = json_str.replace('\\"', '"')
+                    # 替换转义的换行符
+                    fixed_json_str = fixed_json_str.replace('\\n', '\n')
+                    # 替换带反斜杠的转义引号
+                    fixed_json_str = re.sub(r'\\+(["\'])', r'\1', fixed_json_str)
+                    # 处理嵌套的引号问题
+                    fixed_json_str = re.sub(r'(?<!\\)"([^"\\]*(?:\\.[^"\\]*)*)"', lambda m: '"' + m.group(1).replace('"', '\\"') + '"', fixed_json_str)
+                    
+                    logger.info(f"尝试解析修复后的JSON: 长度{len(fixed_json_str)}")
+                    json_data = json.loads(fixed_json_str)
+                    if isinstance(json_data, list):
+                        logger.info(f"成功从修复后的JSON中提取到数组，包含{len(json_data)}个项目")
+                        questions.extend(json_data)
+                except json.JSONDecodeError as e2:
+                    logger.warning(f"修复后的JSON解析仍然失败: {str(e2)}")
+                    
+        # 如果直接提取失败，尝试查找带引号的JSON字符串
+        if not questions:
+            logger.warning("尝试寻找可能带有引号的JSON格式")
+            # 检查是否有带引号的JSON字符串
+            json_quoted_pattern = r'"(\[[\s\S]*?\]|\{[\s\S]*?\})"'
+            quoted_matches = re.findall(json_quoted_pattern, processed_text)
+            for quoted_match in quoted_matches:
+                try:
+                    # 处理转义字符
+                    unescaped = quoted_match.replace('\\"', '"').replace('\\n', '\n')
+                    data = json.loads(unescaped)
+                    if isinstance(data, dict):
+                        questions.append(data)
+                        logger.info("成功解析带引号的JSON对象")
+                    elif isinstance(data, list):
+                        questions.extend(data)
+                        logger.info(f"成功解析带引号的JSON数组，包含{len(data)}个项目")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"解析带引号的JSON失败: {str(e)}")
+    
+    # 最后的回退方案：将文本作为单个问题
     if not questions:
         logger.warning("无法识别问题格式，尝试作为纯文本处理")
         # 将整个文本作为一个问题
@@ -1718,8 +1852,15 @@ def process_list_response(data: List[Any]) -> Dict[str, Any]:
     
     # 直接提取answer
     if 'answer' in first_item:
-        result['answer'] = first_item['answer']
-        logger.info(f"从列表第一项中提取到answer，长度: {len(result['answer'])}")
+        raw_answer = first_item['answer']
+        # 处理answer中可能存在的转义字符
+        processed_answer = raw_answer.replace('\\n', '\n').replace('\\"', '"')
+        result['answer'] = processed_answer
+        logger.info(f"从列表第一项中提取到answer，原始长度: {len(raw_answer)}，处理后长度: {len(processed_answer)}")
+        
+        # 检查处理前后是否有差异，记录日志
+        if raw_answer != processed_answer:
+            logger.info("处理了answer中的转义字符")
     
     # 处理sources字段，确保它是列表类型
     if 'sources' in first_item:

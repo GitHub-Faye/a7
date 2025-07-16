@@ -36,7 +36,11 @@ from ai_services.services.question_export import QuestionExporter
 from users.models import User
 
 import uuid
+import logging
 from datetime import datetime
+
+# 获取日志记录器
+logger = logging.getLogger(__name__)
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -521,7 +525,62 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
             for question in questions:
                 question['difficulty'] = difficulty
             
-            # 6. 构建API响应 - 使用create_api_response确保格式一致
+            # 6. 将生成的问题保存到数据库
+            saved_questions = []
+            for question in questions:
+                try:
+                    # 获取关联的知识点
+                    knowledge_point_id = question.get('knowledge_point_id')
+                    
+                    # 如果问题没有指定知识点ID，使用请求中的第一个知识点
+                    if knowledge_point_id is None and knowledge_point_ids:
+                        knowledge_point_id = knowledge_point_ids[0]
+                    
+                    # 如果题目没有指定知识点ID，则跳过保存
+                    if knowledge_point_id is None:
+                        logger.warning(f"问题未指定知识点ID，跳过保存到数据库: {question.get('title', '未命名问题')}")
+                        continue
+    
+                    # 确保知识点存在
+                    try:
+                        knowledge_point = KnowledgePoint.objects.get(id=knowledge_point_id)
+                    except KnowledgePoint.DoesNotExist:
+                        logger.warning(f"无法保存问题，知识点ID {knowledge_point_id} 不存在")
+                        continue
+                    
+                    # 处理answer_template字段
+                    answer_template = None
+                    if 'answer_template' in question:
+                        try:
+                            if isinstance(question['answer_template'], list):
+                                answer_template = json.dumps(question['answer_template'])
+                            elif isinstance(question['answer_template'], str):
+                                # 可能是已经序列化的JSON字符串，保持不变
+                                answer_template = question['answer_template']
+                            elif question['answer_template'] is not None:
+                                # 其他非None类型，尝试JSON序列化
+                                answer_template = json.dumps(question['answer_template'])
+                        except (TypeError, json.JSONDecodeError) as e:
+                            logger.warning(f"处理answer_template时出错: {str(e)}，设为null")
+                            answer_template = None
+                    
+                    # 创建Exercise对象并保存
+                    exercise = Exercise.objects.create(
+                        title=question.get('title', '自动生成的问题'),
+                        content=question.get('content', ''),
+                        type=question.get('type', 'single_choice'),
+                        difficulty=question.get('difficulty', difficulty),
+                        knowledge_point=knowledge_point,
+                        answer_template=answer_template
+                    )
+                    saved_questions.append(exercise)
+                    
+                    # 记录日志
+                    logger.info(f"已保存生成的问题到数据库: ID={exercise.id}, 标题={exercise.title}, 关联知识点ID={knowledge_point_id}")
+                except Exception as e:
+                    logger.error(f"保存问题时出错: {str(e)}, 问题: {question.get('title', '未命名问题')}")
+            
+            # 7. 构建API响应 - 使用create_api_response确保格式一致
             response_data = {
                 'questions': questions,
             }
@@ -535,11 +594,13 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
             # 如果有sources，也添加到响应中
             if 'sources' in ai_response:
                 response_data['sources'] = ai_response['sources']
+                
+            logger.info(f"准备返回问题生成响应，包含sources字段: {bool('sources' in response_data)}")
             
             return create_api_response(
                 success=True,
                 data=response_data,
-                message=f"成功生成{len(questions)}个问题",
+                message=f"成功生成{len(questions)}个问题，保存{len(saved_questions)}个到数据库",
                 status_code=status.HTTP_200_OK
             )
             
