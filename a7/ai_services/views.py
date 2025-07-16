@@ -91,7 +91,11 @@ class StudentDialogueViewSet(viewsets.ViewSet):
             
             # 在响应中包含会话ID，便于客户端进行后续对话
             if isinstance(result, dict):
-                result["session_id"] = session_id
+                # 优先使用从n8n返回的sessionId，否则使用请求中的session_id
+                if 'sessionId' in result:
+                    result["session_id"] = result.pop("sessionId")
+                else:
+                    result["session_id"] = session_id
             
             # 使用标准化响应格式
             return create_api_response(

@@ -493,7 +493,7 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
         difficulty = serializer.validated_data.get('difficulty', 3)
         
         # 从请求数据中获取session_id，确保使用相同的值
-        session_id = request.data.get('session_id', str(uuid.uuid4()))
+        session_id = request.data.get('sessionId', str(uuid.uuid4()))
         
         # 3. 构建标准化的聊天输入
         # standard_chat_input = self._build_chat_input(
@@ -524,8 +524,17 @@ class QuestionGenerationViewSet(viewsets.ViewSet):
             # 6. 构建API响应 - 使用create_api_response确保格式一致
             response_data = {
                 'questions': questions,
-                'session_id': session_id,  # 使用请求中的session_id
             }
+            
+            # 优先使用从n8n返回的sessionId，否则使用请求中的session_id
+            if 'sessionId' in ai_response:
+                response_data['session_id'] = ai_response['sessionId']
+            else:
+                response_data['session_id'] = session_id  # 使用请求中的session_id
+                
+            # 如果有sources，也添加到响应中
+            if 'sources' in ai_response:
+                response_data['sources'] = ai_response['sources']
             
             return create_api_response(
                 success=True,

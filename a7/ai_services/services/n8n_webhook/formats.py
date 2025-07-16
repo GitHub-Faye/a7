@@ -320,6 +320,7 @@ class DialogueResponseData(BaseResponse):
     answer: str = Field(..., description="AI助手的回答")
     sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="回答所依据的来源列表")
     follow_up_questions: Optional[List[str]] = Field(default_factory=list, description="可能的后续问题建议")
+    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
 
 
 # ==============================================================================
@@ -385,6 +386,8 @@ class QuestionData(BaseResponse):
 class QuestionGenerationResponseData(BaseResponse):
     """问题生成任务的响应数据模型"""
     questions: List[QuestionData] = Field(..., description="生成的问题列表")
+    sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="回答所依据的来源列表")
+    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
 
 
 # ==============================================================================
@@ -696,7 +699,7 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
                 sources_text = first_item.get('sources', '')
                 sessionId = first_item.get('sessionId', '')
                 logger.info(f"从列表第一项提取到answer，长度: {len(answer_text)}")
-                logger.info(f"从列表第一项提取到sources，长度: {len(sources)}")
+                logger.info(f"从列表第一项提取到sources，长度: {len(sources_text)}")
                 logger.info(f"从列表第一项提取到sessionId，长度: {len(sessionId)}")
             else:
                 raise N8nResponseError("列表第一项不是字典类型")
@@ -746,6 +749,10 @@ def format_question_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
             "sources": extract_sources_from_text(sources_text) if sources_text else []
         }
         
+        # 如果有sessionId，也添加到响应中
+        if 'sessionId' in locals() and sessionId:
+            response_data["sessionId"] = sessionId
+            
         logger.info(f"成功格式化问题生成响应: 问题数量={len(processed_questions)}")
         return response_data
         
@@ -1727,6 +1734,11 @@ def process_list_response(data: List[Any]) -> Dict[str, Any]:
             # 如果是其他类型，使用空列表
             result['sources'] = []
         logger.info(f"处理后的sources类型: {type(result['sources'])}")
+    
+    # 提取sessionId
+    if 'sessionId' in first_item:
+        result['sessionId'] = first_item['sessionId']
+        logger.info(f"从列表第一项中提取到sessionId: {result['sessionId']}")
     
     return result
 
