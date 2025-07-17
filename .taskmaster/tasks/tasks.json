@@ -836,12 +836,12 @@
             "id": 4,
             "title": "Implement File Download API",
             "description": "Create an API endpoint for downloading files with permission checks.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               1,
               2
             ],
-            "details": "Implement a GET endpoint `/api/courseware/download/<file_id>/` to handle file downloads. Integrate permission checks to ensure only authorized users (e.g., enrolled students) can access files. Return the file or an appropriate error response.",
+            "details": "Implement a GET endpoint `/api/courseware/download/<file_id>/` to handle file downloads. Integrate permission checks to ensure only authorized users (e.g., enrolled students) can access files. Return the file or an appropriate error response.\n<info added on 2025-07-17T14:14:18.335Z>\n1. 在CoursewareViewSet中添加download动作方法：\n   - 创建GET /api/courseware/download/<file_id>/ 端点\n   - 实现权限检查，确保只有授权用户（管理员、课程教师、已注册学生）可访问文件\n   - 使用FileResponse返回文件流，支持大文件下载\n   - 设置正确的Content-Type和Content-Disposition头\n\n2. 修改CoursewareViewSet的get_permissions方法：\n   - 为download动作设置IsAuthenticated权限类\n   - 保留其他操作的原有权限设置\n\n3. 实现了完整的错误处理：\n   - 文件不存在时返回404错误\n   - 权限不足时返回403错误\n   - 其他异常返回500错误，包含详细错误信息\n\n4. 编写了全面的测试用例：\n   - 测试不同角色用户（管理员、教师、学生、未授权用户）的访问权限\n   - 测试未登录用户的访问限制\n   - 测试不存在文件ID的错误处理\n</info added on 2025-07-17T14:14:18.335Z>\n<info added on 2025-07-17T14:35:14.609Z>\n1. 在CoursewareViewSet中添加download动作方法：\n   - 创建GET /api/coursewares/download/<file_id>/ 端点\n   - 实现了基于CourseProgress模型的权限检查逻辑，确保只有管理员、课程教师和已注册学生可访问文件\n   - 使用FileResponse返回文件流，支持大文件下载\n   - 设置了正确的Content-Type和Content-Disposition头\n   - 添加了文件关闭回调，确保文件句柄被正确释放\n\n2. 修改CoursewareViewSet的get_permissions方法：\n   - 为download动作设置IsAuthenticated权限类\n   - 保留其他操作的原有权限设置\n\n3. 实现了完整的错误处理：\n   - 文件不存在时返回404错误\n   - 权限不足时返回403错误\n   - 其他异常返回500错误，包含详细错误信息\n\n4. 编写了全面的测试用例：\n   - 测试管理员下载文件 - 通过\n   - 测试教师下载文件 - 通过\n   - 测试已注册学生下载文件 - 通过\n   - 测试未授权用户下载文件 (403) - 通过\n   - 测试未登录用户下载文件 (401) - 通过\n   - 测试下载不存在文件 (404) - 通过\n\n所有测试均已通过，API功能完整可用，支持安全的文件下载功能。\n</info added on 2025-07-17T14:35:14.609Z>",
             "testStrategy": "Test download access with authorized and unauthorized users. Verify file retrieval and error handling."
           },
           {

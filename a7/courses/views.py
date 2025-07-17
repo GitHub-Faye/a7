@@ -1,7 +1,7 @@
 import os
 import json
 import base64
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, FileResponse
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
@@ -282,15 +282,18 @@ class CoursewareViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """
-        根据操作类型设置不同的权限
+        根据不同的操作返回不同的权限
         """
-        if self.action == 'create' or self.action == 'upload':
-            # 创建课件和上传文件需要教师或管理员权限
-            self.permission_classes = [IsTeacherOrAdmin]
-        elif self.action in ['update', 'partial_update', 'destroy']:
-            # 修改/删除课件需要教师或管理员权限
-            self.permission_classes = [IsTeacherOrAdmin]
-        return super().get_permissions()
+        if self.action == 'create' or self.action == 'update' or self.action == 'partial_update' or self.action == 'destroy' or self.action == 'upload':
+            # 创建、更新、删除课件需要教师或管理员权限
+            permission_classes = [IsTeacherOrAdmin]
+        elif self.action == 'download':
+            # 下载文件需要用户认证
+            permission_classes = [permissions.IsAuthenticated]
+        else:
+            # 其他操作允许所有用户访问
+            permission_classes = [permissions.AllowAny]
+        return [permission() for permission in permission_classes]
     
     @swagger_auto_schema(
         operation_summary="获取指定课程的所有课件",
@@ -451,6 +454,115 @@ class CoursewareViewSet(viewsets.ModelViewSet):
                 success=False,
                 error_code="UPLOAD_ERROR",
                 message=_("文件上传失败"),
+                errors=[str(e)],
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @swagger_auto_schema(
+        operation_summary="下载课件文件",
+        operation_description="下载指定ID的课件文件",
+        responses={
+            200: "文件下载",
+            403: "权限不足",
+            404: "文件不存在"
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='download/(?P<file_id>[^/.]+)')
+    def download(self, request, file_id=None):
+        """
+        下载课件文件
+        """
+        try:
+            # 查找文件
+            courseware_file = CoursewareFile.objects.get(id=file_id)
+            
+            # 权限检查
+            user = request.user
+            courseware = courseware_file.courseware
+            course = courseware.course
+            
+            # 添加调试日志
+            print(f"\n========== 文件下载请求 ==========")
+            print(f"用户: ID={user.id}, 用户名={user.username}")
+            print(f"文件: ID={courseware_file.id}, 名称={courseware_file.file_name}")
+            print(f"课件: ID={courseware.id}, 标题={courseware.title}")
+            print(f"课程: ID={course.id}, 标题={course.title}")
+            
+            # 检查用户是否有权限访问
+            has_access = False
+            if user.is_staff:  # 管理员
+                print("用户是管理员，允许访问")
+                has_access = True
+            elif course.teacher == user:  # 课程教师
+                print("用户是课程教师，允许访问")
+                has_access = True
+            else:  # 检查是否是已注册学生
+                # 使用CourseProgress模型检查学生是否已注册课程
+                student_progress = CourseProgress.objects.filter(
+                    student=user,
+                    course=course
+                ).exists()
+                if student_progress:
+                    print("用户是已注册学生，允许访问")
+                    has_access = True
+                else:
+                    print("用户不是已注册学生，拒绝访问")
+            
+            if not has_access:
+                return create_api_response(
+                    success=False,
+                    error_code="PERMISSION_DENIED",
+                    message=_("您没有权限下载此文件"),
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
+            
+            # 获取文件路径
+            file_path = courseware_file.file.path
+            
+            # 检查文件是否存在
+            if not os.path.exists(file_path):
+                return create_api_response(
+                    success=False,
+                    error_code="FILE_NOT_FOUND",
+                    message=_("文件不存在或已被删除"),
+                    status_code=status.HTTP_404_NOT_FOUND
+                )
+            
+            # 返回文件流
+            content_type = courseware_file.file_type or 'application/octet-stream'
+            file_handle = open(file_path, 'rb')
+            response = FileResponse(file_handle, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{courseware_file.file_name}"'
+            
+            # 注册文件关闭回调，确保文件句柄被关闭
+            def close_file(*args, **kwargs):
+                if file_handle and not file_handle.closed:
+                    file_handle.close()
+            
+            # 添加关闭回调
+            response.close = close_file
+            
+            return response
+            
+        except CoursewareFile.DoesNotExist:
+            return create_api_response(
+                success=False,
+                error_code="FILE_NOT_FOUND",
+                message=_("文件不存在"),
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            # 添加详细错误日志
+            print(f"\n========== 文件下载异常 ==========")
+            print(f"异常类型: {type(e).__name__}")
+            print(f"异常信息: {str(e)}")
+            import traceback
+            print(f"堆栈跟踪: {traceback.format_exc()}")
+            
+            return create_api_response(
+                success=False,
+                error_code="DOWNLOAD_ERROR",
+                message=_("文件下载失败"),
                 errors=[str(e)],
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

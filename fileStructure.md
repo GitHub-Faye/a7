@@ -1176,3 +1176,18 @@ a7/                           # 项目根目录
    - 保留部分调试日志以便于未来排查问题
    - 确保序列化器错误详细返回到客户端响应中
    - 在API响应中包含足够的错误详情以便客户端排错
+
+11. **课件文件管理系统**:
+   - `a7/courses/models.py`中的CoursewareFile模型用于存储课件相关的文件元数据（文件名、大小、类型、上传时间）。
+   - CoursewareFile模型通过外键关联Courseware模型，建立文件-课件的从属关系。
+   - `a7/courses/storage.py`实现了自定义存储类CoursewareFileStorage，提供文件名唯一化（使用UUID）和按课程/文件类型组织文件的功能。
+   - `a7/courses/utils.py`提供文件路径生成函数courseware_file_path和文件验证工具函数（validate_file_type、validate_file_size）。
+   - `a7/courses/views.py`中的CoursewareViewSet实现了完整的文件管理API：
+     - upload方法：提供POST /api/coursewares/upload/端点，允许教师和管理员上传课件文件。
+     - download方法：提供GET /api/coursewares/download/<file_id>/端点，支持安全的文件下载功能，包含权限检查（基于CourseProgress模型验证学生是否已注册课程）。
+   - 文件下载API实现了完整的权限控制，确保只有管理员、课程教师和已注册学生可以访问文件。
+   - 文件下载使用Django的FileResponse流式响应，支持大文件下载，并设置了正确的Content-Type和Content-Disposition头。
+   - 实现了文件关闭回调机制，确保文件句柄被正确释放，防止资源泄漏。
+   - 完整的错误处理包括文件不存在(404)、权限不足(403)和其他异常(500)的处理。
+   - `test_file_upload_api_real.py`提供了文件上传API的真实环境测试。
+   - `a7/courses/tests/`目录包含对文件存储和API功能的全面测试，包括权限检查、文件访问控制和错误处理。
