@@ -1,11 +1,12 @@
 import os
 import json
 import base64
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
@@ -22,15 +23,17 @@ from .serializers import (
     KnowledgePointSerializer, KnowledgePointCreateSerializer, KnowledgePointUpdateSerializer,
     CoursewareSerializer, CoursewareCreateSerializer, CoursewareUpdateSerializer,
     QuestionGenerationSerializer, ExerciseSerializer, ExerciseCreateSerializer, ExerciseUpdateSerializer,
-    StudentAnswerSerializer, StudentAnswerCreateSerializer, StudentAnswerUpdateSerializer
+    StudentAnswerSerializer, StudentAnswerCreateSerializer, StudentAnswerUpdateSerializer,
+    CourseContentGenerationResponseSerializer
 )
 from .serializers_ppt import KnowledgePointToPPTSerializer
 from .serializers_progress import CourseProgressDetailSerializer, LearningRecordSerializer, LearningRecordUpdateSerializer
 from .permissions import IsTeacherOrAdmin, IsCourseTeacherOrAdmin, IsKnowledgePointCourseTeacherOrAdmin
 from .validations import validate_text_field
 from .services.knowledge_to_ppt import KnowledgePointToPPTService
-from ai_services.services.n8n_webhook.client import N8nWebhookClient
+from ai_services.services.n8n_webhook import N8nWebhookClient
 from ai_services.services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
+from ai_services.services.n8n_webhook.client import WebhookConfig
 from ai_services.api_response import create_api_response
 from ai_services.services.question_export import QuestionExporter
 from users.models import User
@@ -374,11 +377,10 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
         task_data = serializer.validated_data.copy()
         print(f"Validated data: {task_data}")
         
-        # 3. 准备会话ID
-        session_id = str(uuid.uuid4())
-            
-        # 添加 session_id 到请求数据中
-        task_data["sessionId"] = session_id
+        # # 3. 准备会话ID
+        # session_id = request.data.get('sessionId', str(uuid.uuid4()))
+        # # 添加 session_id 到请求数据中
+        # task_data["sessionId"] = session_id
             
         print(f"Using client to construct chatInput")
         
@@ -401,11 +403,30 @@ class CourseContentGenerationViewSet(viewsets.ViewSet):
             new_course = create_course_with_knowledge_points(ai_response, request.user)
             print(f"Course created: {new_course.id}")
             
-            # 6. 返回成功创建的课程信息
-            course_serializer = CourseSerializer(new_course)
+            # 6. 返回成功创建的课程信息，包含sessionId和sources
+            session_id = ai_response.get('sessionId')
+            sources = ai_response.get('sources', [])
+            
+            # 打印调试信息
+            print(f"AI Response contains sessionId: {session_id}")
+            print(f"AI Response contains sources: {sources}")
+            
+            response_data = {
+                'id': new_course.id,
+                'title': new_course.title,
+                'description': new_course.description,
+                'subject': new_course.subject,
+                'grade_level': new_course.grade_level,
+                'teacher': new_course.teacher.id,
+                'teacher_name': f"{new_course.teacher.first_name} {new_course.teacher.last_name}".strip() or new_course.teacher.username,
+                'created_at': new_course.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'sessionId': session_id,
+                'sources': sources
+            }
+            
             return create_api_response(
                 success=True,
-                data=course_serializer.data,
+                data=response_data,
                 message="课程内容生成成功",
                 status_code=status.HTTP_201_CREATED
             )

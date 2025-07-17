@@ -727,3 +727,14 @@ class StudentDialogueSerializer(serializers.Serializer):
             raise serializers.ValidationError({"context": "上下文必须是有效的JSON对象"})
             
         return attrs 
+
+class CourseContentGenerationResponseSerializer(CourseSerializer):
+    """课程内容生成响应的序列化器，包含sessionId和sources"""
+    
+    sessionId = serializers.CharField(required=False, allow_null=True)
+    sources = serializers.ListField(required=False, child=serializers.DictField())
+    
+    class Meta(CourseSerializer.Meta):
+        # 继承CourseSerializer的Meta，并添加新字段
+        fields = CourseSerializer.Meta.fields + ['sessionId', 'sources']
+        read_only_fields = CourseSerializer.Meta.read_only_fields + ['sessionId', 'sources'] 

@@ -48,25 +48,78 @@ class ResponseProcessor:
         """
         logger.info(f"处理{task_type}任务的响应")
         
+        # 打印原始响应类型和结构
+        logger.info(f"process_response接收到的原始响应类型: {type(raw_response)}")
+        
+        # 检查原始响应中是否包含sessionId和sources
+        if isinstance(raw_response, dict):
+            logger.info(f"原始响应键: {list(raw_response.keys())}")
+            
+            if 'sessionId' in raw_response:
+                logger.info(f"原始响应中包含sessionId: {raw_response['sessionId']}")
+            else:
+                logger.info("原始响应中不包含sessionId")
+                
+            if 'sources' in raw_response:
+                logger.info(f"原始响应中包含sources类型: {type(raw_response['sources'])}")
+                logger.info(f"原始响应中包含sources: {raw_response['sources']}")
+            else:
+                logger.info("原始响应中不包含sources")
+        elif isinstance(raw_response, list) and len(raw_response) > 0:
+            logger.info("原始响应是列表")
+            first_item = raw_response[0]
+            if isinstance(first_item, dict):
+                logger.info(f"列表第一项键: {list(first_item.keys())}")
+                
+                if 'sessionId' in first_item:
+                    logger.info(f"列表第一项中包含sessionId: {first_item['sessionId']}")
+                else:
+                    logger.info("列表第一项中不包含sessionId")
+                    
+                if 'sources' in first_item:
+                    logger.info(f"列表第一项中包含sources类型: {type(first_item['sources'])}")
+                    logger.info(f"列表第一项中包含sources: {first_item['sources']}")
+                else:
+                    logger.info("列表第一项中不包含sources")
+        else:
+            logger.info(f"原始响应既不是字典也不是列表，类型为: {type(raw_response)}")
+        
         try:
             # 根据任务类型选择相应的处理方法
             if task_type == "studentDialogue":
-                return format_student_dialogue_response(raw_response)
+                result = format_student_dialogue_response(raw_response)
             elif task_type == "questionGeneration":
-                return format_question_generation_response(raw_response)
+                result = format_question_generation_response(raw_response)
             elif task_type == "exerciseGeneration":
-                return format_exercise_generation_response(raw_response)
+                result = format_exercise_generation_response(raw_response)
             elif task_type == "answerCorrection":
-                return format_answer_correction_response(raw_response)
+                result = format_answer_correction_response(raw_response)
             elif task_type == "courseGeneration":
-                return format_course_generation_response(raw_response)
+                result = format_course_generation_response(raw_response)
             elif task_type == "knowledgeToMarkdown":
-                return format_knowledge_to_markdown_response(raw_response)
+                result = format_knowledge_to_markdown_response(raw_response)
             elif task_type == "ragAI":
-                return ResponseProcessor._process_rag_ai_response(raw_response)
+                result = ResponseProcessor._process_rag_ai_response(raw_response)
             else:
                 # 对于未知任务类型，尝试通用处理
-                return ResponseProcessor._process_generic_response(raw_response)
+                result = ResponseProcessor._process_generic_response(raw_response)
+                
+            # 打印格式化后的响应结构
+            logger.info(f"格式化后的响应类型: {type(result)}")
+            if isinstance(result, dict):
+                logger.info(f"格式化后的响应键: {list(result.keys())}")
+                
+                if 'sessionId' in result:
+                    logger.info(f"格式化后的响应中包含sessionId: {result['sessionId']}")
+                else:
+                    logger.info("格式化后的响应中不包含sessionId")
+                    
+                if 'sources' in result:
+                    logger.info(f"格式化后的响应中包含sources长度: {len(result['sources'])}")
+                else:
+                    logger.info("格式化后的响应中不包含sources")
+            
+            return result
         except Exception as e:
             logger.error(f"处理{task_type}任务响应时出错: {str(e)}")
             raise N8nResponseError(

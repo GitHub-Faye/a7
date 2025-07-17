@@ -211,65 +211,135 @@ def extract_sources_from_text(text: str) -> List[Dict[str, str]]:
 
 def parse_ai_response(data: Dict[str, Any]) -> Tuple[str, str]:
     """
-    从AI响应中提取answer和sources
+    从AI响应中提取answer和sources文本
     
     Args:
         data: AI响应数据
         
     Returns:
-        Tuple[str, str]: (answer文本, sources文本)
+        包含answer文本和sources文本的元组 (answer_text, sources_text)
     """
     answer_text = ""
     sources_text = ""
     
-    # 情况1: 如果响应中直接包含answer和sources字段
+    # 打印调试信息
+    logger.info(f"parse_ai_response接收到的数据类型: {type(data)}")
+    
+    # 如果是字典类型
     if isinstance(data, dict):
-        if 'answer' in data and isinstance(data['answer'], str):
-            answer_text = data['answer']
-        # 处理旧格式 {"output": "内容"}
-        elif 'output' in data and isinstance(data['output'], str):
-            answer_text = data['output']
-        # 处理旧格式 {"response": "内容"}
-        elif 'response' in data and isinstance(data['response'], str):
-            answer_text = data['response']
-        # 处理旧格式 {"text": "内容"}
-        elif 'text' in data and isinstance(data['text'], str):
-            answer_text = data['text']
-            
-        if 'sources' in data and isinstance(data['sources'], str):
-            sources_text = data['sources']
-        elif 'sources' in data and isinstance(data['sources'], list):
-            # 将sources列表转换为文本
-            sources_list = []
-            for i, source in enumerate(data['sources']):
-                if isinstance(source, dict) and 'title' in source:
-                    if 'url' in source:
-                        sources_list.append(f"[{source['title']}]({source['url']})")
-                    else:
-                        sources_list.append(f"{i+1}. {source['title']}")
-                elif isinstance(source, str):
-                    sources_list.append(f"{i+1}. {source}")
-            sources_text = "\n".join(sources_list)
-    
-    # 情况2: 如果响应是字符串，尝试分离answer和sources
-    elif isinstance(data, str):
-        # 检查是否包含sources或references部分
-        sources_pattern = r"(?:Sources|References|来源|引用)[:：]\s*([\s\S]+)$"
-        sources_match = re.search(sources_pattern, data, re.IGNORECASE)
+        logger.info(f"parse_ai_response接收到的字典键: {list(data.keys())}")
         
-        if sources_match:
-            sources_text = sources_match.group(1).strip()
-            answer_text = data[:sources_match.start()].strip()
+        # 检查是否包含sessionId和sources
+        if 'sessionId' in data:
+            logger.info(f"parse_ai_response中的sessionId: {data['sessionId']}")
         else:
-            # 如果没有明确的sources部分，整个文本作为answer
-            answer_text = data
+            logger.info("parse_ai_response中不包含sessionId")
+            
+        if 'sources' in data:
+            logger.info(f"parse_ai_response中的sources类型: {type(data['sources'])}")
+            logger.info(f"parse_ai_response中的sources: {data['sources']}")
+        else:
+            logger.info("parse_ai_response中不包含sources")
+        
+        # 直接提取answer和sources
+        if 'answer' in data:
+            answer_text = data['answer']
+            if isinstance(answer_text, str):
+                logger.info(f"从data['answer']直接提取到answer文本，长度: {len(answer_text)}")
+            else:
+                logger.info(f"data['answer']不是字符串，而是: {type(answer_text)}")
+                if isinstance(answer_text, list) and len(answer_text) > 0:
+                    first_item = answer_text[0]
+                    if isinstance(first_item, dict) and 'answer' in first_item:
+                        answer_text = first_item['answer']
+                        logger.info(f"从data['answer'][0]['answer']提取到answer文本，长度: {len(answer_text)}")
+        
+        if 'sources' in data:
+            sources_text = data['sources']
+            if isinstance(sources_text, str):
+                logger.info(f"从data['sources']直接提取到sources文本，长度: {len(sources_text)}")
+            elif isinstance(sources_text, list):
+                # 如果sources是列表，转换为JSON字符串
+                sources_text = json.dumps(sources_text)
+                logger.info(f"将data['sources']列表转换为JSON字符串，长度: {len(sources_text)}")
+            else:
+                logger.info(f"data['sources']既不是字符串也不是列表，而是: {type(sources_text)}")
     
-    # 情况3: 如果是其他格式，尝试转换为字符串
+    # 如果是列表类型（可能来自n8n的响应）
+    elif isinstance(data, list) and len(data) > 0:
+        logger.info("parse_ai_response接收到列表类型数据")
+        
+        # 获取第一个项目
+        first_item = data[0]
+        logger.info(f"列表第一项类型: {type(first_item)}")
+        
+        if isinstance(first_item, dict):
+            logger.info(f"列表第一项键: {list(first_item.keys())}")
+            
+            # 检查是否包含sessionId和sources
+            if 'sessionId' in first_item:
+                logger.info(f"列表第一项中的sessionId: {first_item['sessionId']}")
+            else:
+                logger.info("列表第一项中不包含sessionId")
+                
+            if 'sources' in first_item:
+                logger.info(f"列表第一项中的sources: {first_item['sources']}")
+            else:
+                logger.info("列表第一项中不包含sources")
+            
+            # 尝试提取answer和sources
+            if 'answer' in first_item:
+                answer_text = first_item['answer']
+                if isinstance(answer_text, str):
+                    logger.info(f"从列表第一项中提取到answer文本，长度: {len(answer_text)}")
+            
+            if 'sources' in first_item:
+                sources_text = first_item['sources']
+                if isinstance(sources_text, str):
+                    logger.info(f"从列表第一项中提取到sources文本，长度: {len(sources_text)}")
+                elif isinstance(sources_text, list):
+                    # 如果sources是列表，转换为JSON字符串
+                    sources_text = json.dumps(sources_text)
+                    logger.info(f"将列表第一项中的sources列表转换为JSON字符串，长度: {len(sources_text)}")
+            
+            # 检查是否有嵌套的响应结构
+            if 'response' in first_item and isinstance(first_item['response'], dict):
+                logger.info("检测到嵌套的响应结构")
+                nested_response = first_item['response']
+                
+                if 'body' in nested_response and isinstance(nested_response['body'], list) and len(nested_response['body']) > 0:
+                    body_item = nested_response['body'][0]
+                    logger.info(f"嵌套响应body[0]类型: {type(body_item)}")
+                    
+                    if isinstance(body_item, dict):
+                        logger.info(f"嵌套响应body[0]键: {list(body_item.keys())}")
+                        
+                        # 提取answer和sources
+                        if 'answer' in body_item:
+                            answer_text = body_item['answer']
+                            logger.info(f"从嵌套响应中提取到answer文本，长度: {len(answer_text)}")
+                        
+                        if 'sources' in body_item:
+                            sources_text = body_item['sources']
+                            if isinstance(sources_text, str):
+                                logger.info(f"从嵌套响应中提取到sources文本，长度: {len(sources_text)}")
+                            elif isinstance(sources_text, list):
+                                # 如果sources是列表，转换为JSON字符串
+                                sources_text = json.dumps(sources_text)
+                                logger.info(f"将嵌套响应中的sources列表转换为JSON字符串，长度: {len(sources_text)}")
+    
+    # 其他情况，尝试将整个数据转换为字符串
     else:
+        logger.warning(f"无法从数据中提取answer和sources，数据类型: {type(data)}")
         try:
+            # 尝试将整个数据转换为字符串
             answer_text = str(data)
+            logger.info(f"将整个数据转换为answer文本，长度: {len(answer_text)}")
         except:
-            answer_text = "无法解析的响应格式"
+            logger.error("转换数据为字符串失败")
+    
+    logger.info(f"parse_ai_response返回的answer_text长度: {len(answer_text)}")
+    logger.info(f"parse_ai_response返回的sources_text长度: {len(sources_text)}")
     
     return answer_text, sources_text
 
@@ -357,6 +427,8 @@ class CourseGenerationResponseData(BaseResponse):
     """课程内容生成任务的响应数据模型"""
     course: CourseData = Field(..., description="生成的课程核心信息")
     knowledge_points: List[KnowledgePointData] = Field(..., description="生成的知识点层级结构")
+    sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="回答所依据的来源列表")
+    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
 
 
 # ==============================================================================
@@ -654,6 +726,30 @@ def format_course_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         N8nResponseError: 如果无法格式化数据
     """
     logger.info("正在格式化课程内容生成响应数据")
+    logger.info(f"原始数据中的键: {list(data.keys()) if isinstance(data, dict) else '非字典类型'}")
+    
+    if isinstance(data, dict):
+        # 检查原始数据中是否包含sessionId和sources
+        if 'sessionId' in data:
+            logger.info(f"原始数据中的sessionId: {data['sessionId']}")
+        else:
+            logger.info("原始数据中不包含sessionId")
+            
+        if 'sources' in data:
+            logger.info(f"原始数据中的sources: {data['sources']}")
+        else:
+            logger.info("原始数据中不包含sources")
+        
+        # 检查原始数据中的answer是否是list的第一个元素
+        if isinstance(data.get('answer'), list) and len(data['answer']) > 0:
+            logger.info("答案是列表，检查第一个元素")
+            first_item = data['answer'][0]
+            if isinstance(first_item, dict):
+                logger.info(f"答案列表第一个元素的键: {list(first_item.keys())}")
+                if 'sessionId' in first_item:
+                    logger.info(f"答案列表第一个元素中包含sessionId: {first_item['sessionId']}")
+                if 'sources' in first_item:
+                    logger.info(f"答案列表第一个元素中包含sources: {first_item['sources']}")
     
     try:
         # 从响应中提取answer和sources文本
@@ -702,13 +798,34 @@ def format_course_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
             processed_kp = process_knowledge_point(kp)
             knowledge_points.append(processed_kp)
         
+        # 提取sources数据
+        sources = extract_sources_from_text(sources_text) if sources_text else []
+        logger.info(f"从sources_text提取的sources: {sources}")
+        
         # 构建响应数据
         response_data = {
             "course": course_data['course'],
             "knowledge_points": knowledge_points,
-            "sources": extract_sources_from_text(sources_text) if sources_text else []
+            "sources": sources
         }
         
+        # 添加 sessionId 到响应数据
+        if isinstance(data, dict) and 'sessionId' in data:
+            logger.info(f"添加sessionId到响应数据: {data['sessionId']}")
+            response_data['sessionId'] = data['sessionId']
+        else:
+            logger.info("无法从原始数据中获取sessionId")
+            # 如果data是列表且第一个元素是字典，尝试从中获取sessionId
+            if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict) and 'sessionId' in data[0]:
+                logger.info(f"从列表第一个元素获取sessionId: {data[0]['sessionId']}")
+                response_data['sessionId'] = data[0]['sessionId']
+        
+        logger.info(f"最终响应数据中的键: {list(response_data.keys())}")
+        if 'sessionId' in response_data:
+            logger.info(f"最终响应数据中的sessionId: {response_data['sessionId']}")
+        if 'sources' in response_data:
+            logger.info(f"最终响应数据中的sources: {response_data['sources']}")
+            
         logger.info(f"成功格式化课程内容生成响应: 知识点数量={len(knowledge_points)}")
         return response_data
         
@@ -718,14 +835,22 @@ def format_course_generation_response(data: Dict[str, Any]) -> Dict[str, Any]:
         # 尝试从原始数据中提取基本信息
         if isinstance(data, dict):
             if 'course' in data and 'knowledge_points' in data:
-                return {
+                result = {
                     "course": data['course'],
                     "knowledge_points": data['knowledge_points']
                 }
+                # 添加 sessionId 到响应数据
+                if 'sessionId' in data:
+                    logger.info(f"添加sessionId到结果: {data['sessionId']}")
+                    result['sessionId'] = data['sessionId']
+                if 'sources' in data:
+                    logger.info(f"添加sources到结果: {data['sources']}")
+                    result['sources'] = data['sources']
+                return result
             elif isinstance(data.get('answer'), str):
                 # 如果只有answer字段，尝试再次解析
                 try:
-                    return format_course_generation_response({"answer": data['answer']})
+                    return format_course_generation_response({"answer": data['answer'], "sessionId": data.get('sessionId')})
                 except:
                     pass
         

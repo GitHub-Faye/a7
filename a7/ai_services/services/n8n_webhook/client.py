@@ -20,6 +20,7 @@ from .exceptions import (
     N8nConnectionError,
     N8nTimeoutError,
     N8nResponseError,
+    N8nInvalidRequestError,
 )
 from .formats import validate_request_data, parse_response
 from ...models import WebhookConfig, WebhookCallLog
@@ -220,23 +221,60 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 处理结果
         """
-        # 1. 验证和格式化请求数据
-        validated_data_model = validate_request_data(task_type, task_data)
+        # 1. 验证请求数据
+        try:
+            validated_data_model = validate_request_data(task_type, task_data)
+            validated_data = validated_data_model.model_dump()
+        except N8nInvalidRequestError as e:
+            # 重新抛出验证错误
+            raise e
+        except Exception as e:
+            # 包装其他异常为N8nInvalidRequestError
+            raise N8nInvalidRequestError(str(e))
         
         # 2. 构建将发送到n8n的请求数据
-        request_data_to_send = {
+        request_data = {
             "task_type": task_type,
-            "data": validated_data_model.model_dump()  # 使用验证后模型的数据
+            "data": validated_data
         }
         
         # 3. 发送请求并获取原始响应
-        raw_response = await self.send_request(request_data_to_send)
+        raw_response = await self.send_request(request_data)
         
-        # 4. 解析和验证响应数据
-        validated_response_model = parse_response(task_type, raw_response)
+        # 记录原始响应
+        logger.info(f"从N8N接收到原始响应类型: {type(raw_response)}")
+        if isinstance(raw_response, list) and len(raw_response) > 0:
+            logger.info(f"原始响应是列表，长度: {len(raw_response)}")
+            first_item = raw_response[0]
+            if isinstance(first_item, dict):
+                logger.info(f"原始响应列表第一项键: {list(first_item.keys())}")
+                
+                # 检查是否包含sessionId
+                if 'sessionId' in first_item:
+                    logger.info(f"原始响应中包含sessionId: {first_item['sessionId']}")
+                    
+                # 检查是否包含sources
+                if 'sources' in first_item:
+                    logger.info(f"原始响应中包含sources: {first_item['sources']}")
+        elif isinstance(raw_response, dict):
+            logger.info(f"原始响应是字典，键: {list(raw_response.keys())}")
+            
+            # 检查是否包含sessionId和sources
+            if 'sessionId' in raw_response:
+                logger.info(f"原始响应中包含sessionId: {raw_response['sessionId']}")
+            if 'sources' in raw_response:
+                logger.info(f"原始响应中包含sources: {raw_response['sources']}")
         
-        # 5. 返回验证后模型的字典表示
-        return validated_response_model.model_dump()
+        # 4. 处理响应数据
+        try:
+            validated_response_model = parse_response(task_type, raw_response)
+            return validated_response_model.model_dump()
+        except Exception as e:
+            logger.exception(f"处理响应时出错: {str(e)}")
+            raise N8nResponseError(
+                message=f"处理'{task_type}'任务响应失败: {str(e)}",
+                error_data=raw_response
+            )
     
     def process_ai_task_sync(self, task_type: str, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -249,7 +287,45 @@ class N8nWebhookClient:
         Returns:
             Dict[str, Any]: 处理结果
         """
-        return asyncio.run(self.process_ai_task(task_type, task_data))
+        logger.info("进入process_ai_task_sync方法")
+        
+        # 调试打印任务类型和数据
+        logger.info(f"处理任务类型: {task_type}")
+        
+        # 检查task_data中的sessionId
+        if 'sessionId' in task_data:
+            logger.info(f"输入task_data中包含sessionId: {task_data['sessionId']}")
+        else:
+            logger.info("输入task_data中不包含sessionId")
+        
+        # 运行异步处理方法
+        raw_result = asyncio.run(self.process_ai_task(task_type, task_data))
+        
+        # 调试输出raw_result类型和结构
+        logger.info(f"process_ai_task返回的raw_result类型: {type(raw_result)}")
+        if isinstance(raw_result, dict):
+            logger.info(f"raw_result字典键: {list(raw_result.keys())}")
+            if 'sessionId' in raw_result:
+                logger.info(f"raw_result中包含sessionId: {raw_result['sessionId']}")
+            else:
+                logger.info("raw_result中不包含sessionId")
+                
+            if 'sources' in raw_result:
+                logger.info(f"raw_result中包含sources类型: {type(raw_result['sources'])}")
+                logger.info(f"raw_result中包含sources值: {raw_result['sources']}")
+            else:
+                logger.info("raw_result中不包含sources")
+        elif isinstance(raw_result, list) and len(raw_result) > 0:
+            logger.info(f"raw_result是列表，长度: {len(raw_result)}")
+            first_item = raw_result[0]
+            if isinstance(first_item, dict):
+                logger.info(f"raw_result[0]的键: {list(first_item.keys())}")
+                if 'sessionId' in first_item:
+                    logger.info(f"raw_result[0]中包含sessionId: {first_item['sessionId']}")
+                if 'sources' in first_item:
+                    logger.info(f"raw_result[0]中包含sources: {first_item['sources']}")
+        
+        return raw_result
     
     async def generate_course_content(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
