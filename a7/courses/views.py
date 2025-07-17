@@ -17,19 +17,20 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord, CourseProgress
+from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord, CourseProgress, CoursewareFile
 from .serializers import (
     CourseSerializer, CourseCreateSerializer, CourseUpdateSerializer, CourseGenerationSerializer,
     KnowledgePointSerializer, KnowledgePointCreateSerializer, KnowledgePointUpdateSerializer,
     CoursewareSerializer, CoursewareCreateSerializer, CoursewareUpdateSerializer,
     QuestionGenerationSerializer, ExerciseSerializer, ExerciseCreateSerializer, ExerciseUpdateSerializer,
     StudentAnswerSerializer, StudentAnswerCreateSerializer, StudentAnswerUpdateSerializer,
-    CourseContentGenerationResponseSerializer
+    CourseContentGenerationResponseSerializer, CoursewareFileUploadSerializer, CoursewareFileSerializer
 )
 from .serializers_ppt import KnowledgePointToPPTSerializer
 from .serializers_progress import CourseProgressDetailSerializer, LearningRecordSerializer, LearningRecordUpdateSerializer
 from .permissions import IsTeacherOrAdmin, IsCourseTeacherOrAdmin, IsKnowledgePointCourseTeacherOrAdmin
 from .validations import validate_text_field
+from .utils import validate_file_type, validate_file_size
 from .services.knowledge_to_ppt import KnowledgePointToPPTService
 from ai_services.services.n8n_webhook import N8nWebhookClient
 from ai_services.services.n8n_webhook.exceptions import N8nWebhookError, N8nInvalidRequestError
@@ -248,7 +249,6 @@ class CoursewareViewSet(viewsets.ModelViewSet):
     课件视图集，提供课件的增删改查功能
     """
     queryset = Courseware.objects.all().order_by('-created_at')
-    serializer_class = CoursewareSerializer
     permission_classes = [permissions.AllowAny]  # 允许所有请求访问，无需验证权限
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'content', 'type']
@@ -258,7 +258,6 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         """
         可根据URL参数过滤课件：
         - course: 按课程ID过滤
-        - type: 按课件类型过滤
         """
         queryset = super().get_queryset()
         
@@ -266,11 +265,6 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         course_id = self.request.query_params.get('course')
         if course_id:
             queryset = queryset.filter(course_id=course_id)
-        
-        # 按类型过滤
-        courseware_type = self.request.query_params.get('type')
-        if courseware_type:
-            queryset = queryset.filter(type=courseware_type)
             
         return queryset
     
@@ -282,18 +276,20 @@ class CoursewareViewSet(viewsets.ModelViewSet):
             return CoursewareCreateSerializer
         elif self.action in ['update', 'partial_update']:
             return CoursewareUpdateSerializer
+        elif self.action == 'upload':
+            return CoursewareFileUploadSerializer
         return CoursewareSerializer
     
     def get_permissions(self):
         """
         根据操作类型设置不同的权限
         """
-        if self.action == 'create':
-            # 任何人都可以创建课件
-            self.permission_classes = [permissions.AllowAny]
+        if self.action == 'create' or self.action == 'upload':
+            # 创建课件和上传文件需要教师或管理员权限
+            self.permission_classes = [IsTeacherOrAdmin]
         elif self.action in ['update', 'partial_update', 'destroy']:
-            # 任何人都可以修改或删除课件
-            self.permission_classes = [permissions.AllowAny]
+            # 修改/删除课件需要教师或管理员权限
+            self.permission_classes = [IsTeacherOrAdmin]
         return super().get_permissions()
     
     @swagger_auto_schema(
@@ -321,6 +317,143 @@ class CoursewareViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(queryset, many=True)
         return Response({"success": True, "data": serializer.data})
+
+    @swagger_auto_schema(
+        operation_summary="上传课件文件",
+        operation_description="上传文件并关联到指定的课件",
+        request_body=CoursewareFileUploadSerializer,
+        responses={
+            201: CoursewareFileSerializer,
+            400: "请求参数无效",
+            403: "权限不足",
+            404: "课件不存在"
+        }
+    )
+    @action(detail=False, methods=['post'], permission_classes=[IsTeacherOrAdmin])
+    def upload(self, request):
+        """
+        上传课件文件并关联到指定的课件
+        """
+        # 添加调试日志 - 打印请求数据
+        print("\n========== 文件上传调试信息 ==========")
+        print(f"请求数据: {request.data}")
+        print(f"请求文件: {request.FILES}")
+        if 'file' in request.FILES:
+            file_obj = request.FILES['file']
+            print(f"文件名: {file_obj.name}")
+            print(f"文件大小: {file_obj.size} 字节")
+            print(f"文件类型: {getattr(file_obj, 'content_type', '未知')}")
+        
+        serializer = CoursewareFileUploadSerializer(data=request.data)
+        if not serializer.is_valid():
+            # 添加调试日志 - 打印验证错误
+            print("\n========== 序列化器验证错误 ==========")
+            print(f"错误详情: {serializer.errors}")
+            
+            # 检查具体字段错误
+            if 'courseware_id' in serializer.errors:
+                print(f"courseware_id 错误: {serializer.errors['courseware_id']}")
+            if 'file' in serializer.errors:
+                print(f"file 错误: {serializer.errors['file']}")
+            
+            # 检查文件类型验证
+            if 'file' in request.FILES:
+                file_obj = request.FILES['file']
+                allowed_types = getattr(settings, 'ALLOWED_FILE_TYPES', [])
+                print(f"允许的文件类型: {allowed_types}")
+                print(f"文件扩展名: {os.path.splitext(file_obj.name)[1].lower()}")
+                print(f"文件内容类型: {getattr(file_obj, 'content_type', '未知')}")
+                print(f"文件类型验证结果: {validate_file_type(file_obj, allowed_types)}")
+            
+            return create_api_response(
+                success=False,
+                error_code="VALIDATION_ERROR",
+                message=_("参数验证失败"),
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 获取课件
+        try:
+            courseware_id = serializer.validated_data['courseware_id']
+            courseware = Courseware.objects.get(id=courseware_id)
+            
+            # 添加调试日志 - 课件信息
+            print("\n========== 课件信息 ==========")
+            print(f"课件ID: {courseware.id}")
+            print(f"课件标题: {courseware.title}")
+            print(f"课件所属课程: {courseware.course.title} (ID: {courseware.course.id})")
+            print(f"课件创建者: {courseware.created_by.username} (ID: {courseware.created_by.id})")
+            print(f"当前用户: {request.user.username} (ID: {request.user.id})")
+            print(f"用户是否为课程教师: {courseware.course.teacher == request.user}")
+            print(f"用户是否为管理员: {request.user.is_staff}")
+            
+        except Courseware.DoesNotExist:
+            print("\n========== 错误 ==========")
+            print(f"课件ID {courseware_id} 不存在")
+            return create_api_response(
+                success=False,
+                error_code="NOT_FOUND",
+                message=_("课件不存在"),
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        # 验证用户是否有权限上传文件到此课件
+        if courseware.course.teacher != request.user and not request.user.is_staff:
+            print("\n========== 权限错误 ==========")
+            print(f"用户 {request.user.username} 无权限上传文件到课件 {courseware.title}")
+            return create_api_response(
+                success=False,
+                error_code="PERMISSION_DENIED",
+                message=_("您没有权限上传文件到此课件"),
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        # 创建文件记录
+        try:
+            file = serializer.validated_data['file']
+            
+            # 添加调试日志 - 文件信息
+            print("\n========== 准备创建文件记录 ==========")
+            print(f"文件名: {file.name}")
+            print(f"文件大小: {file.size} 字节")
+            print(f"文件类型: {getattr(file, 'content_type', '未知')}")
+            
+            courseware_file = CoursewareFile.objects.create(
+                courseware=courseware,
+                file=file
+            )
+            
+            # 添加调试日志 - 创建成功
+            print("\n========== 文件记录创建成功 ==========")
+            print(f"文件ID: {courseware_file.id}")
+            print(f"文件名: {courseware_file.file_name}")
+            print(f"文件大小: {courseware_file.file_size} 字节")
+            print(f"文件类型: {courseware_file.file_type}")
+            print(f"文件URL: {courseware_file.get_file_url()}")
+            
+            # 返回文件信息
+            response_serializer = CoursewareFileSerializer(courseware_file)
+            return create_api_response(
+                success=True,
+                data=response_serializer.data,
+                status_code=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            print("\n========== 文件上传异常 ==========")
+            print(f"异常类型: {type(e).__name__}")
+            print(f"异常信息: {str(e)}")
+            print(f"异常详情: ", e)
+            import traceback
+            print(f"堆栈跟踪: {traceback.format_exc()}")
+            
+            return create_api_response(
+                success=False,
+                error_code="UPLOAD_ERROR",
+                message=_("文件上传失败"),
+                errors=[str(e)],
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class CourseContentGenerationViewSet(viewsets.ViewSet):

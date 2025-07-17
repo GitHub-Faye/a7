@@ -3,6 +3,9 @@ from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer
 from users.models import User
 from .validations import ValidationUtils
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
+from .utils import validate_file_type, validate_file_size
+from .models import CoursewareFile
 
 class QuestionGenerationSerializer(serializers.Serializer):
     """问题生成请求的序列化器"""
@@ -738,3 +741,47 @@ class CourseContentGenerationResponseSerializer(CourseSerializer):
         # 继承CourseSerializer的Meta，并添加新字段
         fields = CourseSerializer.Meta.fields + ['sessionId', 'sources']
         read_only_fields = CourseSerializer.Meta.read_only_fields + ['sessionId', 'sources'] 
+
+
+class CoursewareFileUploadSerializer(serializers.Serializer):
+    """课件文件上传序列化器"""
+    courseware_id = serializers.IntegerField(required=True)
+    file = serializers.FileField(required=True)
+    
+    def validate_courseware_id(self, value):
+        """验证课件ID是否存在"""
+        try:
+            Courseware.objects.get(id=value)
+        except Courseware.DoesNotExist:
+            raise serializers.ValidationError(_("指定的课件不存在"))
+        return value
+    
+    def validate_file(self, value):
+        """验证文件类型和大小"""
+        # 获取允许的文件类型和最大大小
+        allowed_types = getattr(settings, 'ALLOWED_FILE_TYPES', [])
+        max_size_mb = getattr(settings, 'MAX_FILE_SIZE_MB', 10)
+        
+        # 验证文件类型
+        if not validate_file_type(value, allowed_types):
+            raise serializers.ValidationError(_("不支持的文件类型"))
+        
+        # 验证文件大小
+        if not validate_file_size(value, max_size_mb):
+            raise serializers.ValidationError(_(f"文件大小超过限制（最大{max_size_mb}MB）"))
+        
+        return value
+
+
+class CoursewareFileSerializer(serializers.ModelSerializer):
+    """课件文件序列化器，用于返回文件信息"""
+    file_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CoursewareFile
+        fields = ['id', 'file_name', 'file_size', 'file_type', 'file_url', 'upload_time']
+        read_only_fields = ['id', 'file_name', 'file_size', 'file_type', 'upload_time']
+    
+    def get_file_url(self, obj):
+        """获取文件URL"""
+        return obj.get_file_url() 

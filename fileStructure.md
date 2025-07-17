@@ -166,6 +166,7 @@ a7/                           # 项目根目录
 ├── api_test_output/          # API测试输出目录，存储测试结果和生成的文件
 ├── test_api.py               # API测试脚本，用于测试中间件功能
 ├── test_api_question.py      # API测试脚本，用于测试问题生成API
+├── test_file_upload_api_real.py # 文件上传API真实环境测试脚本，用于测试课件文件上传功能，包含登录认证、JWT提取和文件上传流程
 ├── marp_integration_test.py  # 手动集成测试脚本，测试知识点到PPT的完整流程
 ├── api_test_runner.py        # API端到端测试运行脚本，测试各种格式的直接下载功能
 ├── .gitignore                # Git忽略配置文件
@@ -197,7 +198,7 @@ a7/                           # 项目根目录
 - **a7/Dockerfile**: Docker容器构建配置文件，定义了基于Python 3.13.3的应用容器。使用非特权用户运行应用以提高安全性，配置了Python环境变量防止生成缓存文件，安装依赖并暴露8000端口。
 - **a7/compose.yaml**: Docker Compose服务配置文件，定义了应用服务的构建和运行方式。暴露8000端口到主机，并包含了PostgreSQL数据库集成的注释示例代码。
 - **a7/README.Docker.md**: Docker部署和使用说明文档，提供了如何构建和运行Docker容器的指导，包括本地开发和云部署说明。
-- **a7/.dockerignore**: Docker构建过程中要忽略的文件列表，用于排除不需要包含在Docker镜像中的文件，优化构建过程和减小镜像大小。
+- **a7//.dockerignore**: Docker构建过程中要忽略的文件列表，用于排除不需要包含在Docker镜像中的文件，优化构建过程和减小镜像大小。
 
 ### Django项目文件
 
@@ -258,7 +259,7 @@ a7/                           # 项目根目录
 - **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。还包含QuestionGenerationSerializer，用于问题生成API的请求参数验证。新增Exercise和StudentAnswer相关序列化器（读取、创建、更新、反馈），支持练习题和学生答案管理。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
 - **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`、`CourseContentGenerationViewSet`、`QuestionGenerationViewSet`、`ExerciseViewSet`和`StudentAnswerViewSet`，提供课程内容、练习和答案的API端点。
-- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`, `CourseContentGenerationViewSet`, `QuestionGenerationViewSet`, `ExerciseViewSet` 和 `StudentAnswerViewSet` 视图集，实现课程、知识点、课件、练习题和学生答案的CRUD操作和AI内容生成功能。新增`ProgressTrackingViewSet`视图集，提供学习进度跟踪API端点，包括course-progress（获取课程进度）、knowledge-point-progress（获取知识点进度）、update-learning-record（更新学习记录）和student-summary（获取学生进度概览）。`CourseViewSet`配置了`IsAuthenticated`权限类，要求用户认证才能访问，并针对不同操作类型设置了更具体的权限控制。特别是`my_courses`方法现在确保只返回当前认证用户创建的课程，而不是任何用户的课程。`ExerciseViewSet`和`StudentAnswerViewSet`配置了过滤、排序和搜索功能，支持按知识点、题型、难度等字段过滤，按创建时间、难度等字段排序，以及按标题、内容等字段搜索。
+- **a7/courses/views.py**: 课程相关的视图文件，包含`CourseViewSet`, `KnowledgePointViewSet`, `CoursewareViewSet`, `CourseContentGenerationViewSet`, `QuestionGenerationViewSet`, `ExerciseViewSet` 和 `StudentAnswerViewSet`视图集，实现课程、知识点、课件、练习题和学生答案的CRUD操作和AI内容生成功能。新增`ProgressTrackingViewSet`视图集，提供学习进度跟踪API端点，包括course-progress（获取课程进度）、knowledge-point-progress（获取知识点进度）、update-learning-record（更新学习记录）和student-summary（获取学生进度概览）。`CourseViewSet`配置了`IsAuthenticated`权限类，要求用户认证才能访问，并针对不同操作类型设置了更具体的权限控制。特别是`my_courses`方法现在确保只返回当前认证用户创建的课程，而不是任何用户的课程。`ExerciseViewSet`和`StudentAnswerViewSet`配置了过滤、排序和搜索功能，支持按知识点、题型、难度等字段过滤，按创建时间、难度等字段排序，以及按标题、内容等字段搜索。
 - **a7/courses/validations.py**: 通用验证工具类，提供了字段验证（validate_text_field）、对象存在性验证（validate_existence）和唯一性验证（validate_uniqueness）等方法，为序列化器提供复用的验证逻辑。
 - **a7/courses/utils.py**: 工具函数文件，包含validate_required_params函数，用于验证请求中必需的参数是否存在，支持GET和POST/PUT/PATCH请求，适用于自定义操作和视图方法。
 - **a7/courses/tests.py**: 测试文件，包含课程模型的单元测试，验证模型创建、关系和功能正确性，以及练习题、学生答案和学习记录的测试用例。
@@ -1094,3 +1095,84 @@ a7/                           # 项目根目录
 - StudentAnswer：记录学生答案和评分数据
 
 这些API端点共同提供了完整的学习进度跟踪功能，支持实时监控学生学习状态、评估学习效果和提供个性化学习体验。 
+
+## 重要API端点
+
+### 文件上传和下载API
+
+- **`/api/coursewares/upload/`**: 课件文件上传API端点
+  - **方法**: POST
+  - **权限**: IsTeacherOrAdmin（需要教师或管理员角色）
+  - **参数**: 
+    - `courseware_id`: 课件ID（整数）
+    - `file`: 上传的文件对象
+  - **处理流程**:
+    1. 验证用户权限和课件所有权
+    2. 验证文件类型和大小
+    3. 使用自定义存储类保存文件（生成唯一文件名）
+    4. 创建CoursewareFile记录关联文件和课件
+  - **响应**: 返回文件ID、名称、大小、类型和URL
+
+- **`/api/coursewares/files/{id}/download/`**: 课件文件下载API端点
+  - **方法**: GET
+  - **权限**: 基于课件访问权限控制
+  - **参数**: 
+    - `id`: 文件ID（URL路径参数）
+  - **处理流程**:
+    1. 验证用户权限
+    2. 获取文件记录和物理文件
+    3. 设置适当的响应头
+    4. 返回文件内容
+
+## 测试脚本说明
+
+### test_file_upload_api_real.py
+
+这是一个用于测试课件文件上传API的实际环境测试脚本，主要功能包括：
+
+1. **用户认证**:
+   - 使用用户名/密码登录获取JWT令牌
+   - 从响应中提取令牌用于后续请求
+
+2. **文件上传**:
+   - 构建包含课件ID和文件的multipart/form-data请求
+   - 使用JWT令牌进行认证
+   - 发送请求到上传API端点
+
+3. **响应处理**:
+   - 解析API响应，提取状态码和响应内容
+   - 打印详细的请求和响应信息用于调试
+   - 显示上传结果（成功/失败）
+
+4. **调试功能**:
+   - 打印文件信息（名称、大小、类型、扩展名）
+   - 打印完整的请求头和请求体
+   - 尝试不同的参数名称（courseware_id/courseware）
+   - 解析并显示详细错误信息
+
+该脚本用于验证实际环境中文件上传API的功能，确保用户认证、权限检查和文件处理逻辑正常工作。通过添加详细的调试日志，可以快速定位API调用中的问题。
+
+## 文件上传调试过程
+
+在实现和测试文件上传功能时，我们遇到了以下挑战和解决方案：
+
+1. **问题诊断**:
+   - 测试环境中API工作正常，但实际环境返回400错误
+   - 错误响应只包含通用错误码（VALIDATION_ERROR），没有详细字段错误
+   - 服务器日志只显示"Bad Request"，没有详细错误信息
+
+2. **解决方案**:
+   - 在CoursewareViewSet的upload方法中添加详细调试日志
+   - 打印请求数据、文件信息、序列化器错误和课件信息
+   - 验证用户权限和文件类型
+
+3. **关键发现**:
+   - 请求参数名称"courseware_id"是正确的
+   - 用户权限和课件所有权验证正常
+   - 文件类型验证正常
+   - 添加调试日志后，上传成功完成
+
+4. **最佳实践**:
+   - 保留部分调试日志以便于未来排查问题
+   - 确保序列化器错误详细返回到客户端响应中
+   - 在API响应中包含足够的错误详情以便客户端排错
