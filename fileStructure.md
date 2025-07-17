@@ -109,7 +109,8 @@ a7/                           # 项目根目录
 │   │   │   ├── test_api_exercises_additional.py # 练习题API补充测试
 │   │   │   ├── test_progress_models.py      # 学习进度跟踪模型测试
 │   │   │   ├── test_progress_serializers.py # 学习进度跟踪序列化器测试
-│   │   │   └── test_progress_tracking.py    # 学习进度跟踪API测试
+│   │   │   ├── test_progress_tracking.py    # 学习进度跟踪API测试
+│   │   │   └── test_file_storage.py         # 文件存储功能测试，验证文件上传、文件名唯一性、文件组织结构等
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   ├── admin.py          # 课程Admin配置
 │   │   ├── apps.py           # 应用配置
@@ -117,7 +118,9 @@ a7/                           # 项目根目录
 │   │   ├── serializers.py    # 课程序列化器
 │   │   ├── serializers_ppt.py # 知识点到PPT转换序列化器
 │   │   ├── serializers_progress.py # 学习进度跟踪序列化器
+│   │   ├── storage.py        # 自定义文件存储类，实现文件名唯一化和按课程/文件类型组织文件
 │   │   ├── urls.py           # 课程URL配置
+│   │   ├── utils.py          # 工具函数，包含文件路径生成和文件验证函数
 │   │   └── views.py          # 课程视图
 │   ├── users/                # 用户管理应用
 │   │   ├── migrations/       # 数据库迁移文件
@@ -185,7 +188,7 @@ a7/                           # 项目根目录
 - **a7/tmp/**: 临时文件目录，存储处理过程中的临时文件
 - **a7/static/**: 静态文件存储目录，包含项目使用的静态资源文件，包括presentations子目录
 - **a7/marp_test_output/**: 项目级Marp测试输出目录，存储在a7目录中进行的测试生成的文件
-- **a7/media/**: 媒体文件存储目录，用于保存用户上传的文件，如课件相关文件，按年月组织目录结构
+- **a7/media/**: 媒体文件存储目录，用于保存用户上传的文件，如课件相关文件，按课程ID和文件类型组织目录结构
 
 ## 文件用途说明
 
@@ -200,12 +203,19 @@ a7/                           # 项目根目录
 
 - **a7/a7/__init__.py**: Python包标识文件，表明该目录是一个Python包。
 - **a7/a7/asgi.py**: ASGI（异步服务器网关接口）应用配置，用于异步服务器部署。
-- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（会话认证，JWT令牌认证已启用）、权限控制、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤（已配置DjangoFilterBackend作为默认过滤后端）、版本控制、JSON格式和时间格式等全局设置。新增MEDIA_ROOT和MEDIA_URL配置，支持文件上传和存储功能。
+- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（会话认证，JWT令牌认证已启用）、权限控制、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤（已配置DjangoFilterBackend作为默认过滤后端）、版本控制、JSON格式和时间格式等全局设置。新增MEDIA_ROOT和MEDIA_URL配置，支持文件上传和存储功能。新增文件上传配置（最大内存大小、文件权限等）和允许的文件类型列表。
 - **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。新增媒体文件URL配置，在开发环境中支持通过/media/路径访问上传的文件。
 - **a7/a7/wsgi.py**: WSGI（Web服务器网关接口）应用配置，用于传统Web服务器部署。
 - **a7/manage.py**: Django命令行工具，用于执行各种管理任务，如运行开发服务器、数据库迁移等。
 - **a7/db.sqlite3**: SQLite数据库文件，存储项目的所有数据，包括用户、角色、权限、课程、知识点等实体数据。在开发环境中使用，包含测试和示例数据。
 - **a7/permission.log**: 项目级权限检查日志文件，记录权限中间件在a7目录下的日志。
+
+### 文件存储相关文件
+
+- **a7/courses/storage.py**: 自定义文件存储类，继承自Django的FileSystemStorage，实现文件名唯一化（使用UUID）和按课程/文件类型组织文件结构的功能。重写了get_available_name和get_valid_name方法，确保文件名唯一性并保留文件路径结构。
+- **a7/courses/utils.py**: 工具函数文件，包含courseware_file_path函数（生成按课程ID和文件类型组织的文件路径）、get_simple_file_type函数（从MIME类型获取简化的文件类型分类）、validate_file_type函数（验证文件类型是否在允许列表中）和validate_file_size函数（验证文件大小是否超过限制）。
+- **a7/courses/models.py**: 包含CoursewareFile模型，用于存储课件文件的元数据（文件名、大小、类型、上传时间等），并使用自定义存储类和文件路径生成函数。添加了get_file_url方法获取文件URL和validate_file方法验证文件类型和大小。
+- **a7/courses/tests/test_file_storage.py**: 文件存储功能的测试文件，验证文件上传、文件名唯一性、文件组织结构、文件验证功能和文件URL生成。
 
 ### Django应用文件
 
@@ -650,7 +660,7 @@ a7/                           # 项目根目录
     - `a7/ai_services/api_response.py`提供标准化API响应的辅助函数。
     - `a7/ai_services/tests/test_student_dialogue.py`和`a7/ai_services/tests/test_student_dialogue_integration.py`提供学生对话API的单元测试和集成测试，验证功能完整性、错误处理和与真实n8n服务的集成。
     - `a7/ai_services/tests/test_exercise_generation.py`提供练习题生成API的单元测试，验证API端点功能、参数验证和错误处理，使用模拟技术测试API行为。
-    - `a7/ai_services/tests/test_exercise_generation_integration.py`提供练习题生成API的集成测试，验证与真实N8N服务的交互，包括通过API端点和直接使用N8nWebhookClient的测试。
+    - `a7/ai_services/tests/test_exercise_generation_integration.py`提供练习题生成API的集成测试，验证与真实N8N服务的交互测试，验证生成不同类型和难度的练习题。
     - `a7/ai_services/tests/test_answer_correction.py`提供学生答案校正API的单元测试，验证API端点功能、参数验证和错误处理。使用模拟（mock）技术测试API的行为，验证API能够正确处理请求、构造适当的prompt、调用AI服务并返回标准化响应。
     - `a7/ai_services/tests/test_answer_correction_integration.py`提供学生答案校正API的集成测试，包含与真实N8N服务的交互测试，验证API能够成功评估不同类型（单选题、多选题、简答题）的学生答案。测试包括正确答案和错误答案的评估，验证评分、反馈和建议的合理性。
 
@@ -674,7 +684,7 @@ a7/                           # 项目根目录
     - `a7/courses/tests/test_api_exercises_additional.py`提供练习题和学生答案API的高级功能和边缘情况测试，包含5个专门的测试类：
       - ExerciseValidationTests：验证练习题字段（标题长度、类型有效性、必填字段）和边缘情况
       - StudentAnswerValidationTests：验证学生答案约束（唯一性约束、分数范围验证）
-      - CombinedFilteringTests：测试组合过滤和复杂排序功能
+      - CombinedFilteringTests：测试组合过滤和排序测试，验证多条件筛选和多字段排序功能
       - PaginationAndEdgeCaseTests：测试分页功能、无效页码处理、特殊字符处理和超长内容处理
       - APIResponseFormatTests：验证API响应格式（列表、详情、错误响应、创建响应）
     - 这两个测试文件共同确保练习题和学生答案API在各种情况下都能正确处理请求并返回标准格式的响应，提高系统的稳定性和可靠性。

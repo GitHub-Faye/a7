@@ -2,6 +2,8 @@ from django.db import models
 from users.models import User
 from django.db.models import Avg, Sum
 from django.utils import timezone
+from .storage import CoursewareFileStorage
+from .utils import courseware_file_path, validate_file_type, validate_file_size
 
 class Course(models.Model):
     """
@@ -143,7 +145,8 @@ class CoursewareFile(models.Model):
         verbose_name='所属课件'
     )
     file = models.FileField(
-        upload_to='coursewares/%Y/%m/',
+        upload_to=courseware_file_path,  # 使用自定义路径生成函数
+        storage=CoursewareFileStorage(),  # 使用自定义存储类
         verbose_name='文件'
     )
     file_name = models.CharField(max_length=255, verbose_name='文件名')
@@ -184,8 +187,6 @@ class CoursewareFile(models.Model):
                     'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                     'ppt': 'application/vnd.ms-powerpoint',
                     'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                    'xls': 'application/vnd.ms-excel',
-                    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     'txt': 'text/plain',
                     'csv': 'text/csv',
                     'png': 'image/png',
@@ -199,6 +200,20 @@ class CoursewareFile(models.Model):
         
         # 确保更新关联课件的has_files状态
         self.courseware.update_has_files()
+        
+    def get_file_url(self):
+        """获取文件的URL"""
+        return self.file.url
+        
+    def validate_file(self, allowed_types=None, max_size_mb=10):
+        """验证文件类型和大小"""
+        if not validate_file_type(self.file, allowed_types):
+            return False, "不支持的文件类型"
+        
+        if not validate_file_size(self.file, max_size_mb):
+            return False, f"文件大小超过限制（最大{max_size_mb}MB）"
+            
+        return True, "文件验证通过"
 
 class Exercise(models.Model):
     """

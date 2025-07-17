@@ -813,11 +813,11 @@
             "id": 2,
             "title": "Configure File Storage Backend",
             "description": "Set up and configure the file storage backend for handling uploaded files.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               1
             ],
-            "details": "Configure Django to use AWS S3 or local storage. Implement logic to generate unique file names and organize files by course or user. Ensure the storage backend is properly initialized and accessible.",
+            "details": "Configure Django to use AWS S3 or local storage. Implement logic to generate unique file names and organize files by course or user. Ensure the storage backend is properly initialized and accessible.\n<info added on 2025-07-17T10:07:55.491Z>\n已完成文件存储后端配置并通过所有测试，具体实现如下：\n\n1. 创建了自定义存储类 `CoursewareFileStorage`：\n   - 继承自Django的 `FileSystemStorage`\n   - 重写了 `get_available_name` 方法，实现文件名唯一化（使用UUID）\n   - 保留文件路径结构，只修改文件名部分\n\n2. 实现了文件路径生成函数 `courseware_file_path`：\n   - 按照 \"coursewares/{course_id}/{file_type}/{filename}\" 格式组织文件\n   - 根据MIME类型自动分类文件（文档、图片、PDF等）\n   - 添加了错误处理，确保即使文件类型未知也能正确处理\n\n3. 实现了文件验证工具函数：\n   - `validate_file_type`：验证文件类型是否在允许列表中\n   - `validate_file_size`：验证文件大小是否超过限制\n   - `get_simple_file_type`：将MIME类型转换为简化分类\n\n4. 更新了 `CoursewareFile` 模型：\n   - 使用自定义存储类和文件路径生成函数\n   - 添加了 `get_file_url` 方法获取文件URL\n   - 添加了 `validate_file` 方法验证文件类型和大小\n\n5. 在 `settings.py` 中配置了文件存储：\n   - 设置默认文件存储类为 `CoursewareFileStorage`\n   - 配置了文件上传参数（最大大小、权限等）\n   - 定义了允许的文件类型列表\n\n6. 编写并通过了完整的测试用例：\n   - 文件上传功能测试：验证文件保存和元数据正确性\n   - 文件名唯一性测试：验证相同文件名不会覆盖\n   - 文件组织结构测试：验证文件按课程ID和类型正确组织\n   - 文件验证功能测试：验证类型和大小检查正常工作\n   - 文件URL生成测试：验证URL路径正确生成\n\n所有测试均已通过，文件存储后端已完全实现，可支持课件文件的上传、存储和检索。系统能够安全地处理文件，生成唯一文件名，并按课程和文件类型组织文件结构。\n</info added on 2025-07-17T10:07:55.491Z>",
             "testStrategy": "Test file storage by uploading and retrieving files. Verify file organization and naming conventions."
           },
           {
@@ -861,7 +861,7 @@
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-17T09:17:35.611Z",
+      "updated": "2025-07-17T10:00:21.556Z",
       "description": "Tasks for master context"
     }
   }
