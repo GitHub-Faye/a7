@@ -25,6 +25,8 @@ from users.views import (
     DecoratedTokenVerifyView,
     DecoratedTokenBlacklistView
 )
+from django.conf import settings
+from django.conf.urls.static import static
 
 # Swagger API文档配置
 schema_view = get_schema_view(
@@ -70,3 +72,7 @@ urlpatterns = [
 
 
 ]
+
+# 在开发环境中提供媒体文件服务
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

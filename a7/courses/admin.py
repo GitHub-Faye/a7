@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord, CourseProgress
+from .models import Course, KnowledgePoint, Courseware, Exercise, StudentAnswer, LearningRecord, CourseProgress, CoursewareFile
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
@@ -17,11 +17,20 @@ class KnowledgePointAdmin(admin.ModelAdmin):
 
 @admin.register(Courseware)
 class CoursewareAdmin(admin.ModelAdmin):
-    list_display = ('title', 'course', 'type', 'created_by', 'created_at')
-    list_filter = ('course', 'type', 'created_by')
+    list_display = ('title', 'course', 'type', 'created_by', 'has_files', 'created_at')
+    list_filter = ('course', 'type', 'created_by', 'has_files')
     search_fields = ('title', 'content')
     date_hierarchy = 'created_at'
     raw_id_fields = ('course', 'created_by')
+
+@admin.register(CoursewareFile)
+class CoursewareFileAdmin(admin.ModelAdmin):
+    list_display = ('file_name', 'courseware', 'file_size', 'file_type', 'upload_time')
+    list_filter = ('file_type', 'upload_time')
+    search_fields = ('file_name', 'courseware__title')
+    date_hierarchy = 'upload_time'
+    readonly_fields = ('file_size', 'file_type', 'upload_time', 'file_name')
+    raw_id_fields = ('courseware',)
 
 @admin.register(Exercise)
 class ExerciseAdmin(admin.ModelAdmin):

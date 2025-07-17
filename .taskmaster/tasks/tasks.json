@@ -784,11 +784,84 @@
             "testStrategy": "Authorization tests with different user roles to verify access restrictions."
           }
         ]
+      },
+      {
+        "id": 19,
+        "title": "Implement Courseware File Upload and Download Functionality",
+        "description": "Extend the Courseware model and API to support file handling, including upload, storage, download, and permission control for PDF, Word, and PPT files.",
+        "status": "pending",
+        "dependencies": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "priority": "high",
+        "details": "1. **Extend Courseware Model**: Add fields to the Courseware model to store file metadata (e.g., file name, size, type, upload timestamp). Remove versioning-related fields and logic.\n2. **File Storage Integration**: Configure Django to use a file storage backend (e.g., AWS S3, local storage) for handling uploaded files. Implement logic to save files with unique names and organize them by course or user.\n3. **Upload API**: Create an API endpoint (`POST /api/courseware/upload/`) for teachers to upload files. Validate file types (PDF, Word, PPT) and sizes. Associate uploaded files with the correct courseware entry.\n4. **Download API**: Implement an endpoint (`GET /api/courseware/download/<file_id>/`) for downloading files. Include permission checks to ensure only authorized users (e.g., students enrolled in the course) can access files.\n5. **Permission Control**: Integrate with the existing user permission system (Task 2) to enforce role-based access (e.g., teachers can upload, students can download).\n6. **Error Handling**: Implement robust error handling for file operations (e.g., invalid file types, storage failures).",
+        "testStrategy": "1. **Unit Testing**:\n   - Test file upload validation (file type, size).\n   - Verify file metadata is correctly stored in the database.\n   - Test permission checks for upload and download endpoints.\n2. **Integration Testing**:\n   - Simulate file uploads and downloads via API requests.\n   - Test edge cases (e.g., concurrent uploads, large files).\n   - Verify permission enforcement with different user roles.\n3. **End-to-End Testing**:\n   - Upload a file, download it, and verify its integrity.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Extend Courseware Model for File Metadata",
+            "description": "Add fields to the Courseware model to store file metadata (without versioning).",
+            "status": "done",
+            "dependencies": [],
+            "details": "Modify the Courseware model to include fields for file name, size, type, and upload timestamp. Remove all versioning-related fields and logic. Ensure the model properly stores file path references.\n<info added on 2025-07-17T06:50:35.602Z>\n创建CoursewareFile模型用于存储文件元数据（文件名、大小、类型、上传时间）。扩展Courseware模型添加has_files字段以支持文件存储。移除所有版本控制相关字段和逻辑。完成数据库迁移文件创建和应用。配置Admin界面添加文件管理功能。编写单元测试覆盖模型功能和关系验证。注意事项包括媒体存储配置、S3集成准备、URL路由设置以及文件类型验证。\n</info added on 2025-07-17T06:50:35.602Z>\n<info added on 2025-07-17T09:17:29.143Z>\n已成功实现Courseware模型文件元数据存储功能：\n1. 创建了CoursewareFile模型，包含完整的文件元数据字段（文件名、大小、类型、上传时间）\n2. 扩展Courseware模型添加has_files字段，实现与文件的关联\n3. 添加文件类型智能识别功能，可根据文件内容类型或扩展名确定MIME类型\n4. 完成必要的媒体文件配置（MEDIA_URL和MEDIA_ROOT）\n5. 更新Admin界面，添加CoursewareFile管理功能\n6. 编写完整的单元测试，覆盖文件创建、删除和多文件管理场景\n7. 确保文件关联状态（has_files）可以正确更新\n所有测试均已通过，功能完整可用，为文件上传和下载API开发做好准备\n</info added on 2025-07-17T09:17:29.143Z>",
+            "testStrategy": "Test model creation and updates with file metadata. Verify file association works correctly."
+          },
+          {
+            "id": 2,
+            "title": "Configure File Storage Backend",
+            "description": "Set up and configure the file storage backend for handling uploaded files.",
+            "status": "pending",
+            "dependencies": [
+              1
+            ],
+            "details": "Configure Django to use AWS S3 or local storage. Implement logic to generate unique file names and organize files by course or user. Ensure the storage backend is properly initialized and accessible.",
+            "testStrategy": "Test file storage by uploading and retrieving files. Verify file organization and naming conventions."
+          },
+          {
+            "id": 3,
+            "title": "Implement File Upload API",
+            "description": "Create an API endpoint for teachers to upload files with validation.",
+            "status": "pending",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create a POST endpoint `/api/courseware/upload/` to handle file uploads. Validate file types (PDF, Word, PPT) and sizes. Associate uploaded files with the correct courseware entry and update the model accordingly.",
+            "testStrategy": "Test file upload with valid and invalid files. Verify metadata is correctly stored and associated."
+          },
+          {
+            "id": 4,
+            "title": "Implement File Download API",
+            "description": "Create an API endpoint for downloading files with permission checks.",
+            "status": "pending",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement a GET endpoint `/api/courseware/download/<file_id>/` to handle file downloads. Integrate permission checks to ensure only authorized users (e.g., enrolled students) can access files. Return the file or an appropriate error response.",
+            "testStrategy": "Test download access with authorized and unauthorized users. Verify file retrieval and error handling."
+          },
+          {
+            "id": 5,
+            "title": "Integrate Permission Control",
+            "description": "Enforce role-based access control for file operations.",
+            "status": "pending",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Integrate with the existing user permission system to restrict uploads to teachers and downloads to enrolled students. Ensure all API endpoints enforce these permissions.",
+            "testStrategy": "Test access control by attempting operations with different user roles. Verify restrictions are enforced."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-14T03:44:52.836Z",
+      "updated": "2025-07-17T09:17:35.611Z",
       "description": "Tasks for master context"
     }
   }

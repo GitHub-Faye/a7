@@ -185,6 +185,7 @@ a7/                           # 项目根目录
 - **a7/tmp/**: 临时文件目录，存储处理过程中的临时文件
 - **a7/static/**: 静态文件存储目录，包含项目使用的静态资源文件，包括presentations子目录
 - **a7/marp_test_output/**: 项目级Marp测试输出目录，存储在a7目录中进行的测试生成的文件
+- **a7/media/**: 媒体文件存储目录，用于保存用户上传的文件，如课件相关文件，按年月组织目录结构
 
 ## 文件用途说明
 
@@ -199,8 +200,8 @@ a7/                           # 项目根目录
 
 - **a7/a7/__init__.py**: Python包标识文件，表明该目录是一个Python包。
 - **a7/a7/asgi.py**: ASGI（异步服务器网关接口）应用配置，用于异步服务器部署。
-- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（会话认证，JWT令牌认证已启用）、权限控制、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤（已配置DjangoFilterBackend作为默认过滤后端）、版本控制、JSON格式和时间格式等全局设置。
-- **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。
+- **a7/a7/settings.py**: Django项目的核心配置文件，包含数据库、应用、中间件等设置。包含完整的Django REST Framework配置，定义了API认证（会话认证，JWT令牌认证已启用）、权限控制、分页（每页20条）、渲染器（JSON和可视化API）、解析器、异常处理、过滤（已配置DjangoFilterBackend作为默认过滤后端）、版本控制、JSON格式和时间格式等全局设置。新增MEDIA_ROOT和MEDIA_URL配置，支持文件上传和存储功能。
+- **a7/a7/urls.py**: URL路由配置，定义请求路径与视图函数的映射关系。新增媒体文件URL配置，在开发环境中支持通过/media/路径访问上传的文件。
 - **a7/a7/wsgi.py**: WSGI（Web服务器网关接口）应用配置，用于传统Web服务器部署。
 - **a7/manage.py**: Django命令行工具，用于执行各种管理任务，如运行开发服务器、数据库迁移等。
 - **a7/db.sqlite3**: SQLite数据库文件，存储项目的所有数据，包括用户、角色、权限、课程、知识点等实体数据。在开发环境中使用，包含测试和示例数据。
@@ -241,9 +242,9 @@ a7/                           # 项目根目录
 ### 课程管理应用文件
 
 - **a7/courses/__init__.py**: Courses应用的Python包标识文件。
-- **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。
+- **a7/courses/admin.py**: 课程相关模型的Admin配置，定义Course、KnowledgePoint、Courseware、CoursewareFile、Exercise、StudentAnswer和LearningRecord模型在管理界面的展示方式和操作功能。添加了CoursewareFile的Admin配置，支持文件元数据的管理。
 - **a7/courses/apps.py**: 课程应用配置文件，包含应用元数据和中文名称设置。
-- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。新增CourseProgress（课程进度）模型，跟踪学生整体课程完成情况，包括总体进度、必修内容完成状态、正确率和总学习时间。
+- **a7/courses/models.py**: 模型定义，包含Course（课程）、KnowledgePoint（知识点）、Courseware（课件）、CoursewareFile（课件文件）、Exercise（练习题）、StudentAnswer（学生答案）和LearningRecord（学习记录）模型，实现课程内容管理、练习评测系统和学习进度跟踪功能。新增CourseProgress（课程进度）模型，跟踪学生整体课程完成情况，包括总体进度、必修内容完成状态、正确率和总学习时间。CoursewareFile模型存储课件相关文件的元数据，包括文件名、大小、类型和上传时间，并通过Courseware的has_files字段表示课件是否有相关文件。
 - **a7/courses/serializers.py**: 课程序列化器定义，包含CourseSerializer（读取）、CourseCreateSerializer（创建）、CourseUpdateSerializer（更新）和CourseGenerationSerializer（AI内容生成请求）类，负责课程数据的序列化与反序列化。还包含KnowledgePointSerializer（读取，含课程标题、父知识点标题和子知识点列表）、KnowledgePointCreateSerializer（创建，含父知识点属于同一课程的验证）和KnowledgePointUpdateSerializer（更新，含循环引用和跨课程引用验证）类，负责知识点数据的序列化与反序列化。实现了验证方法（validate_title、validate_subject等），确保数据有效性和一致性。还包含QuestionGenerationSerializer，用于问题生成API的请求参数验证。新增Exercise和StudentAnswer相关序列化器（读取、创建、更新、反馈），支持练习题和学生答案管理。
 - **a7/courses/permissions.py**: 课程权限类定义，包含IsTeacherOrAdmin（教师或管理员权限）和IsCourseTeacherOrAdmin（课程教师或管理员权限）类，负责课程API的权限控制。还包含IsKnowledgePointCourseTeacherOrAdmin权限类，确保只有知识点所属课程的教师或管理员可以修改或删除知识点。
 - **a7/courses/urls.py**: 课程应用的URL路由配置，使用`DefaultRouter`注册`CourseViewSet`、`KnowledgePointViewSet`、`CoursewareViewSet`、`CourseContentGenerationViewSet`、`QuestionGenerationViewSet`、`ExerciseViewSet`和`StudentAnswerViewSet`，提供课程内容、练习和答案的API端点。
@@ -272,6 +273,7 @@ a7/                           # 项目根目录
 - **a7/courses/tests/test_progress_models.py**: 学习进度跟踪模型的单元测试，验证CourseProgress和LearningRecord模型的功能、状态转换和数据完整性。
 - **a7/courses/tests/test_progress_serializers.py**: 学习进度序列化器的单元测试，验证序列化、反序列化、验证逻辑和字段保护功能。
 - **a7/courses/tests/test_progress_tracking.py**: 学习进度跟踪API的功能测试，验证进度查询、更新和统计功能，以及权限控制和数据一致性。
+- **a7/courses/tests/test_courseware_file.py**: 课件文件模型的单元测试，验证文件元数据存储、文件类型自动检测、文件管理和Courseware模型的has_files状态自动更新功能。测试覆盖文件创建、删除以及多文件管理场景。
 
 #### 知识点到演示文稿转换测试
 - **a7/courses/tests/test_knowledge_to_ppt_api.py**: 知识点到PPT转换API的全面测试，验证参数验证、授权、响应格式和错误处理。
