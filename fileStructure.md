@@ -4,14 +4,30 @@
 
 ```
 a7/                           # 项目根目录
-├── .roo/                     # Roo助手规则及配置目录
-│   ├── rules/                # 基础规则目录
-│   ├── rules-architect/      # 架构相关规则目录
-│   ├── rules-ask/            # 查询相关规则目录
-│   ├── rules-boomerang/      # Boomerang相关规则目录
-│   ├── rules-code/           # 代码生成相关规则目录
-│   ├── rules-debug/          # 调试相关规则目录
-│   └── rules-test/           # 测试相关规则目录
+├── .cursor/                  # Cursor IDE配置目录
+│   ├── rules/                # 规则目录
+│   │   ├── taskmaster/       # TaskMaster规则子目录
+│   │   ├── cursor_rules.mdc  # Cursor规则文件
+│   │   ├── self_improve.mdc  # 规则改进指南
+│   │   ├── context7.mdc      # Context7规则
+│   │   ├── file_structure.mdc # 文件结构规则
+│   │   ├── taskmaster.mdc    # TaskMaster命令参考
+│   │   └── dev_workflow.mdc  # 开发工作流指南
+│   └── mcp.json              # Model Control Protocol配置
+├── .taskmaster/              # TaskMaster工具目录
+│   ├── tasks/                # 任务文件目录
+│   │   ├── tasks.json        # 任务定义文件
+│   │   ├── tasks.json.bak    # 任务定义备份
+│   │   └── task_*.txt        # 各个任务详细文件
+│   ├── task_done/            # 已完成任务目录
+│   ├── docs/                 # 文档目录
+│   │   ├── CurrentPlan.md    # 当前计划文档
+│   │   └── prd.txt           # 产品需求文档
+│   ├── reports/              # 报告目录
+│   ├── templates/            # 模板目录
+│   │   └── example_prd.txt   # 示例PRD模板
+│   ├── config.json           # TaskMaster配置文件
+│   └── state.json            # TaskMaster状态文件
 ├── a7/                       # Django项目主目录
 │   ├── a7/                   # Django项目配置包
 │   │   ├── __init__.py       # Python包初始化文件
@@ -19,6 +35,24 @@ a7/                           # 项目根目录
 │   │   ├── settings.py       # Django设置文件
 │   │   ├── urls.py           # URL路由配置，包含Swagger/ReDoc文档URL和JWT认证URL
 │   │   └── wsgi.py           # WSGI应用配置
+│   ├── marp_service/         # Marp服务应用
+│   │   ├── __init__.py       # Python包初始化文件，包含主要转换函数
+│   │   ├── apps.py           # 应用配置
+│   │   ├── cli.py            # Marp命令行接口构建与执行
+│   │   ├── exceptions.py     # 异常类定义
+│   │   ├── serializers.py    # API序列化器
+│   │   ├── temp.py           # 临时文件管理
+│   │   ├── urls.py           # URL路由配置
+│   │   ├── utils.py          # 工具函数
+│   │   ├── validation.py     # Markdown验证模块
+│   │   ├── views.py          # API视图
+│   │   ├── themes/           # Marp主题目录
+│   │   │   ├── hierarchy-default.css    # 默认层级主题
+│   │   │   ├── hierarchy-minimalist.css # 极简层级主题
+│   │   │   └── hierarchy-teaching.css   # 教学层级主题
+│   │   ├── tests/           # 测试目录
+│   │   ├── management/       # 管理命令目录
+│   │   └── migrations/       # 数据库迁移目录
 │   ├── apps/                 # Django应用程序目录
 │   │   ├── __init__.py       # Python包初始化文件
 │   │   └── core/             # 核心应用程序
@@ -85,33 +119,72 @@ a7/                           # 项目根目录
 │   │   ├── serializers_progress.py # 学习进度跟踪序列化器
 │   │   ├── urls.py           # 课程URL配置
 │   │   └── views.py          # 课程视图
-├── scripts/                  # 脚本和工具目录
-│   └── example_prd.txt       # 产品需求文档示例
+│   ├── users/                # 用户管理应用
+│   │   ├── migrations/       # 数据库迁移文件
+│   │   ├── tests/            # 测试目录
+│   │   │   ├── __init__.py   # 测试包初始化文件
+│   │   │   └── test_jwt_middleware.py # JWT中间件测试
+│   │   ├── management/       # 管理命令目录
+│   │   │   ├── __init__.py   # 管理命令包初始化文件
+│   │   │   └── commands/     # Django管理命令
+│   │   │       ├── __init__.py # 命令包初始化文件
+│   │   │       ├── init_roles.py # 初始化角色命令
+│   │   │       └── sync_roles.py # 同步角色命令
+│   │   ├── middleware/       # 中间件目录
+│   │   │   ├── __init__.py   # 中间件包初始化文件
+│   │   │   └── jwt_auth_middleware.py # JWT认证中间件
+│   │   ├── __init__.py       # Python包初始化文件
+│   │   ├── admin.py          # 用户Admin配置
+│   │   ├── apps.py           # 应用配置
+│   │   ├── models.py         # 用户和角色模型定义
+│   │   ├── permission_utils.py # 权限工具函数
+│   │   ├── permissions.py    # 权限类定义
+│   │   ├── serializers.py    # 用户序列化器
+│   │   ├── signals.py        # 信号处理器
+│   │   ├── urls.py           # 用户URL配置
+│   │   └── views.py          # 用户视图
+├── .github/                  # GitHub配置目录
+├── .git/                     # Git版本控制目录
+├── .pytest_cache/            # Pytest缓存目录
 ├── tasks/                    # 任务文件目录（Task Master生成的任务）
 ├── test_html/                # 测试HTML文件目录
 │   ├── auth_test.html        # 登录/登出/密码更改功能测试页面
 │   ├── permissions_test.html # 角色权限测试页面
 │   └── ppt_direct_download_test.html # 知识点到PPT直接下载功能测试页面
 ├── pptx_output/              # 知识点到PPT转换输出目录，存储生成的PPTX文件
-├── marp_test_output/         # Marp集成测试输出目录，存储测试生成的文件
-├── api_test_output/          # API测试输出目录，存储测试结果报告
+├── marp_test_output/         # Marp集成测试输出目录
+│   ├── default_theme/        # 默认主题测试输出
+│   │   ├── default_hierarchy_theme.html  # HTML格式输出
+│   │   ├── default_hierarchy_theme.pdf   # PDF格式输出
+│   │   └── default_hierarchy_theme.pptx  # PPTX格式输出
+│   ├── minimalist_theme/     # 极简主题测试输出
+│   ├── teaching_theme/       # 教学主题测试输出
+│   └── style_options/        # 样式选项测试输出
+├── api_test_output/          # API测试输出目录，存储测试结果和生成的文件
 ├── test_api.py               # API测试脚本，用于测试中间件功能
 ├── test_api_question.py      # API测试脚本，用于测试问题生成API
 ├── marp_integration_test.py  # 手动集成测试脚本，测试知识点到PPT的完整流程
 ├── api_test_runner.py        # API端到端测试运行脚本，测试各种格式的直接下载功能
-├── .env.example              # 环境变量示例文件
 ├── .gitignore                # Git忽略配置文件
 ├── .roomodes                 # Roo模式配置文件
-├── .taskmasterconfig         # Task Master配置文件
 ├── .windsurfrules            # Windsurf规则配置文件
 ├── a7.code-workspace         # VS Code工作区配置文件
 ├── context7_library.md       # Context7库ID记录文件
+├── CurrentPlan.md            # 当前项目计划文档
 ├── fileStructure.md          # 项目文件结构文档（本文件）
+├── jwt_auth.log              # JWT认证日志文件
+├── old_ai_servers.md         # 旧AI服务器文档
 ├── permission.log            # 权限检查日志文件
 ├── request.log               # 请求日志文件
-├── jwt_auth.log              # JWT认证日志文件
-└── prd.txt                   # 产品需求文档文件
+└── requirements.txt          # 项目依赖文件
 ```
+
+## 项目目录中的特殊文件夹
+
+- **a7/presentations/**: 演示文稿存储目录，用于保存知识点生成的演示文稿文件
+- **a7/tmp/**: 临时文件目录，存储处理过程中的临时文件
+- **a7/static/**: 静态文件存储目录，包含项目使用的静态资源文件，包括presentations子目录
+- **a7/marp_test_output/**: 项目级Marp测试输出目录，存储在a7目录中进行的测试生成的文件
 
 ## 文件用途说明
 
@@ -183,10 +256,31 @@ a7/                           # 项目根目录
 - **a7/courses/tests_api_new.py**: 课程内容管理API的全面测试套件，包含CourseAPITests（验证课程CRUD和权限控制）、KnowledgePointAPITests（测试知识点层级结构和循环引用防护）、CoursewareAPITests（测试课件管理功能）和CourseContentGenerationAPITests（测试AI内容生成）四个主要测试类。共实现42个全面测试用例，验证不同用户角色（管理员、教师、学生）的权限控制、所有API端点的功能完整性以及特殊操作如my_courses、top_level、children和by_course等。测试包含边界情况处理、数据验证和错误响应。
 - **a7/courses/tests_validation.py**: 验证逻辑测试文件，包含对课程、知识点和课件API的验证逻辑测试，验证字段验证、唯一性检查、关系完整性（如循环引用检测）等验证功能的正确性。测试不同场景下的验证行为，确保数据一致性和业务规则的强制执行。
 - **a7/courses/migrations/**: 包含课程模型的数据库迁移文件，记录模型结构的变更历史。
+#### 问题和练习测试
+- **a7/courses/tests/test_api_questions.py**: 问题生成API的测试，验证API端点功能、参数验证、授权和错误处理，确保通过API生成问题的完整流程正常工作。
 - **a7/courses/tests/test_question_export.py**: 问题导出工具的单元测试，验证JSON和CSV格式导出功能、文件名生成、内容类型设置和错误处理。包含QuestionExportToolTests和QuestionExportAPITests两个测试类，共9个测试用例。
 - **a7/courses/tests/test_question_export_integration.py**: 问题导出功能的集成测试，验证从问题生成到导出的完整流程。使用模拟技术测试API响应、会话存储和多种格式导出。
 - **a7/courses/tests/test_api_exercises.py**: 练习题和学生答案API的CRUD功能测试，包括对过滤、排序和搜索功能的全面测试用例，验证按知识点过滤、按创建时间排序、按内容搜索等功能的正确性。
-- **a7/courses/tests/test_api_exercises_additional.py**: 练习题和学生答案API的补充测试文件，包含ExerciseValidationTests（字段验证和边缘情况测试）、StudentAnswerValidationTests（学生答案约束测试）、CombinedFilteringTests（组合过滤和排序测试）、PaginationAndEdgeCaseTests（分页和边缘情况测试）和APIResponseFormatTests（API响应格式测试）五个测试类，共18个测试用例。验证了字段验证、学生答案约束、组合过滤排序、分页功能、特殊字符处理和API响应格式等方面。
+- **a7/courses/tests/test_api_exercises_additional.py**: 练习题和学生答案API的补充测试文件，包含以下测试类：
+  - **ExerciseValidationTests**: 字段验证和边缘情况测试，验证题型、难度、必填字段等验证逻辑
+  - **StudentAnswerValidationTests**: 学生答案约束测试，验证唯一性约束和分数范围验证
+  - **CombinedFilteringTests**: 组合过滤和排序测试，验证多条件筛选和多字段排序功能
+  - **PaginationAndEdgeCaseTests**: 分页和边缘情况测试，验证分页、无效页码、特殊字符处理等
+  - **APIResponseFormatTests**: API响应格式测试，验证列表、详情、错误响应和创建响应的标准格式
+
+#### 学习进度测试
+- **a7/courses/tests/test_progress_models.py**: 学习进度跟踪模型的单元测试，验证CourseProgress和LearningRecord模型的功能、状态转换和数据完整性。
+- **a7/courses/tests/test_progress_serializers.py**: 学习进度序列化器的单元测试，验证序列化、反序列化、验证逻辑和字段保护功能。
+- **a7/courses/tests/test_progress_tracking.py**: 学习进度跟踪API的功能测试，验证进度查询、更新和统计功能，以及权限控制和数据一致性。
+
+#### 知识点到演示文稿转换测试
+- **a7/courses/tests/test_knowledge_to_ppt_api.py**: 知识点到PPT转换API的全面测试，验证参数验证、授权、响应格式和错误处理。
+- **a7/courses/tests/test_knowledge_to_ppt_service.py**: 知识点到PPT转换服务的单元测试，验证服务的核心功能、配置选项和输出格式。
+- **a7/courses/tests/test_knowledge_to_ppt_conversion.py**: 知识点转换为Markdown的功能测试，验证内容格式化、层级结构和元数据处理。
+- **a7/courses/tests/test_knowledge_to_ppt_integration.py**: 完整转换流程的集成测试，验证从知识点数据到最终演示文稿的全流程。
+- **a7/courses/tests/test_knowledge_to_ppt_real.py**: 使用真实数据的转换测试，验证在实际环境下的转换结果和性能表现。
+- **a7/courses/tests/test_knowledge_to_ppt_direct_download.py**: 直接下载功能测试，验证Content-Type设置、文件名处理和响应头配置。
+- **a7/courses/tests/test_markdown_validation_integration.py**: Markdown验证与修复功能的集成测试，验证自动修正和格式规范化功能。
 - **a7/courses/serializers_ppt.py**: 知识点到PPT转换序列化器定义，包含KnowledgePointToPPTSerializer类，负责验证知识点转PPT所需的各项参数，包括必填的knowledge_point_ids（知识点ID列表）和可选参数如include_children（是否包含子知识点）、max_depth（包含子知识点的最大深度）、format（输出格式，支持pptx/pdf/html）、theme（演示主题）等。实现了validate_knowledge_point_ids方法检查ID重复，以及validate方法进行整体数据验证。新增direct_download和filename字段，支持直接下载功能，启用后将文件直接作为响应返回，并使用指定的文件名。
 - **a7/courses/serializers_progress.py**: 学习进度跟踪相关序列化器定义，包含KnowledgePointProgressSerializer、ExerciseProgressSerializer、StudentAnswerSerializer、LearningRecordSerializer、LearningRecordUpdateSerializer、CourseProgressSerializer和CourseProgressDetailSerializer类，实现进度数据的序列化与反序列化，支持字段验证和只读保护。
 - **a7/courses/services/progress_tracker.py**: 进度跟踪服务实现，提供ProgressTrackerService类，负责更新练习题统计信息、知识点进度和课程整体进度，以及获取学生进度概览。实现了三个核心方法：update_exercise_statistics（更新练习题统计信息）、update_knowledge_point_progress（更新知识点进度）和update_course_progress（更新课程整体进度），以及get_student_progress（获取学生进度概览）。
@@ -207,28 +301,84 @@ a7/                           # 项目根目录
 
 ### n8n Webhook服务文件
 
-- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及课程内容生成的便捷方法。还实现了问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。新增答案校正的便捷方法（correct_student_answer和correct_student_answer_sync），支持评估学生提交的答案并提供结构化的反馈。
-- **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，包括N8nWebhookError基类、N8nConnectionError（连接错误）、N8nTimeoutError（超时错误）、N8nResponseError（响应错误）以及请求/响应验证相关的异常。
-- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义标准化的请求/响应数据模型（如`ragAI`和`courseGeneration`任务），这些模型设计得足够灵活，能够处理外部API可能返回的不同响应格式。包含问题生成相关的数据模型（QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData）和学生对话相关的数据模型（DialogueRequestData、DialogueResource、DialogueResponseData）。新增练习题生成相关的数据模型（ExerciseGenerationRequestData、ExerciseGenerationResponseData）和解析函数（parse_exercise_text、parse_single_exercise），支持从文本中提取练习题内容、选项和答案。题型格式使用下划线格式（如"single_choice"、"multiple_choice"），确保与系统其他部分的格式一致。新增答案校正相关的数据模型（AnswerCorrectionResponseData）和解析函数（format_answer_correction_response），支持从AI服务返回的文本中提取结构化的答案评估结果，包括正确性、得分、反馈、改进建议和解析说明。
+- **a7/ai_services/services/n8n_webhook/client.py**: N8nWebhookClient实现，提供异步HTTP客户端用于调用n8n webhook服务，包含请求/响应验证逻辑及各类功能的便捷方法：
+  - **课程内容生成方法**（generate_course_content、generate_course_content_sync）
+  - **问题生成方法**（generate_questions、generate_questions_sync）
+  - **学生对话方法**（dialogue_with_student、dialogue_with_student_sync）
+  - **答案校正方法**（correct_student_answer、correct_student_answer_sync）
+  - **练习题生成方法**（generate_exercises、generate_exercises_sync）
+  - **知识点转Markdown方法**（generate_markdown_from_knowledge）
+  - 所有方法均提供同步和异步两种版本，简化调用流程
+  
+- **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，构建完整异常层次结构：
+  - **N8nWebhookError** 作为基类
+  - **N8nConnectionError**（连接错误）
+  - **N8nTimeoutError**（超时错误）
+  - **N8nResponseError**（响应错误）
+  - **N8nValidationError**（请求/响应验证相关异常）
+  - 提供详细的错误信息和处理机制，增强系统健壮性
+  
+- **a7/ai_services/services/n8n_webhook/formats.py**: 使用Pydantic定义全面的请求/响应数据模型：
+  - **课程内容生成相关模型** (CourseGenerationRequestData、CourseGenerationResponseData)
+  - **问题生成相关模型** (QuestionGenerationRequestData、QuestionData、QuestionGenerationResponseData)
+  - **学生对话相关模型** (DialogueRequestData、DialogueResource、DialogueResponseData)
+  - **练习题生成相关模型** (ExerciseGenerationRequestData、ExerciseGenerationResponseData)
+  - **答案校正相关模型** (AnswerCorrectionRequestData、AnswerCorrectionResponseData)
+  - **知识点转Markdown相关模型** (MarkdownGenerationRequestData、MarkdownGenerationResponseData)
+  - **多种解析函数**，如parse_exercise_text、parse_single_exercise、format_answer_correction_response等
+  - 题型格式统一使用下划线格式（如"single_choice"、"multiple_choice"），确保系统一致性
+  
+- **a7/ai_services/services/n8n_webhook/prompt_templates.py**: 定义各种AI任务的提示模板：
+  - 为不同任务类型提供结构化的提示模板
+  - 包含模板参数替换和格式化功能
+  - 实现提示模板的版本控制和选择机制
+  
+- **a7/ai_services/services/n8n_webhook/response_processor.py**: 负责处理AI服务返回的响应：
+  - 实现响应解析和验证逻辑
+  - 处理各种格式的AI输出（JSON、markdown、结构化文本等）
+  - 转换AI响应为标准化的数据格式
+  
+- **a7/ai_services/services/n8n_webhook/logger.py**: 实现N8N服务日志记录：
+  - 提供专门的日志记录器
+  - 记录请求、响应和错误信息
+  - 支持可配置的日志级别
 
 ### AI服务测试文件
 
 - **a7/ai_services/tests/__init__.py**: AI服务测试包标识文件。
 - **a7/ai_services/tests/conftest.py**: pytest配置文件，包含测试固件（fixtures）、事件循环配置、测试标记注册以及全局测试设置。
-- **a7/ai_services/tests/test_client.py**: n8n webhook客户端测试，主要测试课程内容生成方法的逻辑。
-- **a7/ai_services/tests/test_formats.py**: n8n webhook数据格式(Pydantic模型)的单元测试。
+- **a7/ai_services/tests/individual_tests/**: 包含独立测试脚本的目录，便于隔离测试特定功能。
+
+#### 基础组件测试
+- **a7/ai_services/tests/test_client.py**: n8n webhook客户端测试，主要测试客户端的基本功能和错误处理。
+- **a7/ai_services/tests/test_formats.py**: n8n webhook数据格式(Pydantic模型)的单元测试，验证数据模型的验证逻辑和字段类型转换。
 - **a7/ai_services/tests/test_knowledge_converter.py**: knowledge_converter模块的单元测试，验证JSON到Django模型的转换逻辑、数据验证、递归深度限制和数据库操作的原子性（事务回滚）。
 - **a7/ai_services/tests/test_n8n_service.py**: n8n Webhook服务的异步测试实现。包含使用模拟(mock)数据的单元测试和针对真实n8n环境的集成测试，以验证端到端的功能。
-- **a7/ai_services/tests/test_question_format.py**: 问题格式化工具的单元测试。
-- **a7/ai_services/tests/test_real_n8n_integration.py**: 与真实n8n服务的集成测试。
+- **a7/ai_services/tests/test_prompt_templates.py**: 测试提示模板的正确生成、参数替换和格式化功能。
+- **a7/ai_services/tests/test_format_responses.py**: 测试AI响应的格式化和解析功能，确保系统能正确处理各种格式的AI输出。
+- **a7/ai_services/tests/test_response_parsing.py**: 测试响应解析逻辑，验证系统能从各种AI输出格式中提取结构化信息。
+- **a7/ai_services/tests/test_question_format.py**: 问题格式化工具的单元测试，验证问题格式转换和处理功能。
+- **a7/ai_services/tests/test_views_integration.py**: N8nWebhookAPIView的集成测试，验证从API接收请求到数据持久化的完整流程。
+
+#### 功能集成测试
+- **a7/ai_services/tests/test_real_n8n_integration.py**: 与真实n8n服务的基础集成测试，验证连接、通信和响应处理。
+- **a7/ai_services/tests/test_generate_course_content_integration.py**: 测试课程内容生成功能的集成测试，验证与n8n服务的交互和响应处理。
+- **a7/ai_services/tests/test_generate_markdown_from_knowledge_integration.py**: 知识点转Markdown功能的集成测试，验证转换过程和输出格式的正确性。
+- **a7/ai_services/tests/test_generate_questions_integration.py**: 问题生成功能的集成测试，验证基于知识点内容生成问题的完整流程。
+- **a7/ai_services/tests/test_knowledge_point_to_ppt_integration.py**: 知识点到PPT转换功能的集成测试，验证从知识点数据到演示文稿的完整流程。
+
+#### 学生互动功能测试
 - **a7/ai_services/tests/test_student_dialogue.py**: 学生对话API的单元测试，包含序列化器测试、数据模型测试和API端点测试，使用模拟对象替代真实的n8n服务。
 - **a7/ai_services/tests/test_student_dialogue_integration.py**: 学生对话API的集成测试，包含与真实n8n服务的交互测试和错误处理测试，验证单轮对话和多轮对话功能。
-- **a7/ai_services/tests/test_views_integration.py**: N8nWebhookAPIView的集成测试，验证从API接收请求到数据持久化的完整流程。
-- **a7/ai_services/tests/run_student_dialogue_tests.py**: 学生对话测试运行脚本，提供便捷的方式运行单元测试和集成测试。
-- **a7/ai_services/tests/test_exercise_generation.py**: 练习题生成API的单元测试，包含对API端点的功能测试、参数验证测试和错误处理测试。使用模拟（mock）技术测试API的行为，验证API能够正确处理请求、验证参数和返回标准化响应。
-- **a7/ai_services/tests/test_exercise_generation_integration.py**: 练习题生成API的集成测试，包含与真实N8N服务的交互测试，验证API能够成功调用AI服务生成练习题。测试包括通过API端点的测试和直接使用N8nWebhookClient的测试，确保整个流程正常工作。
-- **a7/ai_services/tests/test_answer_correction.py**: 学生答案校正API的单元测试，验证API端点功能、参数验证和错误处理。使用模拟（mock）技术测试API的行为，验证API能够正确处理请求、构造适当的prompt、调用AI服务并返回标准化响应。
-- **a7/ai_services/tests/test_answer_correction_integration.py**: 学生答案校正API的集成测试，包含与真实N8N服务的交互测试，验证API能够成功评估不同类型（单选题、多选题、简答题）的学生答案。测试包括正确答案和错误答案的评估，验证评分、反馈和建议的合理性。
+- **a7/ai_services/tests/test_student_assistant_integration.py**: 学生助手功能的全面集成测试，验证复杂场景下的响应质量和系统稳定性。
+- **a7/ai_services/tests/test_exercise_generation.py**: 练习题生成API的单元测试，包含对API端点的功能测试、参数验证测试和错误处理测试。
+- **a7/ai_services/tests/test_exercise_generation_integration.py**: 练习题生成API的集成测试，包含与真实N8N服务的交互测试，验证生成不同类型和难度的练习题。
+- **a7/ai_services/tests/test_answer_correction.py**: 学生答案校正API的单元测试，验证API端点功能、参数验证和错误处理。
+- **a7/ai_services/tests/test_answer_correction_integration.py**: 学生答案校正API的集成测试，包含评估不同类型（单选题、多选题、简答题）学生答案的功能测试。
+
+#### 测试运行脚本
+- **a7/ai_services/tests/run_integration_tests.py**: 集成测试运行脚本，提供统一的方式运行所有集成测试。
+- **a7/ai_services/tests/run_student_assistant_tests.py**: 学生助手功能测试运行脚本，提供便捷的方式测试学生交互相关功能。
 
 ### pytest配置文件
 
@@ -287,7 +437,17 @@ a7/                           # 项目根目录
 
 - **test_html/**: 包含测试文件，用于前端测试特定功能，如认证和权限控制。
 
-- **marp_test_output/**: 存储Marp集成测试生成的文件，包括知识点数据JSON、生成的Markdown、验证结果、修复后的Markdown以及最终的演示文稿文件。用于分析和调试知识点到PPT转换的完整流程。
+- **marp_test_output/**: 存储Marp集成测试生成的文件，用于分析和调试知识点到PPT转换的完整流程。
+  - **default_theme/**: 默认主题测试输出，包含HTML、PDF和PPTX格式的文件，使用默认层级主题。
+  - **minimalist_theme/**: 极简主题测试输出，包含使用极简层级主题的各种格式文件。
+  - **teaching_theme/**: 教学主题测试输出，包含使用教学层级主题的各种格式文件。
+  - **style_options/**: 样式选项测试输出，包含使用不同颜色方案的测试结果。
+
+- **api_test_output/**: API测试输出目录，存储API测试过程中生成的文件和测试报告。
+  - 包含各种格式的演示文稿文件（以UUID命名，如`presentation_*.pptx/pdf/html`）
+  - 包含测试下载文件（命名格式如`test_download_*.pptx/pdf/html`）
+  - 包含HTML格式的测试报告（如`test_report_*.html`）
+  - 包含用于测试的占位文件（`placeholder_presentation_*.pptx/pdf/html`）
 
 - **pptx_output/**: 知识点到PPT转换输出目录，存储生成的PPTX文件，用于正式环境下的演示文稿保存和分享。
 
@@ -348,11 +508,16 @@ a7/                           # 项目根目录
    - 所有模型均添加了优化索引，提高查询性能，如course_subj_grade_idx索引(Course模型)，kp_course_imp_idx索引(KnowledgePoint模型)等。
    - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有模型关系、外键、反向查询和级联删除行为，包括教师删除对课程的影响、课程删除对知识点的级联删除等。
 
-4. **Task Master相关**:
-   - `.taskmasterconfig`定义Task Master的行为和使用的AI模型。
-   - `scripts/example_prd.txt`提供用于生成任务的PRD模板。
-   - `prd.txt`是基于示例创建的实际产品需求文档，用于任务生成。
-   - `tasks/`目录存储由Task Master基于PRD生成的任务文件。
+4. **TaskMaster相关**:
+   - `.taskmaster/config.json`定义TaskMaster的配置信息，包括使用的AI模型和参数设置。
+   - `.taskmaster/state.json`记录TaskMaster的当前状态信息。
+   - `.taskmaster/templates/example_prd.txt`提供用于生成任务的PRD模板。
+   - `.taskmaster/docs/prd.txt`是基于示例创建的实际产品需求文档，用于任务生成。
+   - `.taskmaster/tasks/tasks.json`存储所有任务的定义和元数据。
+   - `.taskmaster/tasks/task_*.txt`为每个任务提供详细描述和实现指南。
+   - `.taskmaster/reports/`目录存储任务复杂性分析等报告。
+   - `.cursor/rules/taskmaster.mdc`提供TaskMaster命令的详细参考。
+   - `.cursor/rules/dev_workflow.mdc`描述使用TaskMaster的开发工作流程。
 
 5. **测试相关**:
    - `test_html/auth_test.html`提供基于浏览器的认证测试界面，用于验证登录/登出/密码更改功能。
@@ -364,24 +529,42 @@ a7/                           # 项目根目录
    - `test_api.py`: API测试脚本，用于集成测试中间件功能，包括JWT认证、请求日志和请求处理。提供实际HTTP请求测试，验证中间件在真实环境中的表现。
    - `marp_integration_test.py`: 手动集成测试脚本，用于测试知识点到PPT的完整流程，包括知识点数据准备、Markdown生成（支持本地和AI两种模式）、Markdown验证和修复、以及转换为演示文稿（支持pptx/pdf/html格式）。脚本设计为可通过命令行参数配置，提供详细的日志记录，并保存所有中间文件用于分析和调试。
 
-6. **Roo助手规则**:
-   - `.roomodes`定义Roo助手的行为模式。
-   - `.roo/`下的各个子目录包含不同类别的规则，共同支持Roo助手的功能。
-   - `.windsurfrules`配合Roo规则，定义项目的代码和文档生成规则。
+6. **Cursor与TaskMaster集成**:
+   - `.cursor/rules/`目录存储Cursor IDE使用的规则文件，包括:
+     - `taskmaster.mdc`提供TaskMaster命令的详细参考和使用指南
+     - `dev_workflow.mdc`描述使用TaskMaster的开发工作流程和最佳实践
+     - `cursor_rules.mdc`定义规则文档的格式和要求
+     - `self_improve.mdc`提供规则改进的指南和策略
+     - `context7.mdc`和`file_structure.mdc`提供特定功能的规则支持
+   - `.cursor/mcp.json`配置Model Control Protocol功能，实现TaskMaster工具的集成
+   - `.roomodes`定义Roo助手的行为模式，确保与Cursor功能兼容
+   - `.windsurfrules`配合IDE规则，定义项目的代码和文档生成规则
+   - 这些配置协同工作，提供强大的辅助开发功能和遵循项目规范的自动化支持
 
-7. **开发环境配置**:
-   - `a7.code-workspace`定义VS Code的项目视图和配置。
-   - `.cursor/`包含Cursor IDE的特定配置。
-   - `.env.example`提供需要的环境变量配置模板。
+7. **TaskMaster开发工作流**:
+   - `.taskmaster/config.json`存储TaskMaster配置，包括AI模型、参数和用户偏好
+   - `.taskmaster/tasks/tasks.json`维护所有任务的定义、状态和关系
+   - `.taskmaster/tasks/task_*.txt`为每个任务提供详细描述、实现步骤和测试策略
+   - `.taskmaster/reports/`存储复杂性分析等自动生成的报告，辅助任务分解
+   - `.taskmaster/docs/prd.txt`存储项目需求文档，作为任务生成和规划的基础
+   - 完整的任务生命周期管理：创建、分解、实现、测试和完成
+   - 支持基于依赖的任务排序，确保按正确顺序处理任务
+   - 通过`.cursor/rules/dev_workflow.mdc`详细说明的工作流程，指导开发者高效使用TaskMaster
 
-8. **用户活动和性能监控系统**:
+8. **开发环境配置**:
+   - `a7.code-workspace`定义VS Code的项目视图和配置
+   - `requirements.txt`列出项目的Python依赖，供开发和部署环境使用
+   - 各种日志文件(`permission.log`, `request.log`, `jwt_auth.log`)记录系统活动，辅助调试
+   - `pytest.ini`配置测试框架，定义异步测试行为和自定义标记
+
+9. **用户活动和性能监控系统**:
    - `a7/apps/core/models.py`定义UsageStatistics和PerformanceMetric模型，用于跟踪用户活动和系统性能。
    - `a7/apps/core/admin.py`配置这些模型在Django Admin中的展示和操作方式。
    - `a7/apps/core/tests.py`提供这些模型的自动化测试，验证其功能正确性。
    - UsageStatistics模型与User模型建立外键关系，跟踪特定用户的系统使用情况。
    - UsageStatistics和PerformanceMetric模型都使用JSON字段存储复杂的详细信息，并提供解析方法。
 
-9. **学习进度跟踪系统**:
+10. **学习进度跟踪系统**:
    - `a7/courses/models.py`中的LearningRecord模型用于跟踪学生的学习进度和时间投入。
    - LearningRecord模型通过外键关联User(student)、Course和KnowledgePoint模型，建立学生-课程-知识点的学习关系，使用CASCADE级联删除。
    - LearningRecord模型提供进度更新方法、时间累计方法和状态判断属性，实现完整的学习进度跟踪功能。
@@ -403,13 +586,13 @@ a7/                           # 项目根目录
    - 实现了信号处理器，通过Django信号机制自动触发进度更新：当学生提交答案时更新相关进度，当学习记录更新时更新课程进度。
    - StudentAnswer模型增强了save方法，实现跟踪答案正确性变化，并自动更新相关统计数据。
 
-10. **模型关系优化系统**:
+11. **模型关系优化系统**:
     - 为所有模型添加了优化的索引设计，提高查询性能。
     - 实现了精心设计的外键关系级联删除策略：用户相关使用SET_NULL保护数据，内容关系使用CASCADE维持一致性。
     - 所有索引和外键关系均在迁移文件中正确定义，如`a7/courses/migrations/0004_rename_courses_lea_student_a74868_idx_lr_stud_course_idx_and_more.py`。
     - `a7/courses/tests.py`中的ComprehensiveModelRelationshipTest测试类验证所有模型关系、外键、反向查询和级联删除行为，包括教师删除对课程的影响、课程删除对知识点的级联删除等。
 
-11. **REST Framework API系统**:
+12. **REST Framework API系统**:
     - `a7/a7/settings.py`中的`REST_FRAMEWORK`配置已更新，`DEFAULT_AUTHENTICATION_CLASSES`添加了JWT认证，`DEFAULT_PERMISSION_CLASSES`仍设置为`AllowAny`，但视图可以覆盖此设置。
     - DRF配置与用户认证系统的集成已启用，API端点可通过权限类进行访问控制。
     - `a7/users/middleware/jwt_auth_middleware.py`在settings.py中已启用，对请求进行令牌验证。
@@ -426,7 +609,7 @@ a7/                           # 项目根目录
     - `a7/users/views.py`中的API视图使用`swagger_auto_schema`装饰器和OpenAPI Schema定义API文档，避免直接使用未渲染的Response对象，确保Swagger文档正确生成。
     - API文档通过`drf-yasg`实现，提供Swagger UI和ReDoc两种交互式文档，帮助前端开发者了解API结构和使用方法。
 
-12. **API监控与日志系统**:
+13. **API监控与日志系统**:
     - `a7/apps/core/middleware/request_logging_middleware.py`实现API请求监控，记录请求方法、路径、状态码和处理时间。
     - `a7/users/middleware/jwt_auth_middleware.py`原本记录认证过程，但目前已禁用。
     - `request.log`存储API请求日志，提供系统调用情况的完整记录。
@@ -436,7 +619,7 @@ a7/                           # 项目根目录
     - `a7/apps/core/tests/test_middleware.py`验证日志记录功能的正确性和完整性。
     - 日志系统与性能监控系统(`PerformanceMetric`模型)协同工作，提供系统运行情况的全面视图。
 
-13. **Docker部署系统**:
+14. **Docker部署系统**:
     - `a7/Dockerfile`定义应用容器构建过程，通过分层构建优化缓存和镜像大小。
     - `a7/compose.yaml`配置容器服务，定义网络设置、端口映射以及多容器协作方式。
     - `a7/README.Docker.md`提供Docker使用指南，包括本地开发和云部署说明。
@@ -448,7 +631,7 @@ a7/                           # 项目根目录
     - 容器使用非特权用户运行应用以增强安全性，遵循Docker最佳实践。
     - Docker环境变量（`PYTHONDONTWRITEBYTECODE`和`PYTHONUNBUFFERED`）优化了Python在容器环境中的运行。
 
-14. **AI服务系统**:
+15. **AI服务系统**:
     - `a7/ai_services/models.py`定义了webhook配置和调用日志的核心数据模型。
     - `a7/ai_services/services/n8n_webhook/client.py`实现异步HTTP客户端处理与n8n服务的通信，并集成验证逻辑。还提供问题生成的便捷方法（generate_questions和generate_questions_sync）以及学生对话的便捷方法（dialogue_with_student和dialogue_with_student_sync）。新增答案校正的便捷方法（correct_student_answer和correct_student_answer_sync），支持评估学生提交的答案并提供结构化的反馈。新增练习题生成的便捷方法（generate_exercises和generate_exercises_sync），支持根据查询文本和知识点内容生成练习题。
     - `a7/ai_services/services/n8n_webhook/exceptions.py`定义异常类型，统一错误处理机制。
@@ -469,7 +652,7 @@ a7/                           # 项目根目录
     - `a7/ai_services/tests/test_answer_correction.py`提供学生答案校正API的单元测试，验证API端点功能、参数验证和错误处理。使用模拟（mock）技术测试API的行为，验证API能够正确处理请求、构造适当的prompt、调用AI服务并返回标准化响应。
     - `a7/ai_services/tests/test_answer_correction_integration.py`提供学生答案校正API的集成测试，包含与真实N8N服务的交互测试，验证API能够成功评估不同类型（单选题、多选题、简答题）的学生答案。测试包括正确答案和错误答案的评估，验证评分、反馈和建议的合理性。
 
-15. **问题生成系统**:
+16. **问题生成系统**:
     - `a7/ai_services/services/n8n_webhook/formats.py`中的QuestionData模型定义问题数据结构，支持多种题型（如简答题、选择题）和不同格式的答案模板（字符串或列表）。
     - `a7/ai_services/services/n8n_webhook/client.py`中的generate_questions和generate_questions_sync方法提供异步和同步的问题生成功能。
     - `a7/courses/serializers.py`中的QuestionGenerationSerializer验证问题生成请求参数，确保知识点ID、问题类型和数量等参数有效。
@@ -484,7 +667,7 @@ a7/                           # 项目根目录
     - 系统设计足够灵活，能够处理不同格式的答案模板（如简答题的文本答案和选择题的选项列表）。
     - 实现了完整的问题导出功能，支持JSON和CSV格式，满足不同场景下的数据交换需求。
 
-16. **练习题和学生答案测试系统**:
+17. **练习题和学生答案测试系统**:
     - `a7/courses/tests/test_api_exercises.py`提供练习题和学生答案API的基础CRUD功能测试，验证创建、读取、更新、删除操作，以及基本的过滤、排序和搜索功能。
     - `a7/courses/tests/test_api_exercises_additional.py`提供练习题和学生答案API的高级功能和边缘情况测试，包含5个专门的测试类：
       - ExerciseValidationTests：验证练习题字段（标题长度、类型有效性、必填字段）和边缘情况
@@ -496,7 +679,7 @@ a7/                           # 项目根目录
     - 测试覆盖了正常操作路径和异常情况，验证了API的健壮性和错误处理能力。
     - 测试还验证了API响应格式的一致性，确保前端应用能够依赖统一的数据结构。
 
-17. **Marp演示文档转换服务**:
+18. **Marp演示文档转换服务**:
     - `a7/marp_service/__init__.py`提供顶层API接口convert_markdown_to_format和convert_file_to_format，作为与外部系统交互的主要入口点。包含对Windows环境的特殊处理，特别是PNG输出格式的处理。
     - `a7/marp_service/apps.py`: 应用配置文件，包含应用元数据和启动逻辑。
     - `a7/marp_service/cli.py`: Marp命令行接口构建与执行。MarpCLIBuilder类实现链式API设计，便于构建复杂的命令行参数。MarpCLIExecutor类负责执行构建好的命令行，包含对Windows环境的特殊处理，确保命令在不同操作系统上正确执行。使用简化的命令路径处理，直接使用"marp"命令或完整路径（如"npx @marp-team/marp-cli"），并在Windows环境下使用shell=True执行命令，解决了命令执行问题。
@@ -523,7 +706,7 @@ a7/                           # 项目根目录
     - 服务具有跨平台兼容性，通过特殊处理确保在Windows和Linux/Mac环境下都能正确工作，特别是处理了Windows环境下的命令执行和PNG输出格式的特殊需求。Windows环境下使用shell=True执行命令，解决了命令路径解析问题。
     - REST API端点(/api/marp/convert)提供了完整的Markdown到演示文档的转换功能，支持多种输出格式和主题选项，返回适当的MIME类型和文件名，集成了Swagger文档，便于API使用者理解和调用。
 
-18. **知识点到PPT转换系统**:
+19. **知识点到PPT转换系统**:
    - `a7/courses/serializers_ppt.py`定义KnowledgePointToPPTSerializer类，验证知识点转PPT的输入参数。新增direct_download和filename参数，支持直接下载功能，使API能够根据客户端需求返回文件内容或文件URL。
    - `a7/courses/services/knowledge_to_ppt.py`实现KnowledgePointToPPTService类，提供知识点层次结构获取、Markdown生成和文件转换功能。集成了MarkdownValidator进行内容验证和修复，确保生成的Markdown符合marp规范。
    - `a7/courses/views.py`中的KnowledgePointToPPTViewSet处理API请求，验证输入并调用服务完成转换。增强了响应处理，支持基于direct_download参数的响应模式选择：当设置为true时，将文件直接作为响应返回，带有适当的Content-Type和Content-Disposition头信息；否则返回文件URL或Base64编码的文件内容。
@@ -550,7 +733,7 @@ a7/                           # 项目根目录
    - 系统支持根据客户端需求选择两种不同的响应模式：直接下载（适合浏览器端使用）和文件URL/Base64内容返回（适合程序化调用）。
    - 直接下载功能在性能测试中表现良好，PPTX格式初始生成约需30秒，而PDF和HTML格式通常在2秒内完成，文件大小分别约为560KB(PPTX)、150KB(PDF)和106KB(HTML)。
 
-19. **学生助手对话系统**:
+20. **学生助手对话系统**:
     - `a7/ai_services/views.py`中的StudentDialogueViewSet视图集处理学生对话请求，提供API端点接收学生查询并返回AI助手回答。
     - `a7/ai_services/services/n8n_webhook/client.py`中的dialogue_with_student和dialogue_with_student_sync方法提供异步和同步的学生对话功能。
     - `a7/ai_services/services/n8n_webhook/formats.py`中的DialogueRequestData和DialogueResponseData模型定义学生对话的请求和响应数据结构，支持会话ID跟踪多轮对话。
@@ -565,7 +748,7 @@ a7/                           # 项目根目录
     - API端点设置为允许匿名访问，便于学生无需认证即可使用对话功能。
     - 使用标准化的API响应格式，确保前端应用能够依赖统一的数据结构。
 
-20. **练习题生成系统**:
+21. **练习题生成系统**:
     - `a7/ai_services/services/n8n_webhook/formats.py`中的练习题生成相关数据模型（ExerciseGenerationRequestData、ExerciseGenerationResponseData）定义练习题生成的请求和响应结构，确保数据一致性。
     - `a7/ai_services/services/n8n_webhook/formats.py`中的解析函数（parse_exercise_text、parse_single_exercise）实现从文本中提取练习题内容、选项和答案的功能，支持不同格式的练习题文本解析。
     - `a7/ai_services/services/n8n_webhook/formats.py`中的题型格式统一使用下划线格式（如"single_choice"、"multiple_choice"），确保与系统其他部分的格式一致，避免因格式不匹配导致的错误。
@@ -581,7 +764,7 @@ a7/                           # 项目根目录
     - 系统设计足够灵活，能够处理不同格式的答案模板（如简答题的文本答案和选择题的选项列表）。
     - 练习题生成API不保存生成的练习题到数据库，而是直接返回给客户端，适合用于学生自主练习和临时题目生成场景。
 
-21. **学生答案校正系统**:
+22. **学生答案校正系统**:
     - `a7/ai_services/services/n8n_webhook/formats.py`中的AnswerCorrectionResponseData模型定义答案校正的响应数据结构，包含正确性评估、得分、反馈、改进建议和解析说明等字段。
     - `a7/ai_services/services/n8n_webhook/formats.py`中的format_answer_correction_response函数负责从AI服务返回的文本中提取结构化的答案评估结果，实现健壮的文本解析和JSON提取逻辑。
     - `a7/ai_services/services/n8n_webhook/client.py`中的correct_student_answer和correct_student_answer_sync方法提供异步和同步的答案校正功能，支持评估学生提交的答案并提供结构化的反馈。
@@ -608,27 +791,33 @@ a7/                           # 项目根目录
    - 用户管理系统作为独立应用(users)实现，便于模块化管理。
    - 课程管理系统作为独立应用(courses)实现，集中管理课程相关功能。
    - Marp服务作为独立应用(marp_service)实现，专注于Markdown到演示文档的转换功能。
+   - AI服务应用(ai_services)提供与外部AI服务集成的功能。
    - 每个应用都有自己的URLs和视图模块。
 
 2. **按工具分类**: 
-   - 每个主要工具(Task Master, Roo, Cursor)都有其专用配置文件和目录。
+   - 每个主要工具(TaskMaster, Cursor)都有其专用配置文件和目录。
+   - TaskMaster相关文件集中在.taskmaster目录，遵循其标准结构。
+   - Cursor配置和规则存放在.cursor目录，包含MCP配置和规则文件。
 
 3. **按功能分类**:
-   - `.roo/`中的规则按功能领域划分到不同子目录。
-   - `scripts/`目录用于存放工具脚本和模板。
-   - `tasks/`专门用于任务管理。
-   - `apps/`、`users/`和`courses/`目录按功能划分不同的Django应用。
+   - `.cursor/rules/`中的规则按功能领域组织，提供开发指南和最佳实践。
+   - `.taskmaster/`目录包含任务管理、PRD文档和报告等。
+   - `a7/apps/`、`a7/users/`、`a7/courses/`和`a7/ai_services/`目录按功能划分不同的Django应用。
    - `test_html/`目录包含前端测试文件，按功能分类。
+   - `api_test_output/`和`marp_test_output/`分别存储API测试和Marp测试的输出文件。
+   - `pptx_output/`专门用于存储生成的演示文稿文件。
 
 4. **配置与内容分离**:
-   - 配置文件(如`.taskmasterconfig`, `.roomodes`)位于根目录。
+   - 配置文件(如`.taskmaster/config.json`, `.roomodes`, `.cursor/mcp.json`)分布在各自的目录中。
    - 实际内容(如规则文件、任务文件、生成的PPTX)存储在相关子目录中。
-   - 生成的PPTX文件存储在`pptx_output/`目录，便于浏览和分享。
+   - 生成的PPTX文件存储在`pptx_output/`目录和`a7/presentations/`目录，便于浏览和分享。
+   - 日志文件(`permission.log`, `request.log`, `jwt_auth.log`)放在根目录，便于快速访问和检查。
 
 5. **测试与实现分离**:
-   - 单元测试放在应用目录中(`users/tests.py`, `courses/tests.py`)
+   - 单元测试放在各应用目录的tests子目录中(`a7/users/tests/`, `a7/courses/tests/`, `a7/ai_services/tests/`)
    - 手动/前端测试文件放在单独的`test_html/`目录下
-   - 日志文件`permission.log`放在根目录，便于快速访问和检查
+   - 集成测试脚本(`marp_integration_test.py`, `api_test_runner.py`)放在根目录
+   - 测试输出文件存放在专门的目录(`api_test_output/`, `marp_test_output/`)
 
 ## 命名约定
 
@@ -638,12 +827,14 @@ a7/                           # 项目根目录
    - Django应用目录使用全小写字母，单数形式命名，如`core/`、`users/`、`courses/`。
 
 2. **配置文件命名**:
-   - 以点(.)开头的隐藏文件用于配置，如`.taskmasterconfig`、`.dockerignore`。
+   - 以点(.)开头的隐藏文件夹用于配置和工具，如`.taskmaster/`、`.cursor/`、`.github/`。
+   - 配置文件通常以JSON格式存储，如`config.json`、`mcp.json`，便于程序解析。
    - 采用全小写字母，使用描述性名称。
    - Docker相关配置文件遵循行业标准命名，如`Dockerfile`（首字母大写，无扩展名）和`compose.yaml`（全小写）。
 
 3. **文档文件命名**:
-   - 使用驼峰式(CamelCase)或以单词首字母大写，如`fileStructure.md`、`README.Docker.md`。
+   - Markdown文档使用描述性名称，如`fileStructure.md`、`CurrentPlan.md`、`context7_library.md`。
+   - 特定工具的规则文档使用`.mdc`扩展名，如`taskmaster.mdc`、`dev_workflow.mdc`。
    - 使用描述性名称，清晰表达文件内容。
    - 特定工具或技术的README文件使用`.工具名.md`格式，如`README.Docker.md`。
 
