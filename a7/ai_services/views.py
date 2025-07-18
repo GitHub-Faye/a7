@@ -297,12 +297,12 @@ class ExerciseGenerationViewSet(viewsets.ViewSet):
 
 
 class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
-    """学生答案校正API视图集，评估学生答案但不直接保存到数据库"""
+    """学生答案校正API视图集，评估学生答案并保存到数据库"""
     permission_classes = [permissions.AllowAny]  # 允许匿名访问，便于学生使用
     
     @swagger_auto_schema(
         operation_summary="评估学生答案",
-        operation_description="对指定练习题的学生答案进行评估，返回正确性、得分和反馈信息",
+        operation_description="对指定练习题的学生答案进行评估，返回正确性、得分和反馈信息，并保存到数据库",
         request_body=StudentAnswerCorrectionSerializer,
         responses={
             200: openapi.Response(
@@ -318,7 +318,7 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
                             "explanation": "解题思路",
                             "session_id": "会话ID"
                         },
-                        "message": "答案评估成功"
+                        "message": "答案评估成功并已保存"
                     }
                 }
             ),
@@ -328,7 +328,7 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
         }
     )
     def create(self, request, *args, **kwargs):
-        """处理答案校正请求"""
+        """处理答案校正请求并保存结果"""
         serializer = StudentAnswerCorrectionSerializer(data=request.data)
         
         # 手动处理验证错误，以提供友好的错误信息
@@ -387,11 +387,67 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
             if 'sources' not in result:
                 result['sources'] = []
             
-            # 返回处理后的响应
+            # 获取当前用户（如果已认证）或创建匿名用户
+            user = None
+            if request.user.is_authenticated:
+                user = request.user
+            else:
+                # 如果系统允许匿名用户评估练习，则使用一个特定的系统用户
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                try:
+                    user = User.objects.get(username='anonymous_student')
+                except User.DoesNotExist:
+                    # 如果匿名学生用户不存在，可能需要处理此情况
+                    return create_api_response(
+                        success=False,
+                        message="无法处理匿名用户的请求，请先登录",
+                        error_code="AUTHENTICATION_REQUIRED",
+                        status_code=status.HTTP_401_UNAUTHORIZED
+                    )
+            
+            # 从评估结果中获取关键数据
+            is_correct = result.get('is_correct', False)  # 默认为False
+            score = result.get('score', 0)  # 默认为0分
+            feedback = result.get('feedback', '')
+            
+            # 补充反馈信息
+            if 'improvement_suggestions' in result:
+                feedback += f"\n改进建议: {result['improvement_suggestions']}"
+            if 'explanation' in result:
+                feedback += f"\n解题思路: {result['explanation']}"
+            
+            # 保存或更新学生答案
+            from courses.models import StudentAnswer
+            
+            # 检查是否已存在该学生对该练习题的答案
+            try:
+                # 尝试获取现有答案
+                student_answer_obj = StudentAnswer.objects.get(student=user, exercise=exercise)
+                # 如果存在，更新尝试次数
+                student_answer_obj.attempt_count += 1
+                student_answer_obj.content = student_answer
+                student_answer_obj.score = score
+                student_answer_obj.feedback = feedback
+                student_answer_obj.is_correct = is_correct
+                student_answer_obj.save()
+            except StudentAnswer.DoesNotExist:
+                # 如果不存在，创建新的学生答案记录
+                student_answer_obj = StudentAnswer.objects.create(
+                    student=user,
+                    exercise=exercise,
+                    content=student_answer,
+                    score=score,
+                    feedback=feedback,
+                    is_correct=is_correct,
+                    attempt_count=1
+                )
+            
+            # 返回处理后的响应，包含保存结果的确认
             return create_api_response(
                 success=True,
                 data=result,
-                message="答案评估成功",
+                message="答案评估成功并已保存到数据库",
                 status_code=status.HTTP_200_OK
             )
             
