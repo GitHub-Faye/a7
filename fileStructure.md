@@ -321,6 +321,7 @@ a7/                           # 项目根目录
   - **答案校正方法**（correct_student_answer、correct_student_answer_sync）
   - **练习题生成方法**（generate_exercises、generate_exercises_sync）
   - **知识点转Markdown方法**（generate_markdown_from_knowledge）
+  - **知识点处理方法**（generate_teaching_outline、generate_exam_outline、generate_lesson_plan）- 用于生成教学大纲、考试大纲和教案
   - 所有方法均提供同步和异步两种版本，简化调用流程
   
 - **a7/ai_services/services/n8n_webhook/exceptions.py**: 自定义异常类定义，构建完整异常层次结构：
@@ -338,6 +339,7 @@ a7/                           # 项目根目录
   - **练习题生成相关模型** (ExerciseGenerationRequestData、ExerciseGenerationResponseData)
   - **答案校正相关模型** (AnswerCorrectionRequestData、AnswerCorrectionResponseData)
   - **知识点转Markdown相关模型** (MarkdownGenerationRequestData、MarkdownGenerationResponseData)
+  - **知识点处理相关模型** (KnowledgePointProcessingRequestData、KnowledgePointProcessingResponseData) - 用于教学大纲、考试大纲和教案生成
   - **多种解析函数**，如parse_exercise_text、parse_single_exercise、format_answer_correction_response等
   - 题型格式统一使用下划线格式（如"single_choice"、"multiple_choice"），确保系统一致性
   
@@ -361,6 +363,7 @@ a7/                           # 项目根目录
 - **a7/ai_services/tests/__init__.py**: AI服务测试包标识文件。
 - **a7/ai_services/tests/conftest.py**: pytest配置文件，包含测试固件（fixtures）、事件循环配置、测试标记注册以及全局测试设置。
 - **a7/ai_services/tests/individual_tests/**: 包含独立测试脚本的目录，便于隔离测试特定功能。
+- **a7/ai_services/tests/test_knowledge_point_processing.py**: 知识点处理API端点的测试文件，验证教学大纲、考试大纲和教案生成API的功能、权限控制和错误处理。测试包括成功场景、验证错误场景和认证错误场景，确保API端点在各种情况下都能正确响应。
 
 #### 基础组件测试
 - **a7/ai_services/tests/test_client.py**: n8n webhook客户端测试，主要测试客户端的基本功能和错误处理。
@@ -1191,3 +1194,17 @@ a7/                           # 项目根目录
    - 完整的错误处理包括文件不存在(404)、权限不足(403)和其他异常(500)的处理。
    - `test_file_upload_api_real.py`提供了文件上传API的真实环境测试。
    - `a7/courses/tests/`目录包含对文件存储和API功能的全面测试，包括权限检查、文件访问控制和错误处理。
+
+23. **知识点处理系统**:
+    - `a7/ai_services/services/n8n_webhook/formats.py`中的KnowledgePointProcessingRequestData和KnowledgePointProcessingResponseData模型定义知识点处理的请求和响应数据结构，用于教学大纲、考试大纲和教案生成。
+    - `a7/ai_services/services/n8n_webhook/client.py`中的generate_teaching_outline、generate_exam_outline和generate_lesson_plan方法提供异步和同步的知识点处理功能，用于生成教学大纲、考试大纲和教案。
+    - `a7/ai_services/views.py`中的TeachingOutlineViewSet、ExamOutlineViewSet和LessonPlanViewSet处理知识点处理API请求，验证输入并调用相应的客户端方法完成处理。
+    - `a7/ai_services/serializers.py`中的KnowledgePointProcessingSerializer验证知识点处理请求参数，确保知识点列表有效。
+    - `a7/ai_services/urls.py`注册知识点处理相关的ViewSet，提供'/api/ai/teaching-outline/'、'/api/ai/exam-outline/'和'/api/ai/lesson-plan/'端点，实现RESTful API接口。
+    - `a7/ai_services/tests/test_knowledge_point_processing.py`包含全面的单元测试用例，验证知识点处理API的功能完整性、参数验证和错误处理。
+    - 知识点处理系统与知识点模型集成，基于知识点内容生成相关的教学内容。
+    - 系统设计支持多种处理类型，包括教学大纲、考试大纲和教案生成。
+    - 提供标准化的响应格式，包含处理结果、会话ID和相关元数据。
+    - 系统实现了完整的错误处理机制，包括参数验证错误、n8n服务错误和一般异常处理。
+    - API端点设置为需要认证访问，确保只有授权用户可以使用知识点处理功能。
+    - 使用标准化的API响应格式，确保前端应用能够依赖统一的数据结构。

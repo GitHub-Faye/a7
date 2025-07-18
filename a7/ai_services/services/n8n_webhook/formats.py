@@ -1489,6 +1489,15 @@ def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
                     "answer": str(data) if isinstance(data, str) else json.dumps(data),
                     "sources": []
                 }
+        elif task_type == "teaching_outline":
+            formatted_data = format_teaching_outline_response(data)
+            return KnowledgePointProcessingResponseData(**formatted_data)
+        elif task_type == "exam_outline":
+            formatted_data = format_exam_outline_response(data)
+            return KnowledgePointProcessingResponseData(**formatted_data)
+        elif task_type == "lesson_plan":
+            formatted_data = format_lesson_plan_response(data)
+            return KnowledgePointProcessingResponseData(**formatted_data)
         else:
             # 默认情况，尝试原样使用数据
             formatted_data = data
@@ -2363,3 +2372,91 @@ def extract_course_data_with_regex(json_str: str) -> Dict[str, Any]:
         result["knowledge_points"].append(kp)
     
     return result
+
+
+class KnowledgePointProcessingRequestData(BaseRequest):
+    """知识点处理任务的请求数据模型"""
+    knowledge_points: List[Dict[str, Any]] = Field(..., description="课程知识点数据")
+    title: str = Field(..., description="生成内容的标题")
+    subject: str = Field(..., description="学科")
+    grade_level: str = Field(..., description="年级水平")
+    additional_requirements: Optional[str] = Field(None, description="额外要求")
+    chatInput: str = Field(..., description="生成内容的提示文本")
+    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
+
+class KnowledgePointProcessingResponseData(BaseResponse):
+    """知识点处理任务的响应数据模型"""
+    content: str = Field(..., description="生成的内容（教学大纲/考试大纲/教案）")
+    structure: Optional[Dict[str, Any]] = Field(None, description="内容的结构化表示")
+    sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="参考资源")
+    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
+
+def format_teaching_outline_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    格式化教学大纲生成响应
+    
+    Args:
+        data: 原始响应数据
+        
+    Returns:
+        Dict[str, Any]: 格式化后的响应数据
+    """
+    # 提取文本内容
+    answer_text, sources_text = parse_ai_response(data)
+    
+    # 尝试提取结构化数据
+    structured_data = extract_structured_data_from_text(answer_text)
+    
+    # 构建响应
+    response = {
+        "content": structured_data.get("answer", answer_text),
+        "sources": structured_data.get("sources", extract_sources_from_text(sources_text)),
+        "sessionId": data.get("sessionId")
+    }
+    
+    # 尝试提取结构化表示（如章节大纲）
+    try:
+        # 从内容中提取可能的结构化表示
+        structure_pattern = r"(?:大纲结构|章节结构|结构化表示|Structure)[:：]\s*([\s\S]+?)(?:\n\n|\Z)"
+        structure_match = re.search(structure_pattern, answer_text)
+        if structure_match:
+            structure_text = structure_match.group(1).strip()
+            # 尝试将文本转换为结构化数据
+            structure = {}
+            chapter_pattern = r"(?:\d+\.\s*|\-\s*|\*\s*)([^\n:：]+)[:：]([^\n]+)"
+            chapter_matches = re.findall(chapter_pattern, structure_text)
+            for title, content in chapter_matches:
+                structure[title.strip()] = content.strip()
+            
+            if structure:
+                response["structure"] = structure
+    except Exception as e:
+        logger.warning(f"提取结构化表示时出错: {str(e)}")
+    
+    return response
+
+def format_exam_outline_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    格式化考试大纲生成响应
+    
+    Args:
+        data: 原始响应数据
+        
+    Returns:
+        Dict[str, Any]: 格式化后的响应数据
+    """
+    # 与教学大纲格式化逻辑相似，但可能有特定于考试大纲的处理
+    return format_teaching_outline_response(data)
+
+def format_lesson_plan_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    格式化教案生成响应
+    
+    Args:
+        data: 原始响应数据
+        
+    Returns:
+        Dict[str, Any]: 格式化后的响应数据
+    """
+    # 与教学大纲格式化逻辑相似，但可能有特定于教案的处理
+    return format_teaching_outline_response(data)

@@ -22,7 +22,7 @@ from courses.serializers import (
 from .services.n8n_webhook.client import N8nWebhookClient
 from .services.n8n_webhook.exceptions import N8nWebhookError
 from .api_response import create_api_response
-from .serializers import StudentAnswerCorrectionSerializer
+from .serializers import StudentAnswerCorrectionSerializer, KnowledgePointProcessingSerializer
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -464,6 +464,285 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
             return create_api_response(
                 success=False,
                 message=f"处理答案校正请求时出错: {str(e)}",
+                error_code="INTERNAL_SERVER_ERROR",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class TeachingOutlineViewSet(viewsets.ViewSet):
+    """教学大纲生成API视图集"""
+    permission_classes = [permissions.IsAuthenticated]  # 需要认证
+    
+    @swagger_auto_schema(
+        operation_summary="生成教学大纲",
+        operation_description="根据提供的知识点生成教学大纲",
+        request_body=KnowledgePointProcessingSerializer,
+        responses={
+            200: openapi.Response(
+                description="成功生成教学大纲",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "content": "生成的教学大纲内容",
+                            "structure": {"章节": "内容"},
+                            "sources": [],
+                            "session_id": "会话ID"
+                        },
+                        "message": "教学大纲生成成功"
+                    }
+                }
+            ),
+            400: "请求参数验证失败",
+            500: "服务器内部错误"
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        """处理教学大纲生成请求"""
+        serializer = KnowledgePointProcessingSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return create_api_response(
+                success=False,
+                message="请求参数验证失败",
+                error_code="VALIDATION_ERROR",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 准备会话ID
+            session_id = serializer.validated_data.get('session_id')
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            # 准备知识点数据
+            knowledge_points = serializer.validated_data["knowledge_points"]
+            
+            # 调用n8n客户端
+            client = N8nWebhookClient()
+            result = client.generate_teaching_outline_sync({
+                "knowledge_points": knowledge_points,
+                "title": serializer.validated_data["title"],
+                "subject": serializer.validated_data["subject"],
+                "grade_level": serializer.validated_data["grade_level"],
+                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
+                "session_id": session_id
+            })
+            
+            # 确保响应中包含会话ID
+            if isinstance(result, dict):
+                if 'sessionId' in result:
+                    result["session_id"] = result.pop("sessionId")
+                else:
+                    result["session_id"] = session_id
+            
+            return create_api_response(
+                success=True,
+                data=result,
+                message="教学大纲生成成功",
+                status_code=status.HTTP_200_OK
+            )
+            
+        except N8nWebhookError as e:
+            logger.error(f"教学大纲生成失败: {str(e)}")
+            return create_api_response(
+                success=False,
+                message=str(e),
+                error_code="N8N_WEBHOOK_ERROR",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.exception(f"教学大纲生成异常: {str(e)}")
+            return create_api_response(
+                success=False,
+                message=f"处理教学大纲生成请求时出错: {str(e)}",
+                error_code="INTERNAL_SERVER_ERROR",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExamOutlineViewSet(viewsets.ViewSet):
+    """考试大纲生成API视图集"""
+    permission_classes = [permissions.IsAuthenticated]  # 需要认证
+    
+    @swagger_auto_schema(
+        operation_summary="生成考试大纲",
+        operation_description="根据提供的知识点生成考试大纲",
+        request_body=KnowledgePointProcessingSerializer,
+        responses={
+            200: openapi.Response(
+                description="成功生成考试大纲",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "content": "生成的考试大纲内容",
+                            "structure": {"章节": "内容"},
+                            "sources": [],
+                            "session_id": "会话ID"
+                        },
+                        "message": "考试大纲生成成功"
+                    }
+                }
+            ),
+            400: "请求参数验证失败",
+            500: "服务器内部错误"
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        """处理考试大纲生成请求"""
+        serializer = KnowledgePointProcessingSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return create_api_response(
+                success=False,
+                message="请求参数验证失败",
+                error_code="VALIDATION_ERROR",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 准备会话ID
+            session_id = serializer.validated_data.get('session_id')
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            # 准备知识点数据
+            knowledge_points = serializer.validated_data["knowledge_points"]
+            
+            # 调用n8n客户端
+            client = N8nWebhookClient()
+            result = client.generate_exam_outline_sync({
+                "knowledge_points": knowledge_points,
+                "title": serializer.validated_data["title"],
+                "subject": serializer.validated_data["subject"],
+                "grade_level": serializer.validated_data["grade_level"],
+                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
+                "session_id": session_id
+            })
+            
+            # 确保响应中包含会话ID
+            if isinstance(result, dict):
+                if 'sessionId' in result:
+                    result["session_id"] = result.pop("sessionId")
+                else:
+                    result["session_id"] = session_id
+            
+            return create_api_response(
+                success=True,
+                data=result,
+                message="考试大纲生成成功",
+                status_code=status.HTTP_200_OK
+            )
+            
+        except N8nWebhookError as e:
+            logger.error(f"考试大纲生成失败: {str(e)}")
+            return create_api_response(
+                success=False,
+                message=str(e),
+                error_code="N8N_WEBHOOK_ERROR",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.exception(f"考试大纲生成异常: {str(e)}")
+            return create_api_response(
+                success=False,
+                message=f"处理考试大纲生成请求时出错: {str(e)}",
+                error_code="INTERNAL_SERVER_ERROR",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LessonPlanViewSet(viewsets.ViewSet):
+    """教案生成API视图集"""
+    permission_classes = [permissions.IsAuthenticated]  # 需要认证
+    
+    @swagger_auto_schema(
+        operation_summary="生成教案",
+        operation_description="根据提供的知识点生成教案",
+        request_body=KnowledgePointProcessingSerializer,
+        responses={
+            200: openapi.Response(
+                description="成功生成教案",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "data": {
+                            "content": "生成的教案内容",
+                            "structure": {"章节": "内容"},
+                            "sources": [],
+                            "session_id": "会话ID"
+                        },
+                        "message": "教案生成成功"
+                    }
+                }
+            ),
+            400: "请求参数验证失败",
+            500: "服务器内部错误"
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        """处理教案生成请求"""
+        serializer = KnowledgePointProcessingSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return create_api_response(
+                success=False,
+                message="请求参数验证失败",
+                error_code="VALIDATION_ERROR",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 准备会话ID
+            session_id = serializer.validated_data.get('session_id')
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            # 准备知识点数据
+            knowledge_points = serializer.validated_data["knowledge_points"]
+            
+            # 调用n8n客户端
+            client = N8nWebhookClient()
+            result = client.generate_lesson_plan_sync({
+                "knowledge_points": knowledge_points,
+                "title": serializer.validated_data["title"],
+                "subject": serializer.validated_data["subject"],
+                "grade_level": serializer.validated_data["grade_level"],
+                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
+                "session_id": session_id
+            })
+            
+            # 确保响应中包含会话ID
+            if isinstance(result, dict):
+                if 'sessionId' in result:
+                    result["session_id"] = result.pop("sessionId")
+                else:
+                    result["session_id"] = session_id
+            
+            return create_api_response(
+                success=True,
+                data=result,
+                message="教案生成成功",
+                status_code=status.HTTP_200_OK
+            )
+            
+        except N8nWebhookError as e:
+            logger.error(f"教案生成失败: {str(e)}")
+            return create_api_response(
+                success=False,
+                message=str(e),
+                error_code="N8N_WEBHOOK_ERROR",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.exception(f"教案生成异常: {str(e)}")
+            return create_api_response(
+                success=False,
+                message=f"处理教案生成请求时出错: {str(e)}",
                 error_code="INTERNAL_SERVER_ERROR",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

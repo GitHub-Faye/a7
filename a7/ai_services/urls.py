@@ -8,7 +8,10 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     StudentDialogueViewSet,
     ExerciseGenerationViewSet,
-    StudentAnswerCorrectionViewSet
+    StudentAnswerCorrectionViewSet,
+    TeachingOutlineViewSet,
+    ExamOutlineViewSet,
+    LessonPlanViewSet
 )
 
 app_name = 'ai_services'
@@ -19,6 +22,9 @@ router = DefaultRouter()
 router.register(r'student-dialogue', StudentDialogueViewSet, basename='student-dialogue')
 router.register(r'generate-exercises', ExerciseGenerationViewSet, basename='generate-exercises')
 router.register(r'correct-answer', StudentAnswerCorrectionViewSet, basename='correct-answer')
+router.register(r'generate/teaching-outline', TeachingOutlineViewSet, basename='teaching-outline')
+router.register(r'generate/exam-outline', ExamOutlineViewSet, basename='exam-outline')
+router.register(r'generate/lesson-plan', LessonPlanViewSet, basename='lesson-plan')
 
 urlpatterns = [
     path('', include(router.urls)),

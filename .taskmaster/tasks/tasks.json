@@ -857,11 +857,84 @@
             "testStrategy": "Test access control by attempting operations with different user roles. Verify restrictions are enforced."
           }
         ]
+      },
+      {
+        "id": 20,
+        "title": "Create APIs for Course Knowledge Point Processing via n8n",
+        "description": "Develop three APIs that process course knowledge points using n8n workflows to generate teaching outlines, exam outlines, and lesson plans, with proper input handling, error management, and documentation.",
+        "details": "1. **API Design**: Create three distinct API endpoints (`POST /api/generate/teaching-outline/`, `POST /api/generate/exam-outline/`, `POST /api/generate/lesson-plan/`) to handle requests for generating teaching outlines, exam outlines, and lesson plans, respectively. Each endpoint should accept course knowledge points as input (JSON format).\n2. **n8n Integration**: Configure and call the corresponding n8n workflows for each API. Ensure the workflows are pre-configured to process the input data and return the desired output (text content).\n3. **Error Handling**: Implement robust error handling to manage cases like invalid input, n8n workflow failures, or network issues. Log errors and relevant details for debugging.\n4. **Logging**: Integrate logging to record API requests, responses, and errors for monitoring and troubleshooting.\n5. **API Documentation**: Document each API endpoint using OpenAPI/Swagger, including request/response schemas, example payloads, and error codes.\n6. **Testing**: Write unit and integration tests to validate API functionality, including edge cases like empty or malformed input.",
+        "testStrategy": "1. **Unit Testing**:\n   - Test input validation for each API endpoint (e.g., missing fields, invalid data types).\n   - Verify the correct invocation of n8n workflows and handling of their responses.\n   - Test error handling for scenarios like n8n service unavailability.\n2. **Integration Testing**:\n   - Simulate API requests with valid and invalid knowledge point data to ensure proper workflow execution and response generation.\n   - Validate logging functionality by checking logs for recorded requests and errors.\n3. **Documentation Review**:\n   - Ensure the OpenAPI/Swagger documentation accurately reflects the API endpoints, including examples and error responses.",
+        "status": "pending",
+        "dependencies": [
+          17,
+          19,
+          "7"
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design API Endpoints and Schemas",
+            "description": "Define the structure and specifications for the three API endpoints, including request/response formats and validation rules.",
+            "dependencies": [],
+            "details": "1. Create OpenAPI/Swagger specifications for each endpoint (`POST /api/generate/teaching-outline/`, `POST /api/generate/exam-outline/`, `POST /api/generate/lesson-plan/`). 2. Define request and response schemas in JSON format, including required fields and data types. 3. Add input validation rules (e.g., non-empty knowledge points array).\n<info added on 2025-07-18T13:37:17.986Z>\n1. Implemented data models: Created KnowledgePointProcessingRequestData (with knowledge points, title, subject, grade fields) and KnowledgePointProcessingResponseData (with generated content, structured representation, and reference resources).\n\n2. Client methods implemented: Developed generate_teaching_outline, generate_exam_outline, and generate_lesson_plan methods with both synchronous and asynchronous versions following N8nWebhookClient pattern.\n\n3. Serializer implementation: Built KnowledgePointProcessingSerializer with knowledge point data validation logic.\n\n4. ViewSets created: Implemented TeachingOutlineViewSet, ExamOutlineViewSet, and LessonPlanViewSet with request validation, n8n service calls, error handling, response formatting, and Swagger annotations.\n\n5. URL routing configured: Established API endpoints at /api/generate/teaching-outline/, /api/generate/exam-outline/, and /api/generate/lesson-plan/.\n\n6. Design validation: Confirmed API specifications pass OpenAPI validator checks and comply with RESTful principles while maintaining consistency with existing system architecture.\n</info added on 2025-07-18T13:37:17.986Z>\n<info added on 2025-07-18T14:30:36.161Z>\n1. Data model implementation: Created KnowledgePointProcessingRequestData for request validation and KnowledgePointProcessingResponseData for standardized response formatting.\n\n2. Client method implementation: Added three methods to N8nWebhookClient (generate_teaching_outline, generate_exam_outline, generate_lesson_plan) with both synchronous and asynchronous versions.\n\n3. API endpoint implementation: Developed KnowledgePointProcessingSerializer for request validation and implemented three ViewSets (TeachingOutlineViewSet, ExamOutlineViewSet, LessonPlanViewSet) with corresponding client method integration.\n\n4. URL configuration: Registered three routes in ai_services/urls.py (/api/ai/teaching-outline/, /api/ai/exam-outline/, /api/ai/lesson-plan/).\n\n5. Testing implementation: Created KnowledgePointProcessingAPITestCase with five test methods covering success cases, validation errors, and authentication requirements.\n\n6. Bug fixes: Corrected response format issues (sessionId to session_id) and adapted error response structure to middleware changes.\n\n7. Access control: Implemented authentication requirements for all API endpoints with teacher and admin role restrictions.\n\n8. Validation: Confirmed all tests pass and API endpoints are functioning as expected.\n</info added on 2025-07-18T14:30:36.161Z>",
+            "status": "done",
+            "testStrategy": "Validate schemas using OpenAPI validator tools. Test schema definitions with example payloads."
+          },
+          {
+            "id": 2,
+            "title": "Implement API Endpoints and Input Handling",
+            "description": "Develop the backend logic for the three API endpoints, including request parsing, validation, and preparation for n8n workflow calls.",
+            "dependencies": [
+              1
+            ],
+            "details": "1. Implement the three API endpoints in the backend service. 2. Add request validation using the schemas defined in Subtask 1. 3. Transform the validated input into the format expected by the n8n workflows. 4. Ensure proper error responses for invalid inputs.",
+            "status": "pending",
+            "testStrategy": "Unit tests for validation logic. Integration tests for endpoint functionality with mock n8n responses."
+          },
+          {
+            "id": 3,
+            "title": "Integrate n8n Workflows",
+            "description": "Configure and connect the API endpoints to the corresponding n8n workflows for processing knowledge points.",
+            "dependencies": [
+              2
+            ],
+            "details": "1. Set up HTTP requests to the pre-configured n8n workflows for each endpoint. 2. Map API input to n8n workflow input parameters. 3. Handle n8n workflow responses and transform them into the API response format. 4. Implement retry logic for transient n8n failures.",
+            "status": "pending",
+            "testStrategy": "Integration tests with actual n8n workflows (staging environment). Test error handling for n8n failures."
+          },
+          {
+            "id": 4,
+            "title": "Implement Logging and Error Handling",
+            "description": "Add comprehensive logging and robust error management for API and n8n interactions.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "1. Integrate logging middleware to record API requests/responses. 2. Log n8n workflow calls and responses. 3. Implement error handling for API and n8n failures, including appropriate HTTP status codes. 4. Add detailed error messages for debugging.",
+            "status": "pending",
+            "testStrategy": "Verify logs contain expected details. Test error scenarios to ensure proper logging and user feedback."
+          },
+          {
+            "id": 5,
+            "title": "Document APIs and Finalize Testing",
+            "description": "Complete API documentation and perform comprehensive testing of all functionality.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "1. Finalize OpenAPI/Swagger documentation with examples. 2. Write unit and integration tests covering all endpoints. 3. Test edge cases (empty input, malformed JSON, n8n downtime). 4. Perform end-to-end testing with all components.",
+            "status": "pending",
+            "testStrategy": "Automated tests for all endpoints. Manual verification of API documentation. End-to-end testing with real workflows."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-06-30T10:05:21.832Z",
-      "updated": "2025-07-17T13:50:32.413Z",
+      "updated": "2025-07-18T14:30:42.944Z",
       "description": "Tasks for master context"
     }
   }
