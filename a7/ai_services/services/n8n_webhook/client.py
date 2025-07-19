@@ -832,144 +832,192 @@ class N8nWebhookClient:
 
     async def generate_teaching_outline(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成教学大纲
+        异步生成教学大纲
         
         Args:
-            request_data: 包含知识点和其他元数据的请求数据
+            request_data: 请求数据，包含知识点、标题、学科等信息
             
         Returns:
-            Dict[str, Any]: 包含生成的教学大纲的响应数据
+            Dict[str, Any]: 生成的教学大纲数据
         """
-        # 确保会话ID存在
-        if "sessionId" not in request_data and "session_id" in request_data:
-            request_data["sessionId"] = request_data.pop("session_id")
-        
-        if "sessionId" not in request_data:
-            request_data["sessionId"] = str(uuid.uuid4())
-        
-        # 确保chatInput存在
-        if "chatInput" not in request_data:
-            title = request_data.get("title", "")
-            subject = request_data.get("subject", "")
-            grade_level = request_data.get("grade_level", "")
-            additional_requirements = request_data.get("additional_requirements", "")
+        # 确保请求数据包含必要字段
+        if not request_data.get("knowledge_points"):
+            raise N8nInvalidRequestError("缺少知识点数据")
+        if not request_data.get("title"):
+            raise N8nInvalidRequestError("缺少标题")
+        if not request_data.get("subject"):
+            raise N8nInvalidRequestError("缺少学科信息")
+        if not request_data.get("grade_level"):
+            raise N8nInvalidRequestError("缺少年级水平")
             
-            request_data["chatInput"] = (
-                f"请根据以下知识点生成一份教学大纲。\n"
-                f"标题: {title}\n"
-                f"学科: {subject}\n"
-                f"年级: {grade_level}\n"
-                f"额外要求: {additional_requirements}\n"
-            )
+        # 准备会话ID
+        session_id = request_data.get("session_id") or str(uuid.uuid4())
+        
+        # 构建chatInput，如果未提供
+        if not request_data.get("chatInput"):
+            chat_input = f"基于以下知识点为{request_data.get('subject')}{request_data.get('grade_level')}生成教学大纲，标题为：{request_data.get('title')}"
+            if request_data.get("additional_requirements"):
+                chat_input += f"。额外要求：{request_data.get('additional_requirements')}"
+            request_data["chatInput"] = chat_input
+        
+        # 准备发送到n8n的数据
+        n8n_data = {
+            "knowledge_points": request_data.get("knowledge_points"),
+            "title": request_data.get("title"),
+            "subject": request_data.get("subject"),
+            "grade_level": request_data.get("grade_level"),
+            "additional_requirements": request_data.get("additional_requirements"),
+            "chatInput": request_data.get("chatInput"),
+            "sessionId": session_id
+        }
         
         # 调用AI任务处理
-        result = await self.process_ai_task("teaching_outline", request_data)
-        return result
+        try:
+            result = await self.process_ai_task("teachingOutline", n8n_data)
+            # 格式化响应
+            from .formats import format_teaching_outline_response
+            formatted_result = format_teaching_outline_response(result)
+            return formatted_result
+        except Exception as e:
+            logger.exception(f"生成教学大纲失败: {str(e)}")
+            raise N8nWebhookError(f"生成教学大纲失败: {str(e)}")
     
     def generate_teaching_outline_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成教学大纲（同步版本）
+        同步生成教学大纲
         
         Args:
-            request_data: 包含知识点和其他元数据的请求数据
+            request_data: 请求数据，包含知识点、标题、学科等信息
             
         Returns:
-            Dict[str, Any]: 包含生成的教学大纲的响应数据
+            Dict[str, Any]: 生成的教学大纲数据
         """
         return asyncio.run(self.generate_teaching_outline(request_data))
     
     async def generate_exam_outline(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成考试大纲
+        异步生成考试大纲
         
         Args:
-            request_data: 包含知识点和其他元数据的请求数据
+            request_data: 请求数据，包含知识点、标题、学科等信息
             
         Returns:
-            Dict[str, Any]: 包含生成的考试大纲的响应数据
+            Dict[str, Any]: 生成的考试大纲数据
         """
-        # 确保会话ID存在
-        if "sessionId" not in request_data and "session_id" in request_data:
-            request_data["sessionId"] = request_data.pop("session_id")
-        
-        if "sessionId" not in request_data:
-            request_data["sessionId"] = str(uuid.uuid4())
-        
-        # 确保chatInput存在
-        if "chatInput" not in request_data:
-            title = request_data.get("title", "")
-            subject = request_data.get("subject", "")
-            grade_level = request_data.get("grade_level", "")
-            additional_requirements = request_data.get("additional_requirements", "")
+        # 确保请求数据包含必要字段
+        if not request_data.get("knowledge_points"):
+            raise N8nInvalidRequestError("缺少知识点数据")
+        if not request_data.get("title"):
+            raise N8nInvalidRequestError("缺少标题")
+        if not request_data.get("subject"):
+            raise N8nInvalidRequestError("缺少学科信息")
+        if not request_data.get("grade_level"):
+            raise N8nInvalidRequestError("缺少年级水平")
             
-            request_data["chatInput"] = (
-                f"请根据以下知识点生成一份考试大纲。\n"
-                f"标题: {title}\n"
-                f"学科: {subject}\n"
-                f"年级: {grade_level}\n"
-                f"额外要求: {additional_requirements}\n"
-            )
+        # 准备会话ID
+        session_id = request_data.get("session_id") or str(uuid.uuid4())
+        
+        # 构建chatInput，如果未提供
+        if not request_data.get("chatInput"):
+            chat_input = f"基于以下知识点为{request_data.get('subject')}{request_data.get('grade_level')}生成考试大纲，标题为：{request_data.get('title')}"
+            if request_data.get("additional_requirements"):
+                chat_input += f"。额外要求：{request_data.get('additional_requirements')}"
+            request_data["chatInput"] = chat_input
+        
+        # 准备发送到n8n的数据
+        n8n_data = {
+            "knowledge_points": request_data.get("knowledge_points"),
+            "title": request_data.get("title"),
+            "subject": request_data.get("subject"),
+            "grade_level": request_data.get("grade_level"),
+            "additional_requirements": request_data.get("additional_requirements"),
+            "chatInput": request_data.get("chatInput"),
+            "sessionId": session_id
+        }
         
         # 调用AI任务处理
-        result = await self.process_ai_task("exam_outline", request_data)
-        return result
+        try:
+            result = await self.process_ai_task("examOutline", n8n_data)
+            # 格式化响应
+            from .formats import format_exam_outline_response
+            formatted_result = format_exam_outline_response(result)
+            return formatted_result
+        except Exception as e:
+            logger.exception(f"生成考试大纲失败: {str(e)}")
+            raise N8nWebhookError(f"生成考试大纲失败: {str(e)}")
     
     def generate_exam_outline_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成考试大纲（同步版本）
+        同步生成考试大纲
         
         Args:
-            request_data: 包含知识点和其他元数据的请求数据
+            request_data: 请求数据，包含知识点、标题、学科等信息
             
         Returns:
-            Dict[str, Any]: 包含生成的考试大纲的响应数据
+            Dict[str, Any]: 生成的考试大纲数据
         """
         return asyncio.run(self.generate_exam_outline(request_data))
     
     async def generate_lesson_plan(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成教案
+        异步生成教案
         
         Args:
-            request_data: 包含知识点和其他元数据的请求数据
+            request_data: 请求数据，包含知识点、标题、学科等信息
             
         Returns:
-            Dict[str, Any]: 包含生成的教案的响应数据
+            Dict[str, Any]: 生成的教案数据
         """
-        # 确保会话ID存在
-        if "sessionId" not in request_data and "session_id" in request_data:
-            request_data["sessionId"] = request_data.pop("session_id")
-        
-        if "sessionId" not in request_data:
-            request_data["sessionId"] = str(uuid.uuid4())
-        
-        # 确保chatInput存在
-        if "chatInput" not in request_data:
-            title = request_data.get("title", "")
-            subject = request_data.get("subject", "")
-            grade_level = request_data.get("grade_level", "")
-            additional_requirements = request_data.get("additional_requirements", "")
+        # 确保请求数据包含必要字段
+        if not request_data.get("knowledge_points"):
+            raise N8nInvalidRequestError("缺少知识点数据")
+        if not request_data.get("title"):
+            raise N8nInvalidRequestError("缺少标题")
+        if not request_data.get("subject"):
+            raise N8nInvalidRequestError("缺少学科信息")
+        if not request_data.get("grade_level"):
+            raise N8nInvalidRequestError("缺少年级水平")
             
-            request_data["chatInput"] = (
-                f"请根据以下知识点生成一份详细的教案。\n"
-                f"标题: {title}\n"
-                f"学科: {subject}\n"
-                f"年级: {grade_level}\n"
-                f"额外要求: {additional_requirements}\n"
-            )
+        # 准备会话ID
+        session_id = request_data.get("session_id") or str(uuid.uuid4())
+        
+        # 构建chatInput，如果未提供
+        if not request_data.get("chatInput"):
+            chat_input = f"基于以下知识点为{request_data.get('subject')}{request_data.get('grade_level')}生成教案，标题为：{request_data.get('title')}"
+            if request_data.get("additional_requirements"):
+                chat_input += f"。额外要求：{request_data.get('additional_requirements')}"
+            request_data["chatInput"] = chat_input
+        
+        # 准备发送到n8n的数据
+        n8n_data = {
+            "knowledge_points": request_data.get("knowledge_points"),
+            "title": request_data.get("title"),
+            "subject": request_data.get("subject"),
+            "grade_level": request_data.get("grade_level"),
+            "additional_requirements": request_data.get("additional_requirements"),
+            "chatInput": request_data.get("chatInput"),
+            "sessionId": session_id
+        }
         
         # 调用AI任务处理
-        result = await self.process_ai_task("lesson_plan", request_data)
-        return result
+        try:
+            result = await self.process_ai_task("lessonPlan", n8n_data)
+            # 格式化响应
+            from .formats import format_lesson_plan_response
+            formatted_result = format_lesson_plan_response(result)
+            return formatted_result
+        except Exception as e:
+            logger.exception(f"生成教案失败: {str(e)}")
+            raise N8nWebhookError(f"生成教案失败: {str(e)}")
     
     def generate_lesson_plan_sync(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        生成教案（同步版本）
+        同步生成教案
         
         Args:
-            request_data: 包含知识点和其他元数据的请求数据
+            request_data: 请求数据，包含知识点、标题、学科等信息
             
         Returns:
-            Dict[str, Any]: 包含生成的教案的响应数据
+            Dict[str, Any]: 生成的教案数据
         """
         return asyncio.run(self.generate_lesson_plan(request_data)) 

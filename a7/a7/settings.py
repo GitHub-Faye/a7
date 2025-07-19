@@ -468,7 +468,7 @@ PROCESSOR_EXCLUDE_PATHS = [
 CUSTOM_PERMISSION_DENIED_RESPONSE = True  # 是否使用自定义权限拒绝响应
 
 # n8n Webhook配置
-N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', '')
+N8N_WEBHOOK_URL = "http://localhost:5678/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d"  # 直接设置URL，不从环境变量获取
 N8N_WEBHOOK_HEADERS = {
     'Authorization': os.environ.get('N8N_WEBHOOK_AUTH_TOKEN', ''),
     'Content-Type': 'application/json',

@@ -502,6 +502,14 @@ class ExerciseGenerationResponseData(BaseResponse):
 # 答案校正任务格式 (Answer Correction Task Formats)
 # ==============================================================================
 
+class AnswerCorrectionRequestData(BaseRequest):
+    """答案校正任务的请求数据模型"""
+    chatInput: str = Field(..., description="学生的回答内容")
+    sessionId: str = Field(..., description="会话ID，用于跟踪多轮对话")
+    question_id: Optional[int] = Field(None, description="问题ID")
+    question_content: Optional[str] = Field(None, description="问题内容")
+    standard_answer: Optional[str] = Field(None, description="标准答案")
+
 class AnswerCorrectionResponseData(BaseResponse):
     """答案校正任务的响应数据模型"""
     is_correct: bool = Field(..., description="答案是否正确")
@@ -511,6 +519,29 @@ class AnswerCorrectionResponseData(BaseResponse):
     explanation: Optional[str] = Field(None, description="解题思路或解析")
     sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="回答所依据的来源列表")
     session_id: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
+
+
+# ==============================================================================
+# 知识点处理任务格式 (Knowledge Point Processing Task Formats)
+# ==============================================================================
+
+class KnowledgePointProcessingRequestData(BaseRequest):
+    """知识点处理任务的请求数据模型"""
+    knowledge_points: List[Dict[str, Any]] = Field(..., description="课程知识点数据")
+    title: str = Field(..., description="生成内容的标题")
+    subject: str = Field(..., description="学科")
+    grade_level: str = Field(..., description="年级水平")
+    additional_requirements: Optional[str] = Field(None, description="额外要求")
+    chatInput: str = Field(..., description="生成内容的提示文本")
+    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
+
+
+class KnowledgePointProcessingResponseData(BaseResponse):
+    """知识点处理任务的响应数据模型"""
+    content: str = Field(..., description="生成的内容（教学大纲/考试大纲/教案）")
+    structure: Optional[Dict[str, Any]] = Field(None, description="内容的结构化表示")
+    sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="参考资源")
+    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
 
 
 # ==============================================================================
@@ -544,16 +575,22 @@ TASK_FORMATS: Dict[str, Dict[str, Any]] = {
         "response": ExerciseGenerationResponseData,
     },
     "answerCorrection": {
-        "request": DialogueRequestData,  # 重用DialogueRequestData，因为接口格式一致
+        "request": AnswerCorrectionRequestData,
         "response": AnswerCorrectionResponseData,
     },
-    # 在这里可以添加其他任务类型的格式定义
-    # "another_task": {
-    #     "request": AnotherTaskRequest,
-    #     "response": AnotherTaskResponse,
-    # },
+    "teachingOutline": {
+        "request": KnowledgePointProcessingRequestData,
+        "response": KnowledgePointProcessingResponseData,
+    },
+    "examOutline": {
+        "request": KnowledgePointProcessingRequestData,
+        "response": KnowledgePointProcessingResponseData,
+    },
+    "lessonPlan": {
+        "request": KnowledgePointProcessingRequestData,
+        "response": KnowledgePointProcessingResponseData,
+    }
 }
-
 
 def get_task_format(task_type: str) -> Optional[Dict[str, Any]]:
     """
@@ -1489,13 +1526,13 @@ def parse_response(task_type: str, data: Dict[str, Any]) -> BaseModel:
                     "answer": str(data) if isinstance(data, str) else json.dumps(data),
                     "sources": []
                 }
-        elif task_type == "teaching_outline":
+        elif task_type == "teachingOutline":
             formatted_data = format_teaching_outline_response(data)
             return KnowledgePointProcessingResponseData(**formatted_data)
-        elif task_type == "exam_outline":
+        elif task_type == "examOutline":
             formatted_data = format_exam_outline_response(data)
             return KnowledgePointProcessingResponseData(**formatted_data)
-        elif task_type == "lesson_plan":
+        elif task_type == "lessonPlan":
             formatted_data = format_lesson_plan_response(data)
             return KnowledgePointProcessingResponseData(**formatted_data)
         else:
@@ -2374,23 +2411,6 @@ def extract_course_data_with_regex(json_str: str) -> Dict[str, Any]:
     return result
 
 
-class KnowledgePointProcessingRequestData(BaseRequest):
-    """知识点处理任务的请求数据模型"""
-    knowledge_points: List[Dict[str, Any]] = Field(..., description="课程知识点数据")
-    title: str = Field(..., description="生成内容的标题")
-    subject: str = Field(..., description="学科")
-    grade_level: str = Field(..., description="年级水平")
-    additional_requirements: Optional[str] = Field(None, description="额外要求")
-    chatInput: str = Field(..., description="生成内容的提示文本")
-    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
-
-class KnowledgePointProcessingResponseData(BaseResponse):
-    """知识点处理任务的响应数据模型"""
-    content: str = Field(..., description="生成的内容（教学大纲/考试大纲/教案）")
-    structure: Optional[Dict[str, Any]] = Field(None, description="内容的结构化表示")
-    sources: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="参考资源")
-    sessionId: Optional[str] = Field(None, description="会话ID，用于跟踪多轮对话")
-
 def format_teaching_outline_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     格式化教学大纲生成响应
@@ -2401,6 +2421,11 @@ def format_teaching_outline_response(data: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: 格式化后的响应数据
     """
+    # 处理列表类型的响应
+    if isinstance(data, list) and len(data) > 0:
+        data = data[0]  # 获取列表中的第一个元素
+        logger.info("检测到列表类型响应，使用第一个元素进行处理")
+    
     # 提取文本内容
     answer_text, sources_text = parse_ai_response(data)
     
@@ -2411,8 +2436,12 @@ def format_teaching_outline_response(data: Dict[str, Any]) -> Dict[str, Any]:
     response = {
         "content": structured_data.get("answer", answer_text),
         "sources": structured_data.get("sources", extract_sources_from_text(sources_text)),
-        "sessionId": data.get("sessionId")
     }
+    
+    # 如果data是字典且包含sessionId
+    if isinstance(data, dict) and "sessionId" in data:
+        response["sessionId"] = data["sessionId"]
+        logger.info(f"从数据中提取到sessionId: {data['sessionId']}")
     
     # 尝试提取结构化表示（如章节大纲）
     try:

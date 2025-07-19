@@ -471,7 +471,17 @@ class StudentAnswerCorrectionViewSet(viewsets.ViewSet):
 
 class TeachingOutlineViewSet(viewsets.ViewSet):
     """教学大纲生成API视图集"""
-    permission_classes = [permissions.IsAuthenticated]  # 需要认证
+    # 自定义权限类，只允许教师和管理员访问
+    class TeacherOrAdminPermission(permissions.BasePermission):
+        """只允许教师和管理员访问的权限类"""
+        def has_permission(self, request, view):
+            # 检查用户是否已认证
+            if not request.user.is_authenticated:
+                return False
+            # 检查用户角色是否为教师或管理员
+            return request.user.role in ['teacher', 'admin']
+    
+    permission_classes = [TeacherOrAdminPermission]  # 需要教师或管理员权限
     
     @swagger_auto_schema(
         operation_summary="生成教学大纲",
@@ -494,6 +504,8 @@ class TeachingOutlineViewSet(viewsets.ViewSet):
                 }
             ),
             400: "请求参数验证失败",
+            401: "未认证",
+            403: "权限不足",
             500: "服务器内部错误"
         }
     )
@@ -501,6 +513,7 @@ class TeachingOutlineViewSet(viewsets.ViewSet):
         """处理教学大纲生成请求"""
         serializer = KnowledgePointProcessingSerializer(data=request.data)
         
+        # 验证请求数据
         if not serializer.is_valid():
             return create_api_response(
                 success=False,
@@ -511,32 +524,25 @@ class TeachingOutlineViewSet(viewsets.ViewSet):
             )
         
         try:
-            # 准备会话ID
-            session_id = serializer.validated_data.get('session_id')
-            if not session_id:
-                session_id = str(uuid.uuid4())
-            
-            # 准备知识点数据
-            knowledge_points = serializer.validated_data["knowledge_points"]
+            # 获取验证后的数据
+            validated_data = serializer.validated_data
             
             # 调用n8n客户端
             client = N8nWebhookClient()
             result = client.generate_teaching_outline_sync({
-                "knowledge_points": knowledge_points,
-                "title": serializer.validated_data["title"],
-                "subject": serializer.validated_data["subject"],
-                "grade_level": serializer.validated_data["grade_level"],
-                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
-                "session_id": session_id
+                "knowledge_points": validated_data["knowledge_points"],
+                "title": validated_data["title"],
+                "subject": validated_data["subject"],
+                "grade_level": validated_data["grade_level"],
+                "additional_requirements": validated_data.get("additional_requirements"),
+                "session_id": validated_data.get("session_id")
             })
             
-            # 确保响应中包含会话ID
-            if isinstance(result, dict):
-                if 'sessionId' in result:
+            # 确保session_id在响应中
+            if isinstance(result, dict) and "sessionId" in result:
                     result["session_id"] = result.pop("sessionId")
-                else:
-                    result["session_id"] = session_id
             
+            # 返回成功响应
             return create_api_response(
                 success=True,
                 data=result,
@@ -564,7 +570,17 @@ class TeachingOutlineViewSet(viewsets.ViewSet):
 
 class ExamOutlineViewSet(viewsets.ViewSet):
     """考试大纲生成API视图集"""
-    permission_classes = [permissions.IsAuthenticated]  # 需要认证
+    # 自定义权限类，只允许教师和管理员访问
+    class TeacherOrAdminPermission(permissions.BasePermission):
+        """只允许教师和管理员访问的权限类"""
+        def has_permission(self, request, view):
+            # 检查用户是否已认证
+            if not request.user.is_authenticated:
+                return False
+            # 检查用户角色是否为教师或管理员
+            return request.user.role in ['teacher', 'admin']
+    
+    permission_classes = [TeacherOrAdminPermission]  # 需要教师或管理员权限
     
     @swagger_auto_schema(
         operation_summary="生成考试大纲",
@@ -587,6 +603,8 @@ class ExamOutlineViewSet(viewsets.ViewSet):
                 }
             ),
             400: "请求参数验证失败",
+            401: "未认证",
+            403: "权限不足",
             500: "服务器内部错误"
         }
     )
@@ -594,6 +612,7 @@ class ExamOutlineViewSet(viewsets.ViewSet):
         """处理考试大纲生成请求"""
         serializer = KnowledgePointProcessingSerializer(data=request.data)
         
+        # 验证请求数据
         if not serializer.is_valid():
             return create_api_response(
                 success=False,
@@ -604,32 +623,25 @@ class ExamOutlineViewSet(viewsets.ViewSet):
             )
         
         try:
-            # 准备会话ID
-            session_id = serializer.validated_data.get('session_id')
-            if not session_id:
-                session_id = str(uuid.uuid4())
-            
-            # 准备知识点数据
-            knowledge_points = serializer.validated_data["knowledge_points"]
+            # 获取验证后的数据
+            validated_data = serializer.validated_data
             
             # 调用n8n客户端
             client = N8nWebhookClient()
             result = client.generate_exam_outline_sync({
-                "knowledge_points": knowledge_points,
-                "title": serializer.validated_data["title"],
-                "subject": serializer.validated_data["subject"],
-                "grade_level": serializer.validated_data["grade_level"],
-                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
-                "session_id": session_id
+                "knowledge_points": validated_data["knowledge_points"],
+                "title": validated_data["title"],
+                "subject": validated_data["subject"],
+                "grade_level": validated_data["grade_level"],
+                "additional_requirements": validated_data.get("additional_requirements"),
+                "session_id": validated_data.get("session_id")
             })
             
-            # 确保响应中包含会话ID
-            if isinstance(result, dict):
-                if 'sessionId' in result:
+            # 确保session_id在响应中
+            if isinstance(result, dict) and "sessionId" in result:
                     result["session_id"] = result.pop("sessionId")
-                else:
-                    result["session_id"] = session_id
             
+            # 返回成功响应
             return create_api_response(
                 success=True,
                 data=result,
@@ -657,7 +669,17 @@ class ExamOutlineViewSet(viewsets.ViewSet):
 
 class LessonPlanViewSet(viewsets.ViewSet):
     """教案生成API视图集"""
-    permission_classes = [permissions.IsAuthenticated]  # 需要认证
+    # 自定义权限类，只允许教师和管理员访问
+    class TeacherOrAdminPermission(permissions.BasePermission):
+        """只允许教师和管理员访问的权限类"""
+        def has_permission(self, request, view):
+            # 检查用户是否已认证
+            if not request.user.is_authenticated:
+                return False
+            # 检查用户角色是否为教师或管理员
+            return request.user.role in ['teacher', 'admin']
+    
+    permission_classes = [TeacherOrAdminPermission]  # 需要教师或管理员权限
     
     @swagger_auto_schema(
         operation_summary="生成教案",
@@ -680,6 +702,8 @@ class LessonPlanViewSet(viewsets.ViewSet):
                 }
             ),
             400: "请求参数验证失败",
+            401: "未认证",
+            403: "权限不足",
             500: "服务器内部错误"
         }
     )
@@ -687,6 +711,7 @@ class LessonPlanViewSet(viewsets.ViewSet):
         """处理教案生成请求"""
         serializer = KnowledgePointProcessingSerializer(data=request.data)
         
+        # 验证请求数据
         if not serializer.is_valid():
             return create_api_response(
                 success=False,
@@ -697,32 +722,25 @@ class LessonPlanViewSet(viewsets.ViewSet):
             )
         
         try:
-            # 准备会话ID
-            session_id = serializer.validated_data.get('session_id')
-            if not session_id:
-                session_id = str(uuid.uuid4())
-            
-            # 准备知识点数据
-            knowledge_points = serializer.validated_data["knowledge_points"]
+            # 获取验证后的数据
+            validated_data = serializer.validated_data
             
             # 调用n8n客户端
             client = N8nWebhookClient()
             result = client.generate_lesson_plan_sync({
-                "knowledge_points": knowledge_points,
-                "title": serializer.validated_data["title"],
-                "subject": serializer.validated_data["subject"],
-                "grade_level": serializer.validated_data["grade_level"],
-                "additional_requirements": serializer.validated_data.get("additional_requirements", ""),
-                "session_id": session_id
+                "knowledge_points": validated_data["knowledge_points"],
+                "title": validated_data["title"],
+                "subject": validated_data["subject"],
+                "grade_level": validated_data["grade_level"],
+                "additional_requirements": validated_data.get("additional_requirements"),
+                "session_id": validated_data.get("session_id")
             })
             
-            # 确保响应中包含会话ID
-            if isinstance(result, dict):
-                if 'sessionId' in result:
+            # 确保session_id在响应中
+            if isinstance(result, dict) and "sessionId" in result:
                     result["session_id"] = result.pop("sessionId")
-                else:
-                    result["session_id"] = session_id
             
+            # 返回成功响应
             return create_api_response(
                 success=True,
                 data=result,
